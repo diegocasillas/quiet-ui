@@ -85,15 +85,17 @@ your Edit Mode layout.
 
 ## Install
 
-1. Download or clone this repository:
-
-   ```sh
-   git clone https://github.com/rdurica/quiet-ui.git QuietUI
-   ```
-
-2. Put the `QuietUI` folder into
-   `World of Warcraft/_classic_beta_/Interface/AddOns/`.
+1. Download `QuietUI-<version>.zip` from the
+   [latest release](https://github.com/rdurica/quiet-ui/releases/latest).
+2. Extract it into `World of Warcraft/_classic_beta_/Interface/AddOns/`.
+   The zip already contains the `QuietUI` folder.
 3. Start the game (or `/reload`) and accept the layout prompt.
+
+Prefer git? Clone straight into the AddOns folder:
+
+```sh
+git clone https://github.com/rdurica/quiet-ui.git QuietUI
+```
 
 > The folder must be named `QuietUI`, so it matches `QuietUI.toc`.
 

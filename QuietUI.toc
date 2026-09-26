@@ -2,7 +2,7 @@
 ## Title: QuietUI
 ## Notes: Quiet UI for WoW Forever. Bars, XP, meter and cooldowns show on hover, in combat and in instances. One button for bags and menu. Chat without chrome. /quiet
 ## Author: QuietUI
-## Version: 1.0.0
+## Version: 0.1.0
 ## SavedVariables: QuietUIDB
 
 Core.lua
