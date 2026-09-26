@@ -178,6 +178,26 @@ local function Check()
     return true
 end
 
+-- /quiet layout: writes the shipped layout now, even after "Not now".
+function ns.ForceLayout()
+    if not EditModeReady() then
+        ns.Print("Edit Mode is not available")
+        return
+    end
+    if InCombatLockdown() then
+        ns.Print("layout can not change in combat")
+        return
+    end
+    if prompt then prompt:Hide() end
+    local ok, err = pcall(Write)
+    if ok then
+        MarkAnswered()
+        done = true
+    else
+        ns.Report("layout", err)
+    end
+end
+
 -- Layouts are not loaded right at login and are locked in combat, so this
 -- retries on every apply until it has run once per session.
 function ns.EnsureLayout()

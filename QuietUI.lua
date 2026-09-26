@@ -140,12 +140,16 @@ HookGlobal("FCF_SetWindowColor", ns.StripAllChat)
 HookGlobal("FCF_DockUpdate", ns.StripAllChat)
 
 ------------------------------------------------------------------------------
--- /quiet on | off, no argument toggles.
+-- /quiet on | off | layout, no argument toggles.
 ------------------------------------------------------------------------------
 SLASH_QUIETUI1 = "/quiet"
 SLASH_QUIETUI2 = "/quietui"
 SlashCmdList["QUIETUI"] = function(msg)
     msg = (msg or ""):lower():match("^%s*(.-)%s*$")
+    if msg == "layout" then
+        ns.ForceLayout()
+        return
+    end
     local db = ns.DB()
     if msg == "on" then
         db.enabled = true

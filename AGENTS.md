@@ -5,7 +5,7 @@ Opinionated UI for WoW Forever. Modern and quiet: few frames, few buttons, text 
 ## Product
 
 - The goal is a clean UI, not a configurable framework.
-- The only control is `/quiet` (`on` / `off`, no argument toggles).
+- The only control is `/quiet` (`on` / `off`, no argument toggles). `/quiet layout` writes the bundled Edit Mode layout right away, even after "Not now".
 - `QuietUIDB` may hold only `enabled`, the button position after dragging, and `layoutHash` (the last answered layout version). No options panel, sliders, checkboxes, or libraries like Ace3.
 - Player-facing text (chat, tooltip) is English.
 
