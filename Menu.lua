@@ -259,6 +259,13 @@ function ns.RefreshChrome()
     if not ok then ns.Report("menu", err) end
 end
 
+-- The button itself is hover only; it stays while bag slots are in use or it is dragged.
+function ns.UpdateMenuButton(elapsed)
+    if not button or not button:IsShown() then return end
+    local show = ns.MouseOver(button) or button._moved or ns.BagsShouldShow()
+    ns.UpdateFaded(button, show, elapsed)
+end
+
 function ns.ResetMenu()
     bagSlotsPinned = false
     if button then button:Hide() end

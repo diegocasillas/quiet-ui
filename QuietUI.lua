@@ -17,6 +17,7 @@ local function UpdateFades(elapsed)
     local showAll = ns.ShowAll()
     ns.UpdateBars(showAll, elapsed)
     ns.UpdateFaders(showAll, elapsed)
+    ns.UpdateMenuButton(elapsed)
 end
 
 local function RestoreAll()

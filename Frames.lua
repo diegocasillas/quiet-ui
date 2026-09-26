@@ -83,7 +83,7 @@ end
 
 function ns.TreeHas(frame, test, depth)
     depth = depth or 0
-    if not frame or depth > 4 then return false end
+    if not ns.Usable(frame) or depth > 4 then return false end
     if test(frame) then return true end
     if not frame.GetChildren then return false end
     for _, child in ipairs({ frame:GetChildren() }) do
@@ -96,7 +96,7 @@ end
 
 -- Alpha 0 for chrome that is neither spared, a bar, nor part of the bags.
 function ns.Mute(frame)
-    if not frame or ns.IsSpared(frame) or ns.IsBagRelated(frame) then return end
+    if not ns.Usable(frame) or ns.IsSpared(frame) or ns.IsBagRelated(frame) then return end
     ns.HoldAlpha(frame, 0)
 end
 
@@ -110,7 +110,7 @@ function ns.EachBagFrame(fn)
     fn(bags)
     if not bags.GetChildren then return end
     for _, child in ipairs({ bags:GetChildren() }) do
-        if child and not ns.IsSpared(child) then
+        if ns.Usable(child) and not ns.IsSpared(child) then
             fn(child)
         end
     end

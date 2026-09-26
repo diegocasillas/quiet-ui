@@ -44,12 +44,17 @@ local function Safe(fn, ...)
     return ok and result and true or false
 end
 
-local function InEditMode()
+function ns.InEditMode()
     local frame = EditModeManagerFrame
     return frame and frame.IsShown and frame:IsShown() and true or false
 end
 
-local function InForcedInstance()
+function ns.InGroup()
+    if type(IsInGroup) ~= "function" then return false end
+    return Safe(IsInGroup)
+end
+
+function ns.InForcedInstance()
     if type(IsInInstance) ~= "function" then return false end
     return Safe(function()
         local inInstance, kind = IsInInstance()
@@ -75,7 +80,7 @@ end
 
 -- Everything that fades is fully visible while this is true.
 function ns.ShowAll()
-    return InCombatLockdown() or InEditMode() or InVehicle() or InForcedInstance()
+    return InCombatLockdown() or ns.InEditMode() or InVehicle() or ns.InForcedInstance()
         or FlyoutOpen() or CursorBusy()
 end
 

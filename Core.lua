@@ -31,8 +31,21 @@ function ns.Report(name, err)
     print(PREFIX .. name .. " error (shown once): " .. tostring(err))
 end
 
+-- Forbidden frames throw on almost any method call from addon code.
+function ns.Usable(frame)
+    if type(frame) ~= "table" then return false end
+    if frame.IsForbidden and frame:IsForbidden() then return false end
+    return true
+end
+
+-- Secret values (this client hides unit power even out of combat) cannot be
+-- compared or used in arithmetic, only passed on to widgets.
+function ns.IsSecret(value)
+    return type(issecretvalue) == "function" and issecretvalue(value) and true or false
+end
+
 function ns.FrameName(frame)
-    if frame and frame.GetName then
+    if ns.Usable(frame) and frame.GetName then
         return frame:GetName()
     end
 end
@@ -48,7 +61,9 @@ end
 ------------------------------------------------------------------------------
 function ns.Remember(frame)
     if not frame or savedAlpha[frame] then return end
-    savedAlpha[frame] = frame.GetAlpha and frame:GetAlpha() or 1
+    local alpha = frame.GetAlpha and frame:GetAlpha()
+    if ns.IsSecret(alpha) or type(alpha) ~= "number" then alpha = 1 end
+    savedAlpha[frame] = alpha
 end
 
 function ns.EnsureAlphaHook(frame)
@@ -58,19 +73,30 @@ function ns.EnsureAlphaHook(frame)
     pcall(hooksecurefunc, frame, "SetAlpha", function(self, alpha)
         if self._quietApplying then return end
         if not ns.DB().enabled then return end
-        local want = self._quietAlpha
-        if type(want) ~= "number" then return end
-        if math.abs((alpha or 0) - want) < 0.02 then return end
+        local want = self._quietSecret
+        if want == nil then
+            want = self._quietAlpha
+            if type(want) ~= "number" then return end
+            if not ns.IsSecret(alpha) and math.abs((alpha or 0) - want) < 0.02 then return end
+        end
         self._quietApplying = true
         self:SetAlpha(want)
         self._quietApplying = false
     end)
 end
 
+local function CurrentAlpha(frame)
+    local alpha = frame.GetAlpha and frame:GetAlpha()
+    if ns.IsSecret(alpha) then return nil end
+    return alpha
+end
+
 function ns.PushAlpha(frame, alpha)
     if not frame or not frame.SetAlpha then return end
     frame._quietAlpha = alpha
-    if frame.GetAlpha and math.abs((frame:GetAlpha() or 0) - alpha) < 0.01 then
+    frame._quietSecret = nil
+    local current = CurrentAlpha(frame)
+    if current and math.abs(current - alpha) < 0.01 then
         return
     end
     frame._quietApplying = true
@@ -78,8 +104,21 @@ function ns.PushAlpha(frame, alpha)
     frame._quietApplying = false
 end
 
+-- Holds an alpha that may be secret; the fade is skipped since it cannot be read.
+function ns.HoldSecretAlpha(frame, alpha)
+    if not ns.Usable(frame) or not frame.SetAlpha then return end
+    ns.Remember(frame)
+    ns.EnsureAlphaHook(frame)
+    frame._quietAlpha = nil
+    frame._quietSecret = alpha
+    frame._quietApplying = true
+    frame:SetAlpha(alpha)
+    frame._quietApplying = false
+end
+
 -- Remember, hook, and set in one go.
 function ns.HoldAlpha(frame, alpha)
+    if not ns.Usable(frame) then return end
     ns.Remember(frame)
     ns.EnsureAlphaHook(frame)
     ns.PushAlpha(frame, alpha)
@@ -101,7 +140,7 @@ function ns.UpdateFaded(frame, show, elapsed)
     local target = show and 1 or 0
     local current = frame._quietAlpha
     if type(current) ~= "number" then
-        current = frame:GetAlpha() or 1
+        current = CurrentAlpha(frame) or target
     end
     local nextAlpha = target
     if target < current then
@@ -163,6 +202,7 @@ end
 function ns.RestoreAlpha()
     for _, frame in ipairs(hooked) do
         frame._quietAlpha = nil
+        frame._quietSecret = nil
         frame._quietApplying = true
         frame:SetAlpha(savedAlpha[frame] or 1)
         frame._quietApplying = false

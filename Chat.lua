@@ -11,6 +11,8 @@ local CHAT_CHROME = {
     "ChatFrameToggleVoiceSelfMuteButton",
     "ChatFrameToggleVoiceSelfDeafButton",
     "TextToSpeechButton",
+    "QuickJoinToastButton",
+    "FriendsMicroButton",
 }
 
 local CHAT_BUTTON_SUFFIX = {
