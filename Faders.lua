@@ -125,13 +125,14 @@ local function ResourceForced()
     return InCombatLockdown() or ns.InForcedInstance() or ns.InEditMode()
 end
 
--- Power is secret on this client, so Lua cannot compare it. A curve maps the
--- secret power share straight to an alpha: 1 below LOW_POWER, 0 above.
-local lowPowerCurve
+-- Health and power are secret on this client, so Lua cannot compare them. A
+-- curve maps the secret share straight to an alpha: 1 below the limit, 0 at it.
+local curves = {}
 
-local function LowPowerCurve()
-    if lowPowerCurve ~= nil then return lowPowerCurve or nil end
-    lowPowerCurve = false
+local function ThresholdCurve(limit)
+    local cached = curves[limit]
+    if cached ~= nil then return cached or nil end
+    curves[limit] = false
     if not C_CurveUtil or type(C_CurveUtil.CreateCurve) ~= "function" then
         ns.Report("resource bar", "C_CurveUtil.CreateCurve missing")
         return nil
@@ -139,40 +140,78 @@ local function LowPowerCurve()
     local ok, curve = pcall(function()
         local c = C_CurveUtil.CreateCurve()
         c:AddPoint(0, 1)
-        c:AddPoint(LOW_POWER - 0.001, 1)
-        c:AddPoint(LOW_POWER, 0)
-        c:AddPoint(1, 0)
+        c:AddPoint(limit - 0.001, 1)
+        c:AddPoint(limit, 0)
+        if limit < 1 then c:AddPoint(1, 0) end
         return c
     end)
     if ok then
-        lowPowerCurve = curve
+        curves[limit] = curve
     else
         ns.Report("resource bar", curve)
     end
-    return lowPowerCurve or nil
+    return curves[limit] or nil
 end
 
 local function LowPowerAlpha()
     local kind = UnitPowerType("player")
     if ns.IsSecret(kind) or not RESTS_AT_MAX[kind] then return 0 end
-    local curve = LowPowerCurve()
+    local curve = ThresholdCurve(LOW_POWER)
     if not curve or type(UnitPowerPercent) ~= "function" then return 0 end
     return UnitPowerPercent("player", kind, false, curve)
 end
 
+local function MissingHealthAlpha()
+    local curve = ThresholdCurve(1)
+    if not curve or type(UnitHealthPercent) ~= "function" then return 0 end
+    return UnitHealthPercent("player", false, curve)
+end
+
+local function SafeAlpha(label, fn)
+    local ok, alpha = pcall(fn)
+    if ok then return alpha end
+    ns.Report(label, alpha)
+    return 0
+end
+
+local function HealthPart(frame)
+    local health = frame.HealthBarsContainer
+    if ns.Usable(health) and health.SetAlpha then return health end
+end
+
+-- Two secret alphas cannot be merged, so the health part follows missing
+-- health and every other child follows low power; the frame itself stays at 1.
+local function HoldResourceParts(frame, forced)
+    local health = HealthPart(frame)
+    if not health or not frame.GetChildren then
+        if forced then return false end
+        ns.HoldSecretAlpha(frame, SafeAlpha("player power", LowPowerAlpha))
+        return true
+    end
+    if forced then
+        for _, child in ipairs({ frame:GetChildren() }) do
+            if ns.Usable(child) and child.SetAlpha then ns.HoldAlpha(child, 1) end
+        end
+        return false
+    end
+    ns.HoldAlpha(frame, 1)
+    local healthAlpha = SafeAlpha("player health", MissingHealthAlpha)
+    local powerAlpha = SafeAlpha("player power", LowPowerAlpha)
+    for _, child in ipairs({ frame:GetChildren() }) do
+        if child == health then
+            ns.HoldSecretAlpha(child, healthAlpha)
+        elseif ns.Usable(child) and child.SetAlpha then
+            ns.HoldSecretAlpha(child, powerAlpha)
+        end
+    end
+    return true
+end
+
 local function UpdateResource(elapsed)
-    if ResourceForced() then
-        UpdateGroup(resourceFrames, true, elapsed, true)
-        return
-    end
-    local ok, alpha = pcall(LowPowerAlpha)
-    if not ok then
-        ns.Report("player power", alpha)
-        alpha = 0
-    end
+    local forced = ResourceForced()
     for _, frame in ipairs(resourceFrames) do
-        if frame:IsShown() then
-            ns.HoldSecretAlpha(frame, alpha)
+        if frame:IsShown() and not HoldResourceParts(frame, forced) then
+            ns.UpdateFaded(frame, true, elapsed)
         end
     end
 end

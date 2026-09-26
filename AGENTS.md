@@ -17,7 +17,7 @@ Opinionated UI for WoW Forever. Modern and quiet: few frames, few buttons, text 
 - Action bars and the XP bar fade out unless hovered, in combat, in a vehicle, in edit mode, or in an instance (party, raid, pvp, arena).
 - The cooldown manager shows only in combat, in an instance, in a group, or in edit mode. Hover does not show it.
 - The damage meter behaves the same and stays for 10 s after combat.
-- The personal resource bar shows only in combat, in an instance, or in edit mode, and anywhere while mana, focus, or energy is below 70 %. Hover does not show it.
+- The personal resource bar shows only in combat, in an instance, or in edit mode, and anywhere while mana, focus, or energy is below 70 %. Its health bar also shows anywhere while health is not full. Hover does not show it.
 - The player frame (`PlayerFrame`) shows only on hover or in edit mode. Not in combat, not with a target.
 - The micro menu and bags collapse into one button. The button shows only on hover, while bag slots are shown, while an item is on the cursor, or while dragged. Left click opens bags, right click shows the bag slots for swapping, drag moves it.
 - The addon ships an Edit Mode layout named `QuietUI`. `LayoutString.lua` is the source of truth. Each new version of the string is offered once in the addon's own flat prompt (not `StaticPopup`, which spreads taint). The answer (add, update, or not now) is remembered as a hash in `QuietUIDB.layoutHash`; saved layouts are never compared, because the client rewrites them. Nothing changes without the player's consent. A new layout is activated; an updated one is replaced in place. `/quiet off` does not switch layouts. Use `C_EditMode` only, never `EditModeManagerFrame` methods (taint).
