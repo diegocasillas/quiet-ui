@@ -125,6 +125,11 @@ for _, name in ipairs(BAR_NAMES) do
     BAR_SET[name] = true
 end
 
+local BAG_SET = { BagsBar = true }
+for _, name in ipairs(BAG_NAMES) do
+    BAG_SET[name] = true
+end
+
 local SPARE_SET = {
     OverrideActionBar = true,
     ExtraActionBarFrame = true,
@@ -179,6 +184,11 @@ end
 local function IsBarFrame(frame)
     local name = FrameName(frame)
     return name and BAR_SET[name] or false
+end
+
+local function IsBagRelated(frame)
+    local name = FrameName(frame)
+    return name and BAG_SET[name] or false
 end
 
 local function IsQueue(frame)
@@ -257,29 +267,12 @@ local function ReleaseAlpha(frame)
     frame._quietApplying = true
     frame:SetAlpha(info and info.alpha or 1)
     frame._quietApplying = false
-    if info and info.mouse and frame.EnableMouse then
-        frame:EnableMouse(true)
-    end
-end
-
-local function SilenceMouse(frame, depth)
-    if InCombatLockdown() then return end
-    if not frame or depth > 2 or IsSpared(frame) then return end
-    if frame.EnableMouse then
-        Remember(frame)
-        frame:EnableMouse(false)
-    end
-    if not frame.GetChildren then return end
-    for _, child in ipairs({ frame:GetChildren() }) do
-        SilenceMouse(child, depth + 1)
-    end
 end
 
 local function Mute(frame)
-    if not frame or IsSpared(frame) then return end
+    if not frame or IsSpared(frame) or IsBagRelated(frame) then return end
     Remember(frame)
     EnsureAlphaHook(frame)
-    SilenceMouse(frame, 0)
     PushAlpha(frame, 0)
 end
 
@@ -316,25 +309,8 @@ local function HideTextures(frame)
 end
 
 local function Suppress(frame)
-    if not frame or not frame.Hide or not frame.Show then return end
-    if IsSpared(frame) or IsBarFrame(frame) then return end
-    if hidden[frame] == nil then
-        hidden[frame] = frame:IsShown() and true or false
-        if not frame._quietHideHook then
-            frame._quietHideHook = true
-            hooksecurefunc(frame, "Show", function(self)
-                if self._quietHiding then return end
-                if DB().enabled and hidden[self] ~= nil and not InCombatLockdown() then
-                    self._quietHiding = true
-                    self:Hide()
-                    self._quietHiding = false
-                end
-            end)
-        end
-    end
-    if DB().enabled and not InCombatLockdown() then
-        frame:Hide()
-    end
+    if not frame or IsSpared(frame) or IsBarFrame(frame) or IsBagRelated(frame) then return end
+    Mute(frame)
 end
 
 ------------------------------------------------------------------------------
@@ -408,11 +384,60 @@ local function ShowAll()
     return false
 end
 
+local bagSlotsPinned = false
+
+local function CursorHasItem()
+    if type(GetCursorInfo) ~= "function" then return false end
+    local yes = false
+    pcall(function()
+        yes = GetCursorInfo() == "item"
+    end)
+    return yes
+end
+
+local function BagsShouldShow()
+    if not DB().enabled then return false end
+    return bagSlotsPinned or CursorHasItem()
+end
+
+local function EachBagFrame(fn)
+    for _, name in ipairs(BAG_NAMES) do
+        local frame = _G[name]
+        if frame then fn(frame) end
+    end
+    local bags = _G.BagsBar
+    if not bags then return end
+    fn(bags)
+    if not bags.GetChildren then return end
+    for _, child in ipairs({ bags:GetChildren() }) do
+        if child and not IsSpared(child) and not IsBarFrame(child) then
+            fn(child)
+        end
+    end
+end
+
+local function BarCoversBags(bar)
+    if not BagsShouldShow() then return false end
+    local found = false
+    EachBagFrame(function(frame)
+        if found or frame == bar or not frame.GetParent then return end
+        local current = frame:GetParent()
+        while current do
+            if current == bar then
+                found = true
+                return
+            end
+            current = current.GetParent and current:GetParent()
+        end
+    end)
+    return found
+end
+
 local function UpdateOneBar(bar, showAll, elapsed)
     if not bar:IsShown() then return end
     Remember(bar)
     EnsureAlphaHook(bar)
-    local target = (showAll or BarHovered(bar)) and 1 or 0
+    local target = (showAll or BarHovered(bar) or BarCoversBags(bar)) and 1 or 0
     local current = bar._quietAlpha
     if type(current) ~= "number" then
         current = bar:GetAlpha() or 1
@@ -465,8 +490,33 @@ local function UpdateBars(elapsed)
     end
 end
 
+local function UpdateBagSlots()
+    if not DB().enabled then return end
+    local show = BagsShouldShow()
+    EachBagFrame(function(frame)
+        Remember(frame)
+        EnsureAlphaHook(frame)
+        PushAlpha(frame, show and 1 or 0)
+    end)
+    if button and button.SetBackdropBorderColor then
+        if show then
+            button:SetBackdropBorderColor(0.95, 0.75, 0.25, 0.95)
+        else
+            button:SetBackdropBorderColor(0.85, 0.85, 0.85, 0.35)
+        end
+    end
+end
+
+local function ToggleBagSlots()
+    bagSlotsPinned = not bagSlotsPinned
+    UpdateBagSlots()
+    if bagSlotsPinned then
+        Print("sloty na výměnu bagů jsou vidět")
+    end
+end
+
 ------------------------------------------------------------------------------
--- One button for bags (left) and the game menu (right).
+-- One button. Left click opens bags. Right click shows the slots used to swap them.
 ------------------------------------------------------------------------------
 local function PlaceButton(force)
     if not button then return end
@@ -550,9 +600,7 @@ local function EnsureButton()
             return
         end
         if click == "RightButton" then
-            if type(ToggleGameMenu) == "function" then
-                ToggleGameMenu()
-            end
+            ToggleBagSlots()
         elseif type(ToggleAllBags) == "function" then
             ToggleAllBags()
         elseif type(ToggleBackpack) == "function" then
@@ -563,8 +611,8 @@ local function EnsureButton()
         if not GameTooltip then return end
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
         GameTooltip:SetText("QuietUI", 1, 1, 1)
-        GameTooltip:AddLine("Levý klik: batohy", 0.85, 0.85, 0.85)
-        GameTooltip:AddLine("Pravý klik: menu", 0.85, 0.85, 0.85)
+        GameTooltip:AddLine("Levý klik: otevřít batohy", 0.85, 0.85, 0.85)
+        GameTooltip:AddLine("Pravý klik: sloty na výměnu bagů", 0.85, 0.85, 0.85)
         GameTooltip:AddLine("Táhni: přesunout", 0.6, 0.6, 0.6)
         GameTooltip:Show()
     end)
@@ -595,17 +643,14 @@ local function RefreshChrome()
             ConsiderMicro(name, seen, Mute)
         end
     end
-    for _, name in ipairs(BAG_NAMES) do
-        Mute(_G[name])
-    end
     for _, name in ipairs(MENU_FRAMES) do
         local frame = _G[name]
-        if frame and not IsBarFrame(frame) then
-            if TreeHas(frame, IsQueue, 0) or TreeHas(frame, IsBarFrame, 0) then
+        if frame and not IsBarFrame(frame) and not IsBagRelated(frame) then
+            if TreeHas(frame, IsQueue, 0) or TreeHas(frame, IsBarFrame, 0) or TreeHas(frame, IsBagRelated, 0) then
                 HideTextures(frame)
                 if frame.GetChildren then
                     for _, child in ipairs({ frame:GetChildren() }) do
-                        if not IsSpared(child) then
+                        if not IsSpared(child) and not IsBagRelated(child) then
                             Mute(child)
                         end
                     end
@@ -614,7 +659,9 @@ local function RefreshChrome()
                 Mute(frame)
                 if frame.GetChildren then
                     for _, child in ipairs({ frame:GetChildren() }) do
-                        Mute(child)
+                        if not IsBagRelated(child) then
+                            Mute(child)
+                        end
                     end
                 end
             end
@@ -779,20 +826,12 @@ local function RestoreTextures()
     end
 end
 
-local function RestoreSuppressed()
-    for frame, wasShown in pairs(hidden) do
-        if wasShown and frame and frame.Show then
-            frame:Show()
-        end
-    end
-end
-
 local function RestoreAll()
+    bagSlotsPinned = false
     for _, frame in ipairs(hooked) do
         ReleaseAlpha(frame)
     end
     RestoreTextures()
-    RestoreSuppressed()
     if button then button:Hide() end
 end
 
@@ -804,6 +843,7 @@ local function ApplyAll()
     RefreshChrome()
     StripAllChat()
     UpdateBars(0)
+    UpdateBagSlots()
 end
 
 local function Boot()
@@ -870,6 +910,8 @@ events:SetScript("OnUpdate", function(_, elapsed)
     if not booted or not DB().enabled then return end
     local ok, err = pcall(UpdateBars, elapsed)
     if not ok then Report("listy", err) end
+    ok, err = pcall(UpdateBagSlots)
+    if not ok then Report("bagy", err) end
     ok, err = pcall(SyncVisibleEdits)
     if not ok then Report("input", err) end
     chromeAcc = chromeAcc + (elapsed or 0)
