@@ -98,6 +98,10 @@ function handlers.PLAYER_REGEN_ENABLED()
     ns.RefreshChrome()
 end
 
+function handlers.QUEST_TURNED_IN(_, xp)
+    ns.MarkQuestXP(xp)
+end
+
 function handlers.EDIT_MODE_LAYOUTS_UPDATED()
     ns.EnsureLayout()
 end

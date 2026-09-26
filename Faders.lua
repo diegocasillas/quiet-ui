@@ -25,6 +25,9 @@ local RESOURCE_NAMES = {
 -- Keep the meter readable for a moment after combat ends.
 local METER_AFTER_COMBAT = 10
 
+-- Quest XP arrives out of combat, so the XP bar shows it for a moment.
+local XP_AFTER_QUEST = 5
+
 -- The resource bar also shows out of combat below this share of max power.
 local LOW_POWER = 0.7
 
@@ -37,6 +40,7 @@ local resourceFrames = {}
 local meterFrames = {}
 local meterSet = {}
 local lastCombat
+local lastQuestXP
 
 local function IsFadeable(frame)
     return ns.Usable(frame) and frame.SetAlpha and frame.IsShown and true or false
@@ -87,6 +91,21 @@ function ns.MarkCombatEnd()
     if type(GetTime) == "function" then
         lastCombat = GetTime()
     end
+end
+
+function ns.MarkQuestXP(xp)
+    if type(xp) == "number" and not ns.IsSecret(xp) and xp <= 0 then return end
+    if type(GetTime) == "function" then
+        lastQuestXP = GetTime()
+    end
+end
+
+local function XPShouldShow(showAll)
+    if showAll then return true end
+    if lastQuestXP and type(GetTime) == "function" then
+        return GetTime() - lastQuestXP < XP_AFTER_QUEST
+    end
+    return false
 end
 
 local function MeterShouldShow(showAll)
@@ -227,7 +246,7 @@ local function Run(label, fn, ...)
 end
 
 function ns.UpdateFaders(showAll, elapsed)
-    Run("xp bar", UpdateGroup, statusFrames, showAll, elapsed)
+    Run("xp bar", UpdateGroup, statusFrames, XPShouldShow(showAll), elapsed)
     Run("cooldown manager", UpdateGroup, cooldownFrames, CooldownsShouldShow(), elapsed, true)
     Run("damage meter", UpdateGroup, meterFrames, MeterShouldShow(showAll), elapsed)
     Run("resource bar", UpdateResource, elapsed)

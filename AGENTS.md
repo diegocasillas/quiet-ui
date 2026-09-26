@@ -14,7 +14,7 @@ Opinionated UI for WoW Forever. Modern and quiet: few frames, few buttons, text 
 - Flat, dark, thin border. Background `0.05, 0.05, 0.05, 0.75`, border `0.85, 0.85, 0.85, 0.35`, highlight `0.95, 0.75, 0.25`.
 - Message prefix: `|cff8fd4c8QuietUI|r`.
 - A short friendly greeting on login and reload: the state, then one short line each for `/quiet` and `/quiet layout` so commands never wrap. No other chat messages unless the player acts or something fails.
-- Action bars and the XP bar fade out unless hovered, in combat, in a vehicle, in edit mode, or in an instance (party, raid, pvp, arena).
+- Action bars and the XP bar fade out unless hovered, in combat, in a vehicle, in edit mode, or in an instance (party, raid, pvp, arena). The XP bar also shows for 5 s after a quest turn-in that gives XP.
 - The cooldown manager shows only in combat, in an instance, in a group, or in edit mode. Hover does not show it.
 - The damage meter behaves the same and stays for 10 s after combat.
 - The personal resource bar shows only in combat, in an instance, or in edit mode, and anywhere while mana, focus, or energy is below 70 %. Its health bar also shows anywhere while health is not full. Hover does not show it.
