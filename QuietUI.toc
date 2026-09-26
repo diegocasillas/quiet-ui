@@ -1,8 +1,14 @@
 ## Interface: 16001
 ## Title: QuietUI
-## Notes: Tiché UI pro WoW Forever. Lišty po najetí, v boji a v instanci. Jedno tlačítko bagů a menu. Chat bez rámu. /quiet
+## Notes: Quiet UI for WoW Forever. Bars, XP, meter and cooldowns show on hover, in combat and in instances. One button for bags and menu. Chat without chrome. /quiet
 ## Author: QuietUI
 ## Version: 1.0.0
 ## SavedVariables: QuietUIDB
 
+Core.lua
+Frames.lua
+Bars.lua
+Faders.lua
+Menu.lua
+Chat.lua
 QuietUI.lua
