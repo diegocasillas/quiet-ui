@@ -11,4 +11,6 @@ Bars.lua
 Faders.lua
 Menu.lua
 Chat.lua
+LayoutString.lua
+Layout.lua
 QuietUI.lua

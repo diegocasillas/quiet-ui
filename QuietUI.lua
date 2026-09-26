@@ -30,6 +30,7 @@ local function ApplyAll()
         RestoreAll()
         return
     end
+    ns.EnsureLayout()
     ns.RefreshChrome()
     ns.StripAllChat()
     UpdateFades(0)
@@ -89,6 +90,10 @@ function handlers.PLAYER_REGEN_ENABLED()
     ns.MarkCombatEnd()
     UpdateFades(0)
     ns.RefreshChrome()
+end
+
+function handlers.EDIT_MODE_LAYOUTS_UPDATED()
+    ns.EnsureLayout()
 end
 
 function handlers.UPDATE_CHAT_WINDOWS()
