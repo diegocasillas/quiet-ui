@@ -45,6 +45,12 @@ end
 local function Boot()
     local first = not booted
     booted = true
+    if first then
+        local state = ns.DB().enabled and "on, enjoy the quiet" or "off for now"
+        ns.Print("is " .. state .. ".")
+        print("   |cffffffff/quiet|r  switch it on or off")
+        print("   |cffffffff/quiet layout|r  bring back the Edit Mode layout")
+    end
     Rescan()
     if first and C_Timer and C_Timer.After then
         C_Timer.After(0.5, ApplyAll)
