@@ -20,6 +20,7 @@ Opinionated UI for WoW Forever. Modern and quiet: few frames, few buttons, text 
 - The personal resource bar shows only in combat, in an instance, or in edit mode, and anywhere while mana, focus, or energy is below 70 %. Its health bar also shows anywhere while health is not full. Hover does not show it.
 - The player frame (`PlayerFrame`) shows only on hover or in edit mode. Not in combat, not with a target.
 - The quest tracker (`ObjectiveTrackerFrame` / `QuestWatchFrame`) shows only on hover or in edit mode.
+- Buffs and debuffs (`BuffFrame`, `DebuffFrame`, `TemporaryEnchantFrame`) show only in combat, in an instance, in a group, on hover, or in edit mode.
 - The micro menu and bags collapse into one button. The button shows only on hover, while bag slots are shown, while an item is on the cursor, or while dragged. Left click opens bags, right click shows the bag slots for swapping, drag moves it.
 - The addon ships an Edit Mode layout named `QuietUI`. `LayoutString.lua` is the source of truth. Each new version of the string is offered once in the addon's own flat prompt (not `StaticPopup`, which spreads taint). The answer (add, update, or not now) is remembered as a hash in `QuietUIDB.layoutHash`; saved layouts are never compared, because the client rewrites them. Nothing changes without the player's consent. A new layout is activated; an updated one is replaced in place. `/quiet off` does not switch layouts. Use `C_EditMode` only, never `EditModeManagerFrame` methods (taint).
 - Chat keeps its text and drops the chrome. The input box is visible only while focused. Enter stays a Blizzard binding.
@@ -48,7 +49,7 @@ Opinionated UI for WoW Forever. Modern and quiet: few frames, few buttons, text 
   - `Core.lua`: `DB`, `Print`, `Report`, alpha hooks, fading, texture hiding, restore.
   - `Frames.lua`: bar / bag / spared classification, `Mute`.
   - `Bars.lua`: action bars and `ShowAll`.
-  - `Faders.lua`: XP bar, cooldown manager, damage meter, player frame, quest tracker.
+  - `Faders.lua`: XP bar, cooldown manager, damage meter, player frame, quest tracker, buffs.
   - `Menu.lua`: the bag button and micro menu.
   - `Chat.lua`: chat chrome and the input box.
   - `LayoutString.lua`: only the Edit Mode export string. Update it by pasting a new export.

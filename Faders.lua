@@ -1,7 +1,7 @@
 local _, ns = ...
 
 -- Non-bar frames that fade: XP bar, cooldown manager, personal resource bar,
--- damage meter, the player frame, and the quest tracker.
+-- damage meter, the player frame, the quest tracker, and buffs.
 
 local STATUS_NAMES = {
     "StatusTrackingBarManager",
@@ -28,6 +28,12 @@ local QUEST_NAMES = {
     "WatchFrame",
 }
 
+local AURA_NAMES = {
+    "BuffFrame",
+    "DebuffFrame",
+    "TemporaryEnchantFrame",
+}
+
 -- Keep the meter readable for a moment after combat ends.
 local METER_AFTER_COMBAT = 10
 
@@ -44,6 +50,7 @@ local statusFrames = {}
 local cooldownFrames = {}
 local resourceFrames = {}
 local questFrames = {}
+local auraFrames = {}
 local meterFrames = {}
 local meterSet = {}
 local lastCombat
@@ -92,6 +99,7 @@ function ns.FindFaders(deep)
     FindNamed(cooldownFrames, COOLDOWN_NAMES)
     FindNamed(resourceFrames, RESOURCE_NAMES)
     FindNamed(questFrames, QUEST_NAMES)
+    FindNamed(auraFrames, AURA_NAMES)
     FindMeters(deep)
 end
 
@@ -248,6 +256,33 @@ local function CooldownsShouldShow()
     return InCombatLockdown() or ns.InForcedInstance() or ns.InGroup() or ns.InEditMode()
 end
 
+-- Aura buttons can sit outside their container's bounds, so children count too.
+local function MouseOverAny(frame)
+    if ns.MouseOver(frame) then return true end
+    if not frame.GetChildren then return false end
+    for _, child in ipairs({ frame:GetChildren() }) do
+        if ns.Usable(child) and ns.MouseOver(child) then return true end
+    end
+    return false
+end
+
+local function UpdateAuras(elapsed)
+    local show = InCombatLockdown() or ns.InForcedInstance() or ns.InGroup() or ns.InEditMode()
+    if not show then
+        for _, frame in ipairs(auraFrames) do
+            if MouseOverAny(frame) then
+                show = true
+                break
+            end
+        end
+    end
+    for _, frame in ipairs(auraFrames) do
+        if frame:IsShown() then
+            ns.UpdateFaded(frame, show, elapsed)
+        end
+    end
+end
+
 local function Run(label, fn, ...)
     local ok, err = pcall(fn, ...)
     if not ok then ns.Report(label, err) end
@@ -260,4 +295,5 @@ function ns.UpdateFaders(showAll, elapsed)
     Run("resource bar", UpdateResource, elapsed)
     Run("player frame", UpdatePlayer, elapsed)
     Run("quest tracker", UpdateGroup, questFrames, ns.InEditMode(), elapsed)
+    Run("buffs", UpdateAuras, elapsed)
 end
