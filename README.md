@@ -58,8 +58,12 @@ The micro menu and all bag buttons collapse into a single small button.
 
 ### Chat without the chrome
 
-Chat keeps its text and loses the tab art, buttons and background. The input
-box appears only while you type. **Enter** works as always.
+Modern chat is on unless you turn it off in `/quiet setup`. Then the original
+chat comes back and QuietUI leaves it alone. While it is on, chat drops the tab art, buttons and background. Each line sits on its own
+translucent black bubble, so it stays readable on bright ground. A new line
+slides in from the left and older lines move up. Hover a line for the copy
+icon. A numbered channel shows only its number, and guild, party, raid and the other group tags use a short letter. The input is a flat field and
+appears only while you type. **Enter** works as always.
 
 ![Chat without chrome](docs/images/img005.png)
 
@@ -95,8 +99,10 @@ buffs and debuffs, bag button.
 
 **Player frame.** Personal resource or Classic, as above.
 
+**Chat.** Modern chat is on by default. Uncheck it and Save to use the original chat.
+
 - **Save** keeps the choices and closes the window.
-- **Reset default** clears the checks, puts Personal resource back, and applies that at once.
+- **Reset default** clears the checks, puts Personal resource and Modern chat back, and applies that at once.
 - **Import layout** writes the QuietUI Edit Mode layout.
 - **Escape** closes the window and drops checks you have not saved.
 

@@ -50,6 +50,11 @@ function ns.PlayerStyle()
     return "resource"
 end
 
+-- Missing means on. Only an explicit false turns the modern chat off.
+function ns.ModernChat()
+    return ns.CharDB().chat ~= false
+end
+
 local function Flat(widget, alpha)
     if not widget.SetBackdrop then return end
     widget:SetBackdrop({
@@ -86,6 +91,9 @@ local function Paint()
     for _, row in ipairs(frame.styles) do
         PaintBox(row.box, draft.player == row.key)
     end
+    if frame.chat then
+        PaintBox(frame.chat.box, draft.chat)
+    end
 end
 
 local function ReadDraft()
@@ -93,6 +101,7 @@ local function ReadDraft()
         draft[row.key] = ns.Pinned(row.key)
     end
     draft.player = ns.PlayerStyle()
+    draft.chat = ns.ModernChat()
 end
 
 local function Write()
@@ -110,6 +119,7 @@ local function Write()
     else
         db.player = nil
     end
+    db.chat = draft.chat and nil or false
 end
 
 local function ActionButton(parent, text, onClick)
@@ -194,12 +204,20 @@ local function CreateSetup()
         widget.styles[#widget.styles + 1] = row
     end
 
+    widget.chatHeader = Section(widget, "Chat")
+    widget.chat = Choice(widget, "Modern chat", function()
+        draft.chat = not draft.chat
+        Paint()
+    end)
+
     widget.reset = ActionButton(widget, "Reset default", function()
         local db = ns.CharDB()
         db.visible = nil
         db.player = nil
+        db.chat = nil
         ReadDraft()
         Paint()
+        if ns.ApplyAll then ns.ApplyAll() end
     end)
     widget.import = ActionButton(widget, "Import layout", function()
         ns.ForceLayout()
@@ -207,6 +225,7 @@ local function CreateSetup()
     widget.save = ActionButton(widget, "Save", function()
         Write()
         widget:Hide()
+        if ns.ApplyAll then ns.ApplyAll() end
     end)
 
     local y = -14
@@ -225,6 +244,11 @@ local function CreateSetup()
         row:SetPoint("TOPLEFT", 16, y)
         y = y - 24
     end
+    y = y - 6
+    widget.chatHeader:SetPoint("TOPLEFT", 16, y)
+    y = y - 20
+    widget.chat:SetPoint("TOPLEFT", 16, y)
+    y = y - 24
     widget:SetHeight(-y + 50)
     widget.reset:SetPoint("BOTTOMLEFT", 16, 16)
     widget.import:SetPoint("BOTTOM", 0, 16)

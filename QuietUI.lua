@@ -22,6 +22,7 @@ end
 
 local function RestoreAll()
     ns.ResetMenu()
+    ns.RestoreChat()
     ns.RestoreAlpha()
 end
 
@@ -32,10 +33,16 @@ local function ApplyAll()
     end
     ns.EnsureLayout()
     ns.RefreshChrome()
-    ns.StripAllChat()
+    if ns.ModernChat() then
+        ns.StripAllChat()
+    else
+        ns.RestoreChat()
+    end
     UpdateFades(0)
     ns.UpdateBagSlots()
 end
+
+ns.ApplyAll = ApplyAll
 
 local function Rescan()
     ns.FindFaders(true)
@@ -132,13 +139,18 @@ events:SetScript("OnUpdate", function(_, elapsed)
     if not booted or not ns.DB().enabled then return end
     Run("bars", UpdateFades, elapsed)
     Run("bags", ns.UpdateBagSlots)
-    Run("input", ns.SyncVisibleEdits)
+    if ns.ModernChat() then
+        Run("input", ns.SyncVisibleEdits)
+        Run("bubbles", ns.UpdateChat, elapsed)
+    end
     chromeAcc = chromeAcc + (elapsed or 0)
     if chromeAcc < 1 then return end
     chromeAcc = 0
     Run("frame scan", ns.FindFaders, false)
     Run("menu", ns.RefreshChrome)
-    Run("chat", ns.StripAllChat)
+    if ns.ModernChat() then
+        Run("chat", ns.StripAllChat)
+    end
 end)
 
 for eventName in pairs(handlers) do

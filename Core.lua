@@ -10,6 +10,7 @@ local hooked = {}
 local savedAlpha = {}
 local textureAlpha = {}
 local reported = {}
+local chatHeld = {}
 
 function ns.DB()
     if type(QuietUIDB) ~= "table" then
@@ -73,6 +74,7 @@ function ns.EnsureAlphaHook(frame)
     pcall(hooksecurefunc, frame, "SetAlpha", function(self, alpha)
         if self._quietApplying then return end
         if not ns.DB().enabled then return end
+        if self._quietChat and ns.ModernChat and not ns.ModernChat() then return end
         local want = self._quietSecret
         if want == nil then
             want = self._quietAlpha
@@ -121,7 +123,36 @@ function ns.HoldAlpha(frame, alpha)
     if not ns.Usable(frame) then return end
     ns.Remember(frame)
     ns.EnsureAlphaHook(frame)
+    if ns.MarkingChat then ns.NoteChat(frame) end
     ns.PushAlpha(frame, alpha)
+end
+
+function ns.ReleaseAlpha(frame)
+    if not frame or not frame.SetAlpha then return end
+    frame._quietAlpha = nil
+    frame._quietSecret = nil
+    frame._quietApplying = true
+    frame:SetAlpha(savedAlpha[frame] or 1)
+    frame._quietApplying = false
+end
+
+function ns.NoteChat(obj)
+    if not obj or obj._quietChat then return end
+    obj._quietChat = true
+    chatHeld[#chatHeld + 1] = obj
+end
+
+function ns.ReleaseChatHold()
+    for i = 1, #chatHeld do
+        local obj = chatHeld[i]
+        if obj.GetObjectType and obj:GetObjectType() == "Texture" then
+            obj._quietApplying = true
+            obj:SetAlpha(textureAlpha[obj] or 1)
+            obj._quietApplying = false
+        else
+            ns.ReleaseAlpha(obj)
+        end
+    end
 end
 
 -- Old globals can alias new frames (MainMenuBar may be MainActionBar), so a
@@ -161,10 +192,12 @@ function ns.ForceTextureHidden(tex)
     if textureAlpha[tex] == nil then
         textureAlpha[tex] = tex:GetAlpha()
     end
+    if ns.MarkingChat then ns.NoteChat(tex) end
     if not tex._quietTexHook then
         tex._quietTexHook = true
         pcall(hooksecurefunc, tex, "SetAlpha", function(self, alpha)
             if self._quietApplying or not ns.DB().enabled then return end
+            if self._quietChat and ns.ModernChat and not ns.ModernChat() then return end
             if (alpha or 0) < 0.01 then return end
             self._quietApplying = true
             self:SetAlpha(0)
