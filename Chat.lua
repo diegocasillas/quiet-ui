@@ -53,6 +53,7 @@ local PAD = 5
 local GAP = 3
 local SLIDE_X = 18
 local SLIDE_TIME = 0.2
+local FADE_OUT = 0.5
 local MAX_LINKS = 12
 
 local stripping = false
@@ -536,13 +537,15 @@ local function PushLine(frame, text, r, g, b, animate, addToStart)
     end
     local lines = frame._quietLines
     if not lines then return end
+    local now = GetTime()
     local entry = {
         text = text,
         secret = secret and true or nil,
         r = type(r) == "number" and r or 1,
         g = type(g) == "number" and g or 1,
         b = type(b) == "number" and b or 1,
-        born = animate and GetTime() or nil,
+        born = now,
+        slide = animate and now or nil,
     }
     -- Always the newest entry. The client sometimes passes addToStart, which
     -- would pin a new line to the top of this stack.
@@ -1214,12 +1217,31 @@ local function SyncCopy(bubble)
 end
 
 local function SlideX(msg)
-    if not msg.born then return 0 end
-    local age = GetTime() - msg.born
+    if not msg.slide then return 0 end
+    local age = GetTime() - msg.slide
     if age < 0 or age >= SLIDE_TIME then return 0 end
     local t = age / SLIDE_TIME
     local k = 1 - (1 - t) * (1 - t)
     return -SLIDE_X * (1 - k)
+end
+
+-- 0 hides the line. The last half second fades it. A missing interval stays at 10.
+local function LineAlpha(msg)
+    local life = 10
+    if ns.ChatFade then life = ns.ChatFade() end
+    if type(life) ~= "number" or life <= 0 or not msg.born then return 1 end
+    local left = life - (GetTime() - msg.born)
+    if left <= 0 then return 0 end
+    if left >= FADE_OUT then return 1 end
+    return left / FADE_OUT
+end
+
+-- Keeps the line under the pointer, including the copy box. Does not reveal older lines.
+local function BubbleHeld(bubble)
+    if not bubble then return false end
+    if ns.MouseOver(bubble) then return true end
+    if bubble.copy and ns.MouseOver(bubble.copy) then return true end
+    return copyBox and copyBox:IsShown() and copyBox.anchor == bubble or false
 end
 
 local function Ease(current, target, elapsed)
@@ -1234,6 +1256,7 @@ local function ReleaseBubble(frame, bubble)
         HideCopyBox()
     end
     bubble:Hide()
+    bubble:SetAlpha(1)
     bubble.msg = nil
     bubble._y = nil
     bubble._quietSizeKey = nil
@@ -1328,6 +1351,8 @@ local function LayoutFrame(frame, elapsed)
     if offset < 0 then offset = 0 end
     local maxOffset = math.max(0, #lines - 1)
     if offset > maxOffset then offset = maxOffset end
+    -- Only the bottom view drops old lines. Scrolling still walks the full list.
+    local fading = offset == 0
     local index = #lines - offset
     local y = 4
     local seen = {}
@@ -1337,30 +1362,44 @@ local function LayoutFrame(frame, elapsed)
         guard = guard + 1
         local msg = lines[index]
         local known = byMsg[msg]
-        local bubble = known or AcquireBubble(frame)
-        ApplyFont(bubble, frame)
-        local h = SizeBubble(bubble, msg, width - 8)
-        if y > 4 and y + h > height - 2 then
-            if not known then
-                ReleaseBubble(frame, bubble)
+        local alpha = 1
+        local place = true
+        if fading then
+            alpha = LineAlpha(msg)
+            if known and BubbleHeld(known) then
+                alpha = 1
+            elseif alpha <= 0 then
+                place = false
+                if not known then break end
             end
-            break
         end
-        byMsg[msg] = bubble
-        seen[msg] = true
-        stack[#stack + 1] = bubble
-        local target = y
-        if bubble.msg ~= msg or bubble._y == nil then
-            bubble._y = target
-        else
-            bubble._y = Ease(bubble._y, target, elapsed)
+        if place then
+            local bubble = known or AcquireBubble(frame)
+            ApplyFont(bubble, frame)
+            local h = SizeBubble(bubble, msg, width - 8)
+            if y > 4 and y + h > height - 2 then
+                if not known then
+                    ReleaseBubble(frame, bubble)
+                end
+                break
+            end
+            byMsg[msg] = bubble
+            seen[msg] = true
+            stack[#stack + 1] = bubble
+            local target = y
+            if bubble.msg ~= msg or bubble._y == nil then
+                bubble._y = target
+            else
+                bubble._y = Ease(bubble._y, target, elapsed)
+            end
+            bubble.msg = msg
+            bubble.chat = frame
+            bubble:ClearAllPoints()
+            bubble:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 4 + SlideX(msg), bubble._y)
+            bubble:SetAlpha(alpha)
+            bubble:Show()
+            y = y + h + GAP
         end
-        bubble.msg = msg
-        bubble.chat = frame
-        bubble:ClearAllPoints()
-        bubble:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 4 + SlideX(msg), bubble._y)
-        bubble:Show()
-        y = y + h + GAP
         index = index - 1
     end
     -- Same level, newest raised last so it stays above the lines it pushes up.

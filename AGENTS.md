@@ -5,8 +5,8 @@ Opinionated UI for WoW Forever. Modern and quiet: few frames, few buttons, text 
 ## Product
 
 - The goal is a clean UI, not a configurable framework.
-- `/quiet` turns it on or off (`on` / `off`, no argument toggles). `/quiet setup` is the one window: check what stays visible, pick the player frame, choose modern chat, then Save. Reset default restores the rules below and saves immediately. Import layout writes the bundled Edit Mode layout right away, even after "Not now". Escape closes the window without saving.
-- `QuietUIDB` is the account and may hold only `enabled`, the button position after dragging, and `layoutHash` (the last answered layout version). The setup is per character in `QuietUICharDB`: `visible` (which rows stay on screen; a missing flag means off), `player` (`classic`, or missing for the personal resource preset), `chat` (`false` turns modern chat off; missing means on), and `previousLayout` (the Edit Mode layout index that was active before QuietUI). No sliders and no libraries like Ace3.
+- `/quiet` turns it on or off (`on` / `off`, no argument toggles). `/quiet setup` is the one window: check what stays visible, pick the player frame, choose modern chat and how soon its lines fade, then Save. Reset default restores the rules below and saves immediately. Import layout writes the bundled Edit Mode layout right away, even after "Not now". Escape closes the window without saving.
+- `QuietUIDB` is the account and may hold only `enabled`, the button position after dragging, and `layoutHash` (the last answered layout version). The setup is per character in `QuietUICharDB`: `visible` (which rows stay on screen; a missing flag means off), `player` (`classic`, or missing for the personal resource preset), `chat` (`false` turns modern chat off; missing means on), `chatFade` (seconds a modern-chat line stays at the bottom; missing means 10, `0` keeps it), and `previousLayout` (the Edit Mode layout index that was active before QuietUI). No sliders and no libraries like Ace3.
 - Player-facing text (chat, tooltip) is English.
 
 ## Look
@@ -24,7 +24,7 @@ Opinionated UI for WoW Forever. Modern and quiet: few frames, few buttons, text 
 - Buffs and debuffs (`BuffFrame`, `DebuffFrame`, `TemporaryEnchantFrame`) show only in combat, in an instance, in a group, on hover, or in edit mode.
 - The micro menu and bags collapse into one button. The button shows only on hover, while bag slots are shown, while an item is on the cursor, or while dragged. Left click opens bags, right click shows the bag slots for swapping, drag moves it.
 - The addon ships an Edit Mode layout named `QuietUI`. `LayoutString.lua` is the source of truth. Each new version of the string is offered once in the addon's own flat prompt (not `StaticPopup`, which spreads taint). The answer (add, update, or not now) is remembered as a hash in `QuietUIDB.layoutHash`; saved layouts are never compared, because the client rewrites them. An updated layout is replaced in place only after the player agrees. Turning QuietUI on selects the QuietUI layout and creates it from that string when it is missing. The layout that was active before is stored per character as `previousLayout` and selected again when QuietUI is turned off. Use `C_EditMode` only, never `EditModeManagerFrame` methods (taint).
-- Chat keeps its text and drops the chrome while Modern chat is on (the default). Each line is a translucent black bubble; a new line slides in from the left and older lines ease upward. Hover a line to copy it. A numbered channel shows only its number, and guild, party, raid and the other group tags use a short letter. Joining, leaving, or changing a channel is not shown. The input is a flat field, visible only while focused. Enter stays a Blizzard binding. Turning Modern chat off leaves the original chat untouched.
+- Chat keeps its text and drops the chrome while Modern chat is on (the default). Each line is a translucent black bubble; a new line slides in from the left and older lines ease upward. At the bottom, a line fades across its last half second and drops after the fade interval (10 s unless setup says otherwise; 0 keeps it). The lines stay in the list, so scrolling still walks the full history. Hover a line to copy it. A numbered channel shows only its number, and guild, party, raid and the other group tags use a short letter. Joining, leaving, or changing a channel is not shown. The input is a flat field, visible only while focused. Enter stays a Blizzard binding. Turning Modern chat off leaves the original chat untouched.
 
 ## Client
 
@@ -55,7 +55,7 @@ Opinionated UI for WoW Forever. Modern and quiet: few frames, few buttons, text 
   - `Chat.lua`: chat chrome, line bubbles, and the input box.
   - `LayoutString.lua`: only the Edit Mode export string. Update it by pasting a new export.
   - `Layout.lua`: asks to add or update the `QuietUI` Edit Mode layout from that string.
-  - `Setup.lua`: the `/quiet setup` window, `CharDB`, `Pinned`, `PlayerStyle`.
+  - `Setup.lua`: the `/quiet setup` window, `CharDB`, `Pinned`, `PlayerStyle`, `ChatFade`.
   - `QuietUI.lua`: `ApplyAll`, `RestoreAll`, events, `OnUpdate`, `/quiet`.
 - Call other files through `ns` at run time, not through locals captured at load, so load order only matters for `QuietUI.lua` being last.
 - Comments in English, short, only where the reason is not visible from the code.

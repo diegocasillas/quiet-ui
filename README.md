@@ -60,7 +60,7 @@ The micro menu and all bag buttons collapse into a single small button.
 
 A toggle in `/quiet setup`, on by default. Uncheck it and the original chat comes back.
 
-Each message is its own rounded bubble. A new line slides in from the left. Hover a line to copy it. Channel tags stay short, and the input appears only while you type. **Enter** works as always.
+Each message is its own rounded bubble. A new line slides in from the left. At the bottom a line fades away after 10 seconds. Scroll up and the older lines are still there. Hover a line to copy it. Channel tags stay short, and the input appears only while you type. **Enter** works as always.
 
 ![Modern chat](docs/images/img005.png)
 
@@ -96,10 +96,10 @@ buffs and debuffs, bag button.
 
 **Player frame.** Personal resource or Classic, as above.
 
-**Chat.** Modern chat is a toggle, on by default. Uncheck it and Save to use the original chat.
+**Chat.** Modern chat is a toggle, on by default. Uncheck it and Save to use the original chat. Fade after sets how long a line stays at the bottom: steps of 5 seconds, up to 60. Stay keeps the line. The default is 10 seconds.
 
 - **Save** keeps the choices and closes the window.
-- **Reset default** clears the checks, puts Personal resource and Modern chat back, and applies that at once.
+- **Reset default** clears the checks, puts Personal resource, Modern chat, and a 10 second fade back, and applies that at once.
 - **Import layout** writes the QuietUI Edit Mode layout.
 - **Escape** closes the window and drops checks you have not saved.
 

@@ -1,6 +1,6 @@
 local _, ns = ...
 
--- One window: what stays visible, and which player frame preset to use.
+-- One window: what stays visible, which player frame, and how soon chat lines fade.
 -- The frame is named so UISpecialFrames can close it on Escape.
 
 local ROWS = {
@@ -55,6 +55,21 @@ function ns.ModernChat()
     return ns.CharDB().chat ~= false
 end
 
+-- Seconds a line stays at the bottom. Missing means 10. 0 keeps the line.
+function ns.ChatFade()
+    local n = ns.CharDB().chatFade
+    if type(n) ~= "number" or n ~= n then return 10 end
+    if n <= 0 then return 0 end
+    n = math.floor(n)
+    if n > 60 then n = 60 end
+    return math.floor(n / 5) * 5
+end
+
+local function FadeText(seconds)
+    if not seconds or seconds <= 0 then return "Stay" end
+    return seconds .. " s"
+end
+
 local function Flat(widget, alpha)
     if not widget.SetBackdrop then return end
     widget:SetBackdrop({
@@ -94,6 +109,9 @@ local function Paint()
     if frame.chat then
         PaintBox(frame.chat.box, draft.chat)
     end
+    if frame.fade then
+        frame.fade.value:SetText(FadeText(draft.chatFade))
+    end
 end
 
 local function ReadDraft()
@@ -102,6 +120,7 @@ local function ReadDraft()
     end
     draft.player = ns.PlayerStyle()
     draft.chat = ns.ModernChat()
+    draft.chatFade = ns.ChatFade()
 end
 
 local function Write()
@@ -123,6 +142,11 @@ local function Write()
         db.chat = nil
     else
         db.chat = false
+    end
+    if draft.chatFade == 10 then
+        db.chatFade = nil
+    else
+        db.chatFade = draft.chatFade
     end
 end
 
@@ -155,6 +179,45 @@ local function Choice(parent, text, onClick)
     highlight:SetColorTexture(0.95, 0.75, 0.25, 0.12)
     button:SetScript("OnClick", onClick)
     return button
+end
+
+local function NudgeFade(delta)
+    local n = (draft.chatFade or 10) + delta
+    if n < 0 then n = 0 end
+    if n > 60 then n = 60 end
+    draft.chatFade = n
+    Paint()
+end
+
+local function Mini(parent, text, onClick)
+    local button = Backdropped("Button", nil, parent)
+    button:SetSize(22, 22)
+    Flat(button, 0.9)
+    button.label = button:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    button.label:SetPoint("CENTER")
+    button.label:SetText(text)
+    local highlight = button:CreateTexture(nil, "HIGHLIGHT")
+    highlight:SetAllPoints()
+    highlight:SetColorTexture(0.95, 0.75, 0.25, 0.2)
+    button:SetScript("OnClick", onClick)
+    return button
+end
+
+local function FadeRow(parent)
+    local row = CreateFrame("Frame", nil, parent)
+    row:SetSize(348, 22)
+    row.label = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    row.label:SetPoint("LEFT", 2, 0)
+    row.label:SetText("Fade after")
+    row.plus = Mini(row, "+", function() NudgeFade(5) end)
+    row.minus = Mini(row, "-", function() NudgeFade(-5) end)
+    row.value = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    row.value:SetWidth(44)
+    row.value:SetJustifyH("CENTER")
+    row.plus:SetPoint("RIGHT", 0, 0)
+    row.value:SetPoint("RIGHT", row.plus, "LEFT", -4, 0)
+    row.minus:SetPoint("RIGHT", row.value, "LEFT", -4, 0)
+    return row
 end
 
 local function Section(parent, text)
@@ -213,12 +276,14 @@ local function CreateSetup()
         draft.chat = not draft.chat
         Paint()
     end)
+    widget.fade = FadeRow(widget)
 
     widget.reset = ActionButton(widget, "Reset default", function()
         local db = ns.CharDB()
         db.visible = nil
         db.player = nil
         db.chat = nil
+        db.chatFade = nil
         ReadDraft()
         Paint()
         if ns.ApplyAll then ns.ApplyAll() end
@@ -252,6 +317,8 @@ local function CreateSetup()
     widget.chatHeader:SetPoint("TOPLEFT", 16, y)
     y = y - 20
     widget.chat:SetPoint("TOPLEFT", 16, y)
+    y = y - 24
+    widget.fade:SetPoint("TOPLEFT", 16, y)
     y = y - 24
     widget:SetHeight(-y + 50)
     widget.reset:SetPoint("BOTTOMLEFT", 16, 16)
