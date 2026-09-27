@@ -149,15 +149,32 @@ local function UpdateGroup(frames, show, elapsed, noHover)
     end
 end
 
--- Health and power live on the resource bar, so the portrait is hover only.
+local function Flag(fn, ...)
+    if type(fn) ~= "function" then return false end
+    local ok, result = pcall(fn, ...)
+    return ok and result and true or false
+end
+
+-- Personal resource keeps the portrait for edit mode. Classic also shows it
+-- with a target, in combat, in an instance, in a group, in a vehicle, and on hover.
 local function UpdatePlayer(elapsed)
     local frame = PlayerFrame
     if not IsFadeable(frame) or not frame:IsShown() then return end
-    ns.UpdateFaded(frame, ns.InEditMode() or ns.MouseOver(frame), elapsed)
+    local show = ns.InEditMode()
+    if ns.PlayerStyle() == "classic" then
+        show = show
+            or ns.MouseOver(frame)
+            or InCombatLockdown()
+            or ns.InForcedInstance()
+            or ns.InGroup()
+            or Flag(UnitHasVehicleUI, "player")
+            or Flag(UnitExists, "target")
+    end
+    ns.UpdateFaded(frame, show, elapsed)
 end
 
 local function ResourceForced()
-    return InCombatLockdown() or ns.InForcedInstance() or ns.InEditMode()
+    return InCombatLockdown() or ns.InForcedInstance() or ns.InEditMode() or ns.Pinned("resource")
 end
 
 -- Health and power are secret on this client, so Lua cannot compare them. A
@@ -268,6 +285,7 @@ end
 
 local function UpdateAuras(elapsed)
     local show = InCombatLockdown() or ns.InForcedInstance() or ns.InGroup() or ns.InEditMode()
+        or ns.Pinned("auras")
     if not show then
         for _, frame in ipairs(auraFrames) do
             if MouseOverAny(frame) then
@@ -289,11 +307,11 @@ local function Run(label, fn, ...)
 end
 
 function ns.UpdateFaders(showAll, elapsed)
-    Run("xp bar", UpdateGroup, statusFrames, XPShouldShow(showAll), elapsed)
-    Run("cooldown manager", UpdateGroup, cooldownFrames, CooldownsShouldShow(), elapsed, true)
-    Run("damage meter", UpdateGroup, meterFrames, MeterShouldShow(showAll), elapsed)
+    Run("xp bar", UpdateGroup, statusFrames, XPShouldShow(showAll) or ns.Pinned("xp"), elapsed)
+    Run("cooldown manager", UpdateGroup, cooldownFrames, CooldownsShouldShow() or ns.Pinned("cooldowns"), elapsed, true)
+    Run("damage meter", UpdateGroup, meterFrames, MeterShouldShow(showAll) or ns.Pinned("meter"), elapsed)
     Run("resource bar", UpdateResource, elapsed)
     Run("player frame", UpdatePlayer, elapsed)
-    Run("quest tracker", UpdateGroup, questFrames, ns.InEditMode(), elapsed)
+    Run("quest tracker", UpdateGroup, questFrames, ns.InEditMode() or ns.Pinned("quests"), elapsed)
     Run("buffs", UpdateAuras, elapsed)
 end

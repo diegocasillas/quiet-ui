@@ -132,7 +132,7 @@ end
 
 local function UpdateOneBar(bar, showAll, elapsed)
     if not bar:IsShown() then return end
-    ns.UpdateFaded(bar, showAll or BarHovered(bar) or BarCoversBags(bar), elapsed)
+    ns.UpdateFaded(bar, showAll or ns.Pinned("bars") or BarHovered(bar) or BarCoversBags(bar), elapsed)
 end
 
 local function FollowArt(alpha)

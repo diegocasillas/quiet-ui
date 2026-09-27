@@ -45,11 +45,12 @@ end
 local function Boot()
     local first = not booted
     booted = true
+    ns.CharDB()
     if first then
         local state = ns.DB().enabled and "on, enjoy the quiet" or "off for now"
         ns.Print("is " .. state .. ".")
         print("   |cffffffff/quiet|r  switch it on or off")
-        print("   |cffffffff/quiet layout|r  bring back the Edit Mode layout")
+        print("   |cffffffff/quiet setup|r  choose what stays visible")
     end
     Rescan()
     if first and C_Timer and C_Timer.After then
@@ -150,14 +151,14 @@ HookGlobal("FCF_SetWindowColor", ns.StripAllChat)
 HookGlobal("FCF_DockUpdate", ns.StripAllChat)
 
 ------------------------------------------------------------------------------
--- /quiet on | off | layout, no argument toggles.
+-- /quiet on | off | setup, no argument toggles.
 ------------------------------------------------------------------------------
 SLASH_QUIETUI1 = "/quiet"
 SLASH_QUIETUI2 = "/quietui"
 SlashCmdList["QUIETUI"] = function(msg)
     msg = (msg or ""):lower():match("^%s*(.-)%s*$")
-    if msg == "layout" then
-        ns.ForceLayout()
+    if msg == "setup" then
+        ns.ShowSetup()
         return
     end
     local db = ns.DB()

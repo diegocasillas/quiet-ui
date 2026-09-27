@@ -178,7 +178,7 @@ local function Check()
     return true
 end
 
--- /quiet layout: writes the shipped layout now, even after "Not now".
+-- Setup's Import layout writes the shipped layout now, even after "Not now".
 function ns.ForceLayout()
     if not EditModeReady() then
         ns.Print("Edit Mode is not available")

@@ -1,24 +1,25 @@
 # QuietUI
 
-Opinionated UI for WoW Forever. Modern and quiet: few frames, few buttons, text stays. The addon only turns on or off. No other settings.
+Opinionated UI for WoW Forever. Modern and quiet: few frames, few buttons, text stays. The addon turns on or off, and one window chooses what stays visible.
 
 ## Product
 
 - The goal is a clean UI, not a configurable framework.
-- The only control is `/quiet` (`on` / `off`, no argument toggles). `/quiet layout` writes the bundled Edit Mode layout right away, even after "Not now".
-- `QuietUIDB` may hold only `enabled`, the button position after dragging, and `layoutHash` (the last answered layout version). No options panel, sliders, checkboxes, or libraries like Ace3.
+- `/quiet` turns it on or off (`on` / `off`, no argument toggles). `/quiet setup` is the one window: check what stays visible, pick the player frame, then Save. Reset default restores the rules below and saves immediately. Import layout writes the bundled Edit Mode layout right away, even after "Not now". Escape closes the window without saving.
+- `QuietUIDB` is the account and may hold only `enabled`, the button position after dragging, and `layoutHash` (the last answered layout version). The setup is per character in `QuietUICharDB`: `visible` (which rows stay on screen; a missing flag means off) and `player` (`classic`, or missing for the personal resource preset). No sliders and no libraries like Ace3.
 - Player-facing text (chat, tooltip) is English.
 
 ## Look
 
 - Flat, dark, thin border. Background `0.05, 0.05, 0.05, 0.75`, border `0.85, 0.85, 0.85, 0.35`, highlight `0.95, 0.75, 0.25`.
 - Message prefix: `|cff8fd4c8QuietUI|r`.
-- A short friendly greeting on login and reload: the state, then one short line each for `/quiet` and `/quiet layout` so commands never wrap. No other chat messages unless the player acts or something fails.
+- A short friendly greeting on login and reload: the state, then one short line each for `/quiet` and `/quiet setup` so commands never wrap. No other chat messages unless the player acts or something fails.
+- A checked row in `/quiet setup` stays visible and skips the fade below. Unchecked rows keep it.
 - Action bars and the XP bar fade out unless hovered, in combat, in a vehicle, in edit mode, or in an instance (party, raid, pvp, arena). The XP bar also shows for 5 s after a quest turn-in that gives XP.
 - The cooldown manager shows only in combat, in an instance, in a group, or in edit mode. Hover does not show it.
 - The damage meter behaves the same and stays for 10 s after combat.
 - The personal resource bar shows only in combat, in an instance, or in edit mode, and anywhere while mana, focus, or energy is below 70 %. Its health bar also shows anywhere while health is not full. Hover does not show it.
-- The player frame (`PlayerFrame`) shows only on hover or in edit mode. Not in combat, not with a target.
+- The player frame (`PlayerFrame`) follows the setup preset. Personal resource (default) shows it only in edit mode. Classic also shows it with a target, in combat, in an instance (party, raid, pvp, arena), in a group, in a vehicle, and on hover.
 - The quest tracker (`ObjectiveTrackerFrame` / `QuestWatchFrame`) shows only on hover or in edit mode.
 - Buffs and debuffs (`BuffFrame`, `DebuffFrame`, `TemporaryEnchantFrame`) show only in combat, in an instance, in a group, on hover, or in edit mode.
 - The micro menu and bags collapse into one button. The button shows only on hover, while bag slots are shown, while an item is on the cursor, or while dragged. Left click opens bags, right click shows the bag slots for swapping, drag moves it.
@@ -45,7 +46,7 @@ Opinionated UI for WoW Forever. Modern and quiet: few frames, few buttons, text 
 
 ## Code
 
-- Files load in `QuietUI.toc` order and share the addon table: `local _, ns = ...`. No globals except `QuietUIDB` and the slash command. Do not add libraries.
+- Files load in `QuietUI.toc` order and share the addon table: `local _, ns = ...`. No globals except `QuietUIDB`, `QuietUICharDB`, the slash command, and `QuietUISetup` so Escape can close the setup window. Do not add libraries.
   - `Core.lua`: `DB`, `Print`, `Report`, alpha hooks, fading, texture hiding, restore.
   - `Frames.lua`: bar / bag / spared classification, `Mute`.
   - `Bars.lua`: action bars and `ShowAll`.
@@ -54,6 +55,7 @@ Opinionated UI for WoW Forever. Modern and quiet: few frames, few buttons, text 
   - `Chat.lua`: chat chrome and the input box.
   - `LayoutString.lua`: only the Edit Mode export string. Update it by pasting a new export.
   - `Layout.lua`: asks to add or update the `QuietUI` Edit Mode layout from that string.
+  - `Setup.lua`: the `/quiet setup` window, `CharDB`, `Pinned`, `PlayerStyle`.
   - `QuietUI.lua`: `ApplyAll`, `RestoreAll`, events, `OnUpdate`, `/quiet`.
 - Call other files through `ns` at run time, not through locals captured at load, so load order only matters for `QuietUI.lua` being last.
 - Comments in English, short, only where the reason is not visible from the code.

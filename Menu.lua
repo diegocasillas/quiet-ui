@@ -75,6 +75,16 @@ local function ReleaseIconAlpha(frame)
     ShowWidget(frame.Stock)
 end
 
+-- Alpha 0 still receives the mouse, so a hidden slot would show its tooltip.
+local function SetBagInput(frame, show)
+    if frame.SetMouseMotionEnabled then
+        pcall(frame.SetMouseMotionEnabled, frame, show)
+    end
+    if frame.SetMouseClickEnabled then
+        pcall(frame.SetMouseClickEnabled, frame, show)
+    end
+end
+
 function ns.UpdateBagSlots()
     if not ns.DB().enabled then return end
     local show = ns.BagsShouldShow()
@@ -85,6 +95,7 @@ function ns.UpdateBagSlots()
         else
             ns.HoldAlpha(frame, alpha)
         end
+        SetBagInput(frame, show)
     end)
     if button and button.SetBackdropBorderColor then
         button:SetBackdropBorderColor(unpack(show and HIGHLIGHT or BORDER))
@@ -286,14 +297,17 @@ function ns.RefreshChrome()
     if not ok then ns.Report("menu", err) end
 end
 
--- The button itself is hover only; it stays while bag slots are in use or it is dragged.
+-- Hover, bag slots, or a drag keeps the button up. Setup can pin it on.
 function ns.UpdateMenuButton(elapsed)
     if not button or not button:IsShown() then return end
-    local show = ns.MouseOver(button) or button._moved or ns.BagsShouldShow()
+    local show = ns.Pinned("menu") or ns.MouseOver(button) or button._moved or ns.BagsShouldShow()
     ns.UpdateFaded(button, show, elapsed)
 end
 
 function ns.ResetMenu()
     bagSlotsPinned = false
     if button then button:Hide() end
+    ns.EachBagFrame(function(frame)
+        SetBagInput(frame, true)
+    end)
 end
