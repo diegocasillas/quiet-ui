@@ -53,11 +53,38 @@ function ns.BagsShouldShow()
     return bagSlotsPinned or CursorHasItem()
 end
 
+-- ItemButtonMixin:SetAlpha fades the icon, not the frame. HoldAlpha would
+-- zero the icon and then skip restoring it, because the frame alpha stays 1.
+local function UsesIconAlpha(frame)
+    return type(ItemButtonMixin) == "table" and frame.SetAlpha == ItemButtonMixin.SetAlpha
+end
+
+local function ShowWidget(widget)
+    if widget and widget.SetAlpha then
+        widget:SetAlpha(1)
+    end
+end
+
+local function ReleaseIconAlpha(frame)
+    frame._quietAlpha = nil
+    frame._quietSecret = nil
+    ShowWidget(frame.icon or frame.Icon)
+    ShowWidget(frame.IconBorder)
+    ShowWidget(frame.IconOverlay)
+    ShowWidget(frame.Count)
+    ShowWidget(frame.Stock)
+end
+
 function ns.UpdateBagSlots()
     if not ns.DB().enabled then return end
     local show = ns.BagsShouldShow()
+    local alpha = show and 1 or 0
     ns.EachBagFrame(function(frame)
-        ns.HoldAlpha(frame, show and 1 or 0)
+        if UsesIconAlpha(frame) then
+            ReleaseIconAlpha(frame)
+        else
+            ns.HoldAlpha(frame, alpha)
+        end
     end)
     if button and button.SetBackdropBorderColor then
         button:SetBackdropBorderColor(unpack(show and HIGHLIGHT or BORDER))
