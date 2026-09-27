@@ -38,6 +38,7 @@ visible.
 | Damage meter | combat (+10 s after), instance, group, Edit Mode |
 | Personal resource bar | combat, instance, Edit Mode, or mana / focus / energy below 70 %; health bar also while health is not full |
 | Player frame | hover, Edit Mode |
+| Quest tracker | hover, Edit Mode |
 
 ![QuietUI in combat](docs/images/img003.png)
 

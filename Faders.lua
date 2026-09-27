@@ -1,7 +1,7 @@
 local _, ns = ...
 
 -- Non-bar frames that fade: XP bar, cooldown manager, personal resource bar,
--- damage meter, and the player frame.
+-- damage meter, the player frame, and the quest tracker.
 
 local STATUS_NAMES = {
     "StatusTrackingBarManager",
@@ -22,6 +22,12 @@ local RESOURCE_NAMES = {
     "PersonalResourceDisplayFrame",
 }
 
+local QUEST_NAMES = {
+    "ObjectiveTrackerFrame",
+    "QuestWatchFrame",
+    "WatchFrame",
+}
+
 -- Keep the meter readable for a moment after combat ends.
 local METER_AFTER_COMBAT = 10
 
@@ -37,6 +43,7 @@ local RESTS_AT_MAX = { [0] = true, [2] = true, [3] = true }
 local statusFrames = {}
 local cooldownFrames = {}
 local resourceFrames = {}
+local questFrames = {}
 local meterFrames = {}
 local meterSet = {}
 local lastCombat
@@ -84,6 +91,7 @@ function ns.FindFaders(deep)
     FindNamed(statusFrames, STATUS_NAMES)
     FindNamed(cooldownFrames, COOLDOWN_NAMES)
     FindNamed(resourceFrames, RESOURCE_NAMES)
+    FindNamed(questFrames, QUEST_NAMES)
     FindMeters(deep)
 end
 
@@ -251,4 +259,5 @@ function ns.UpdateFaders(showAll, elapsed)
     Run("damage meter", UpdateGroup, meterFrames, MeterShouldShow(showAll), elapsed)
     Run("resource bar", UpdateResource, elapsed)
     Run("player frame", UpdatePlayer, elapsed)
+    Run("quest tracker", UpdateGroup, questFrames, ns.InEditMode(), elapsed)
 end
