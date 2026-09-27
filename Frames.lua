@@ -17,6 +17,7 @@ ns.BAR_NAMES = {
     "ShapeshiftBarFrame",
     "PetActionBar",
     "PetActionBarFrame",
+    "GamepadMainActionBarFrame",
 }
 
 local BAG_NAMES = {

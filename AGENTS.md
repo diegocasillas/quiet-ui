@@ -28,7 +28,7 @@ Opinionated UI for WoW Forever. Modern and quiet: few frames, few buttons, text 
 ## Client
 
 - WoW Forever beta, `Interface: 16001`. The API mixes classic and newer frames; a global may not exist.
-- The main bar is `MainActionBar`, not `MainMenuBar`. The damage meter is a Blizzard load-on-demand addon; its frames are found by the `DamageMeter` prefix. The cooldown manager is `EssentialCooldownViewer`, `UtilityCooldownViewer`, `BuffIconCooldownViewer`, `BuffBarCooldownViewer`. The personal resource bar is `PersonalResourceDisplayFrame`; do not fade nameplates, they are recycled across units.
+- The main bar is `MainActionBar`, not `MainMenuBar`. In gamepad mode the bars live under `GamepadMainActionBarFrame` (load-on-demand `Blizzard_GamepadActionBars`). The damage meter is a Blizzard load-on-demand addon; its frames are found by the `DamageMeter` prefix. The cooldown manager is `EssentialCooldownViewer`, `UtilityCooldownViewer`, `BuffIconCooldownViewer`, `BuffBarCooldownViewer`. The personal resource bar is `PersonalResourceDisplayFrame`; do not fade nameplates, they are recycled across units.
 - Unit health and power are secret values, even out of combat. Never compare them or do math on them; pass them to widgets (for example `UnitPowerPercent` with a `C_CurveUtil` curve into `SetAlpha`). Check with `ns.IsSecret`.
 - Scans of `UIParent` children can hit forbidden frames. Check `ns.Usable` before calling any method.
 - Wrap calls that may be missing on this client in `pcall`, or check `type` first.

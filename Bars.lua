@@ -24,6 +24,11 @@ local MAIN_BAR = {
     MainActionBar = true,
 }
 
+-- Buttons sit several levels deep and outside the root's rect.
+local DEEP_HOVER = {
+    GamepadMainActionBarFrame = true,
+}
+
 -- Orphan classic art. Children of a bar already follow that bar's alpha.
 local BAR_ART = {
     "MainMenuBarLeftEndCap",
@@ -86,6 +91,9 @@ end
 
 local function BarHovered(bar)
     if ns.MouseOver(bar) then return true end
+    if DEEP_HOVER[ns.FrameName(bar) or ""] then
+        return ns.TreeHas(bar, ns.MouseOver)
+    end
     local buttons = bar.actionButtons or bar.buttons
     if type(buttons) == "table" then
         for _, child in ipairs(buttons) do
