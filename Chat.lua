@@ -526,13 +526,19 @@ local function ChannelNotice(text)
 end
 
 local function PushLine(frame, text, r, g, b, animate, addToStart)
-    if type(text) ~= "string" or text == "" then return end
-    if ChannelNotice(text) then return end
-    text = ShortChannel(text)
+    -- A boss yell can be a secret string. Comparing or editing it throws.
+    if type(text) ~= "string" then return end
+    local secret = ns.IsSecret(text)
+    if not secret then
+        if text == "" then return end
+        if ChannelNotice(text) then return end
+        text = ShortChannel(text)
+    end
     local lines = frame._quietLines
     if not lines then return end
     local entry = {
         text = text,
+        secret = secret and true or nil,
         r = type(r) == "number" and r or 1,
         g = type(g) == "number" and g or 1,
         b = type(b) == "number" and b or 1,
@@ -947,7 +953,7 @@ end
 
 local function CopyLine(bubble)
     local msg = bubble.msg
-    if not msg then return end
+    if not msg or msg.secret then return end
     local text = PlainText(msg.text)
     if text == "" then return end
     if WriteClipboard(text) then return end
@@ -983,8 +989,14 @@ end
 
 local function PlaceLinks(bubble, msg, inner)
     local links = bubble.links
+    if not msg or msg.secret then
+        for i = 1, #links do
+            links[i]:Hide()
+        end
+        return
+    end
     local count = 0
-    local segs = Segments(msg and msg.text or "")
+    local segs = Segments(msg.text or "")
     local lineH = 14
     if bubble.text.GetLineHeight then
         local ok, h = pcall(bubble.text.GetLineHeight, bubble.text)
@@ -1079,12 +1091,42 @@ end
 
 local function SizeBubble(bubble, msg, maxW)
     local font, size = bubble.text:GetFont()
-    local key = tostring(font) .. ":" .. tostring(size) .. ":" .. math.floor(maxW) .. ":" .. (msg.text or "")
+    -- A secret string cannot be concatenated into the cache key.
+    local tail = msg.secret and tostring(msg) or (msg.text or "")
+    local key = tostring(font) .. ":" .. tostring(size) .. ":" .. math.floor(maxW) .. ":" .. tail
     if bubble._quietSizeKey == key and bubble.h then
         return bubble.h
     end
-    local text = msg.text or ""
     local innerMax = math.max(8, maxW - PAD * 2)
+    if msg.secret then
+        local lineH = type(size) == "number" and size or 14
+        if bubble.text.GetSpacing then
+            local spacing = bubble.text:GetSpacing()
+            if type(spacing) == "number" and spacing > 0 then lineH = lineH + spacing end
+        end
+        local canRead = bubble:IsShown() and bubble._quietLaid == key
+        bubble.text:SetWidth(innerMax)
+        bubble.text:SetText(msg.text)
+        bubble.text:SetTextColor(msg.r or 1, msg.g or 1, msg.b or 1, 1)
+        bubble._quietLaid = key
+        local measured = 0
+        if canRead and bubble.text.GetStringHeight then
+            local ok, h = pcall(bubble.text.GetStringHeight, bubble.text)
+            if ok and type(h) == "number" and not ns.IsSecret(h) and h > 0 then
+                measured = h
+            end
+        end
+        local th = measured > 0 and measured or lineH * 4
+        if canRead then
+            bubble._quietSizeKey = key
+        end
+        bubble.inner = innerMax
+        bubble.h = th + PAD * 2
+        bubble:SetSize(innerMax + PAD * 2, bubble.h)
+        PlaceLinks(bubble, msg, innerMax)
+        return bubble.h
+    end
+    local text = msg.text or ""
     local wide = UnboundedWidth(bubble.text, text)
     if wide > 0 then
         msg.wide = wide
@@ -1158,7 +1200,7 @@ end
 local function SyncCopy(bubble)
     local icon = bubble.copy
     if not icon then return end
-    if not bubble:IsShown() then
+    if not bubble:IsShown() or (bubble.msg and bubble.msg.secret) then
         icon:Hide()
         return
     end
@@ -1344,7 +1386,7 @@ local function SeedFromRegions(frame)
         local region = select(i, frame:GetRegions())
         if region and region.GetObjectType and region:GetObjectType() == "FontString" and region.GetText then
             local text = region:GetText()
-            if type(text) == "string" and text ~= "" then
+            if ns.IsSecret(text) or (type(text) == "string" and text ~= "") then
                 local y = region.GetBottom and region:GetBottom()
                 local r, g, b = 1, 1, 1
                 if region.GetTextColor then
