@@ -1,7 +1,9 @@
 local _, ns = ...
 
 -- Offers the QuietUI Edit Mode layout from LayoutString.lua. Each new version
--- of that string is offered once; nothing changes without consent.
+-- of that string is offered once; an update still waits for consent.
+-- Turning the addon on selects the layout (creating it when missing) and
+-- remembers the previous one. Turning it off selects that layout again.
 -- Only C_EditMode is used: calling EditModeManagerFrame methods would taint it.
 
 local LAYOUT_NAME = "QuietUI"
@@ -68,24 +70,86 @@ local function LoadLayouts()
     return info
 end
 
+-- Saved once, before the switch. A retry must not overwrite it with QuietUI.
+local function Remember(active, absolute)
+    if type(active) ~= "number" or active < 1 or active == absolute then return end
+    local char = ns.CharDB()
+    if char.previousLayout == nil then
+        char.previousLayout = active
+    end
+end
+
 local function Write()
     local info = LoadLayouts()
     if not info then error("Edit Mode layouts are not loaded") end
     local shipped = ReadShipped()
     local index = FindLayout(info.layouts)
+    local created = not index
     if index then
         shipped.layoutType = info.layouts[index].layoutType or shipped.layoutType
         info.layouts[index] = shipped
     else
         info.layouts[#info.layouts + 1] = shipped
         index = #info.layouts
-        info.activeLayout = PresetCount() + index
+    end
+    -- Count presets before saving. SaveLayouts can rewrite the table it is given.
+    local absolute = PresetCount() + index
+    if created then
+        info.activeLayout = absolute
     end
     C_EditMode.SaveLayouts(info)
-    if info.activeLayout == PresetCount() + index then
-        C_EditMode.SetActiveLayout(info.activeLayout)
+    if created then
+        C_EditMode.SetActiveLayout(absolute)
+        ns.Print("Edit Mode layout \"" .. LAYOUT_NAME .. "\" saved.")
+    else
+        ns.Print("Edit Mode layout \"" .. LAYOUT_NAME .. "\" saved. Type /reload to finish.")
     end
-    ns.Print("Edit Mode layout \"" .. LAYOUT_NAME .. "\" saved. Type /reload to finish.")
+end
+
+-- True when the switch has been applied. False asks the caller to try again.
+function ns.SelectQuietLayout()
+    if InCombatLockdown() or not EditModeReady() then return false end
+    local info = LoadLayouts()
+    if not info then return false end
+    local index = FindLayout(info.layouts)
+    if not index then
+        Remember(info.activeLayout, PresetCount() + #info.layouts + 1)
+        MarkAnswered()
+        Write()
+        info = LoadLayouts()
+        index = info and FindLayout(info.layouts)
+        if not index then return false end
+    end
+    local absolute = PresetCount() + index
+    if info.activeLayout == absolute then return true end
+    Remember(info.activeLayout, absolute)
+    C_EditMode.SetActiveLayout(absolute)
+    -- A new character applies its default preset after this call. Not done until it stuck.
+    local after = LoadLayouts()
+    if after and after.activeLayout == absolute then return true end
+    return false
+end
+
+function ns.RestorePreviousLayout()
+    local char = ns.CharDB()
+    local previous = char.previousLayout
+    if previous == nil then return true end
+    if InCombatLockdown() or not EditModeReady() then return false end
+    local info = LoadLayouts()
+    if not info then return false end
+    local presets = PresetCount()
+    local custom = type(previous) == "number" and previous - presets or nil
+    local valid = type(previous) == "number" and previous >= 1
+        and (previous <= presets or type(info.layouts[custom]) == "table")
+    if not valid then
+        char.previousLayout = nil
+        return true
+    end
+    if info.activeLayout ~= previous then
+        C_EditMode.SetActiveLayout(previous)
+    end
+    char.previousLayout = nil
+    return true
 end
 
 ------------------------------------------------------------------------------

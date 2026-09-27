@@ -5,6 +5,11 @@ local ADDON, ns = ...
 local booted = false
 local hookedGlobal = {}
 local chromeAcc = 0
+local layoutPending = nil
+local layoutChosen = false
+local finishingLayout = false
+local settleUntil = 0
+local settleToken = 0
 
 local function Run(label, fn, ...)
     local ok, err = pcall(fn, ...)
@@ -20,16 +25,66 @@ local function UpdateFades(elapsed)
     ns.UpdateMenuButton(elapsed)
 end
 
+-- Select once per enable, restore on disable. Both wait out combat and login.
+local function FinishLayout()
+    if finishingLayout then return end
+    if layoutPending ~= "select" and layoutPending ~= "restore" then return end
+    finishingLayout = true
+    local job = layoutPending
+    local fn = job == "select" and ns.SelectQuietLayout or ns.RestorePreviousLayout
+    local ok, done = pcall(fn)
+    finishingLayout = false
+    if not ok then
+        layoutPending = nil
+        if job == "select" then layoutChosen = true end
+        ns.Report("layout", done)
+    elseif done then
+        layoutPending = nil
+        if job == "select" then layoutChosen = true end
+    end
+end
+
+-- A new character applies the default preset after login. Keep selecting until that settles.
+local function ArmLayoutSettle()
+    if not ns.DB().enabled then return end
+    settleToken = settleToken + 1
+    local token = settleToken
+    layoutChosen = false
+    layoutPending = "select"
+    local now = type(GetTime) == "function" and GetTime() or 0
+    settleUntil = now + 10
+    FinishLayout()
+    if not (C_Timer and C_Timer.After) then return end
+    for _, delay in ipairs({ 1, 3, 6 }) do
+        C_Timer.After(delay, function()
+            if token ~= settleToken or not ns.DB().enabled then return end
+            if type(GetTime) == "function" and GetTime() > settleUntil then return end
+            layoutChosen = false
+            layoutPending = "select"
+            FinishLayout()
+        end)
+    end
+end
+
 local function RestoreAll()
     ns.ResetMenu()
     ns.RestoreChat()
     ns.RestoreAlpha()
+    settleToken = settleToken + 1
+    settleUntil = 0
+    layoutChosen = false
+    layoutPending = "restore"
+    FinishLayout()
 end
 
 local function ApplyAll()
     if not ns.DB().enabled then
         RestoreAll()
         return
+    end
+    if not layoutChosen then
+        layoutPending = "select"
+        FinishLayout()
     end
     ns.EnsureLayout()
     ns.RefreshChrome()
@@ -60,6 +115,9 @@ local function Boot()
         print("   |cffffffff/quiet setup|r  choose what stays visible")
     end
     Rescan()
+    if first and ns.DB().enabled then
+        ArmLayoutSettle()
+    end
     if first and C_Timer and C_Timer.After then
         C_Timer.After(0.5, ApplyAll)
         C_Timer.After(2, Rescan)
@@ -94,7 +152,14 @@ function handlers.PLAYER_LOGIN()
     ns.DB()
     Boot()
 end
-handlers.PLAYER_ENTERING_WORLD = handlers.PLAYER_LOGIN
+
+function handlers.PLAYER_ENTERING_WORLD(isInitialLogin, isReloading)
+    ns.DB()
+    Boot()
+    if ns.DB().enabled and (isInitialLogin or isReloading) then
+        ArmLayoutSettle()
+    end
+end
 
 function handlers.PLAYER_REGEN_DISABLED()
     UpdateFades(0)
@@ -104,6 +169,7 @@ function handlers.PLAYER_REGEN_ENABLED()
     ns.MarkCombatEnd()
     UpdateFades(0)
     ns.RefreshChrome()
+    ns.EnsureLayout()
 end
 
 function handlers.QUEST_TURNED_IN(_, xp)
@@ -112,6 +178,11 @@ end
 
 function handlers.EDIT_MODE_LAYOUTS_UPDATED()
     ns.EnsureLayout()
+    if not ns.DB().enabled then return end
+    if type(GetTime) == "function" and GetTime() > settleUntil then return end
+    layoutChosen = false
+    layoutPending = "select"
+    FinishLayout()
 end
 
 function handlers.UPDATE_CHAT_WINDOWS()
@@ -129,6 +200,9 @@ local ALWAYS = {
 local events = CreateFrame("Frame")
 
 events:SetScript("OnEvent", function(_, event, ...)
+    if booted and (event == "PLAYER_REGEN_ENABLED" or event == "EDIT_MODE_LAYOUTS_UPDATED") then
+        Run("layout", FinishLayout)
+    end
     local handler = handlers[event]
     if not handler then return end
     if not ALWAYS[event] and (not booted or not ns.DB().enabled) then return end
