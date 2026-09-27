@@ -56,7 +56,7 @@ local SLIDE_TIME = 0.2
 local MAX_LINKS = 12
 
 local stripping = false
-local measure
+local measureWide
 local copyBox
 
 local function ChatCount()
@@ -560,6 +560,18 @@ local function HoldFont(frame, fs)
         if ns.IsSecret(alpha) or type(alpha) ~= "number" or alpha < 0.05 then alpha = 1 end
         saved[fs] = alpha
     end
+    -- Chat fade writes alpha back after OnUpdate. Hold 0 the same way textures do.
+    if not fs._quietHoldHook then
+        fs._quietHoldHook = true
+        pcall(hooksecurefunc, fs, "SetAlpha", function(self, alpha)
+            if self._quietApplying or not ns.DB().enabled then return end
+            if ns.ModernChat and not ns.ModernChat() then return end
+            if type(alpha) == "number" and not ns.IsSecret(alpha) and alpha < 0.01 then return end
+            self._quietApplying = true
+            self:SetAlpha(0)
+            self._quietApplying = false
+        end)
+    end
     local alpha = fs:GetAlpha()
     if ns.IsSecret(alpha) or type(alpha) ~= "number" or alpha >= 0.01 then
         fs._quietApplying = true
@@ -756,18 +768,57 @@ local function Segments(text)
     return segs
 end
 
-local function MeasureWidth(fs, text)
-    if not measure then
-        local host = CreateFrame("Frame", nil, UIParent)
-        host:Hide()
-        measure = host:CreateFontString(nil, "OVERLAY")
-    end
+-- A hidden font string reports 0. Alpha 0 still lays the text out.
+-- The host is wider than a chat line so the unwrapped width is not clipped.
+local function EnsureMeasure()
+    if measureWide then return measureWide end
+    local host = CreateFrame("Frame", nil, UIParent)
+    host:SetAlpha(0)
+    host:EnableMouse(false)
+    host:SetSize(8192, 64)
+    host:SetPoint("TOPLEFT", UIParent, "TOPLEFT", 0, 4000)
+    host:Show()
+    measureWide = host:CreateFontString(nil, "OVERLAY")
+    measureWide:SetPoint("TOPLEFT", host, "TOPLEFT", 0, 0)
+    measureWide:SetJustifyH("LEFT")
+    measureWide:SetJustifyV("TOP")
+    if measureWide.SetWordWrap then measureWide:SetWordWrap(false) end
+    if measureWide.SetNonSpaceWrap then measureWide:SetNonSpaceWrap(false) end
+    measureWide:SetWidth(8000)
+    return measureWide
+end
+
+local function PrepareProbe(fs, probe)
     local font, size, flags = fs:GetFont()
-    pcall(measure.SetFont, measure, font or "Fonts\\FRIZQT__.TTF", size or 12, flags or "")
-    measure:SetText(text or "")
-    local w = measure:GetStringWidth()
-    if type(w) ~= "number" or ns.IsSecret(w) then return 0 end
-    return w
+    pcall(probe.SetFont, probe, font or "Fonts\\FRIZQT__.TTF", size or 12, flags or "")
+    if fs.GetSpacing and probe.SetSpacing then
+        local spacing = fs:GetSpacing()
+        if type(spacing) == "number" then
+            probe:SetSpacing(spacing)
+        end
+    end
+    return probe
+end
+
+-- Wrap stays off, so a long line is not reported as the width of its first row.
+local function UnboundedWidth(fs, text)
+    local probe = PrepareProbe(fs, EnsureMeasure())
+    probe:SetWidth(8000)
+    probe:SetText(text or "")
+    local wide = 0
+    local w = probe:GetStringWidth()
+    if type(w) == "number" and not ns.IsSecret(w) and w > 0 then wide = w end
+    if probe.GetUnboundedStringWidth then
+        local ok, uw = pcall(probe.GetUnboundedStringWidth, probe)
+        if ok and type(uw) == "number" and not ns.IsSecret(uw) and uw > wide then
+            wide = uw
+        end
+    end
+    return wide
+end
+
+local function MeasureWidth(fs, text)
+    return UnboundedWidth(fs, text)
 end
 
 local function OpenLink(chat, link, text, button)
@@ -1032,41 +1083,74 @@ local function SizeBubble(bubble, msg, maxW)
     if bubble._quietSizeKey == key and bubble.h then
         return bubble.h
     end
+    local text = msg.text or ""
     local innerMax = math.max(8, maxW - PAD * 2)
-    bubble.text:SetWidth(innerMax)
-    bubble.text:SetText(msg.text or "")
-    bubble.text:SetTextColor(msg.r or 1, msg.g or 1, msg.b or 1, 1)
-    local wide = innerMax
-    if bubble.text.GetUnboundedStringWidth then
-        local ok, w = pcall(bubble.text.GetUnboundedStringWidth, bubble.text)
-        if ok and type(w) == "number" and not ns.IsSecret(w) then wide = w end
-    else
-        local w = bubble.text:GetStringWidth()
-        if type(w) == "number" and not ns.IsSecret(w) then wide = w end
+    local wide = UnboundedWidth(bubble.text, text)
+    if wide > 0 then
+        msg.wide = wide
+    elseif type(msg.wide) == "number" then
+        wide = msg.wide
     end
-    local inner = math.max(8, math.min(innerMax, wide))
-    bubble.text:SetWidth(inner)
+    -- A width that matches the text exactly still wraps the last word.
+    local SLACK = 8
+    local fits = wide > 0 and wide + SLACK <= innerMax
+    local inner = innerMax
+    if fits then
+        inner = math.max(8, wide + SLACK)
+    end
     local lineH = type(size) == "number" and size or 14
     if bubble.text.GetSpacing then
         local spacing = bubble.text:GetSpacing()
-        if type(spacing) == "number" then lineH = lineH + spacing end
+        if type(spacing) == "number" and spacing > 0 then lineH = lineH + spacing end
     end
-    local measured = bubble.text:GetStringHeight()
-    if type(measured) ~= "number" or ns.IsSecret(measured) then measured = 0 end
     local rows = 1
-    if wide > inner + 0.5 then
+    if not fits and wide > inner + 0.5 then
         rows = math.ceil(wide / inner)
     end
-    local th = math.max(measured, rows * lineH, lineH)
-    local tw = bubble.text:GetStringWidth()
-    if type(tw) == "number" and not ns.IsSecret(tw) and tw > 0 and tw < inner then
-        inner = math.max(8, tw)
-        bubble.text:SetWidth(inner)
+    -- Read the bubble only after it was shown with this same text. A fresh
+    -- string reports one short line, the row is shown, then it grows and the
+    -- top message is dropped and put back every frame.
+    local canRead = bubble:IsShown() and bubble._quietLaid == key
+    bubble.text:SetWidth(inner)
+    bubble.text:SetText(text)
+    bubble.text:SetTextColor(msg.r or 1, msg.g or 1, msg.b or 1, 1)
+    bubble._quietLaid = key
+    local measured, lines = 0, 0
+    if canRead and not fits then
+        local h = bubble.text:GetStringHeight()
+        if type(h) == "number" and not ns.IsSecret(h) and h > 0 then measured = h end
+        if bubble.text.GetNumLines then
+            local ok, n = pcall(bubble.text.GetNumLines, bubble.text)
+            if ok and type(n) == "number" and not ns.IsSecret(n) and n >= 1 then
+                lines = math.floor(n)
+            end
+        end
+        if bubble.text.GetLineHeight then
+            local ok, lh = pcall(bubble.text.GetLineHeight, bubble.text)
+            if ok and type(lh) == "number" and not ns.IsSecret(lh) and lh > lineH then
+                lineH = lh
+            end
+        end
+        if lines > rows then rows = lines end
+    end
+    local th = math.max(rows, 1) * lineH
+    if not fits and measured > th then th = measured end
+    -- A line that fits stays one row. Only a real wrap may keep a taller size.
+    if fits then
+        th = lineH
+        msg.h = th
+    elseif type(msg.h) == "number" and msg.h > th then
+        th = msg.h
+    else
+        msg.h = th
+    end
+    local trusted = fits or (canRead and measured > 0 and measured + 0.5 >= th)
+    if trusted then
+        bubble._quietSizeKey = key
     end
     bubble.inner = inner
     bubble.h = th + PAD * 2
     bubble:SetSize(inner + PAD * 2, bubble.h)
-    bubble._quietSizeKey = key
     PlaceLinks(bubble, msg, inner)
     return bubble.h
 end
@@ -1111,6 +1195,7 @@ local function ReleaseBubble(frame, bubble)
     bubble.msg = nil
     bubble._y = nil
     bubble._quietSizeKey = nil
+    bubble._quietLaid = nil
     if bubble.copy then bubble.copy:Hide() end
     frame._quietPool[#frame._quietPool + 1] = bubble
 end
@@ -1188,13 +1273,13 @@ local function LayoutFrame(frame, elapsed)
         return
     end
     RepairTinyFont(frame)
+    if #frame._quietLines > 0 then
+        HideNativeText(frame)
+    end
     local width = frame.GetWidth and frame:GetWidth()
     local height = frame.GetHeight and frame:GetHeight()
     if type(width) ~= "number" or ns.IsSecret(width) or width < 40 then return end
     if type(height) ~= "number" or ns.IsSecret(height) or height < 20 then return end
-    if #frame._quietLines > 0 then
-        HideNativeText(frame)
-    end
     local lines = frame._quietLines
     local byMsg = frame._quietByMsg
     local offset = math.floor(ScrollOffset(frame))
