@@ -119,7 +119,11 @@ local function Write()
     else
         db.player = nil
     end
-    db.chat = draft.chat and nil or false
+    if draft.chat then
+        db.chat = nil
+    else
+        db.chat = false
+    end
 end
 
 local function ActionButton(parent, text, onClick)
