@@ -476,8 +476,58 @@ local function ShortChannel(text)
     return text
 end
 
+-- "Changed Channel: |Hchannel:%d|h[%s]|h" -> "Changed Channel:".
+-- A missing global keeps the English lead from this client.
+local NOTICE_SOURCES = {
+    { "CHAT_YOU_CHANGED_NOTICE", "Changed Channel:" },
+    { "CHAT_YOU_LEFT_NOTICE", "Left Channel:" },
+    { "CHAT_SUSPENDED_NOTICE", "Left Channel:" },
+    { "CHAT_YOU_JOINED_NOTICE", "Joined Channel:" },
+}
+
+local function NoticeLead(fmt, fallback)
+    if type(fmt) ~= "string" then return fallback end
+    local lead = fmt:match("^([^|%%]+)")
+    if not lead then return fallback end
+    lead = lead:gsub("%s+$", "")
+    if lead == "" then return fallback end
+    return lead
+end
+
+local NOTICE_LEADS = {}
+do
+    local seen = {}
+    for i = 1, #NOTICE_SOURCES do
+        local src = NOTICE_SOURCES[i]
+        local lead = NoticeLead(_G[src[1]], src[2])
+        if not seen[lead] then
+            seen[lead] = true
+            NOTICE_LEADS[#NOTICE_LEADS + 1] = lead
+        end
+    end
+end
+
+-- Zone notices shorten to "Changed Channel: [1]", which says nothing.
+local function ChannelNotice(text)
+    text = text:gsub("|c%x%x%x%x%x%x%x%x", "")
+    text = text:gsub("|r", "")
+    text = text:gsub("|H.-|h", "")
+    text = text:gsub("|h", "")
+    text = text:gsub("|T.-|t", "")
+    text = text:gsub("^%s*%[%d+:%d+:?%d*%]%s*", "")
+    text = text:gsub("^%s*%d%d?:%d%d:%d%d%s+", "")
+    text = text:gsub("^%s*%d%d?:%d%d%s+", "")
+    text = text:match("^%s*(.*)") or text
+    for i = 1, #NOTICE_LEADS do
+        local lead = NOTICE_LEADS[i]
+        if text:sub(1, #lead) == lead then return true end
+    end
+    return false
+end
+
 local function PushLine(frame, text, r, g, b, animate, addToStart)
     if type(text) ~= "string" or text == "" then return end
+    if ChannelNotice(text) then return end
     text = ShortChannel(text)
     local lines = frame._quietLines
     if not lines then return end
