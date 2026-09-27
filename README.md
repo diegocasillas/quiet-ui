@@ -81,15 +81,15 @@ Turning QuietUI off does not switch your Edit Mode layout.
 
 ```text
 /quiet          turn QuietUI on or off
-/quiet on       turn it on
-/quiet off      turn it off and restore the default look
 /quiet setup    open the window
 ```
 
 ## The setup window
 
 `/quiet setup` is the only window.
+
 ![Setup window](docs/images/img007.png)
+
 **Always visible.** Check a row and that piece stays on screen: action bars,
 XP bar, cooldown manager, damage meter, personal resource, quest tracker,
 buffs and debuffs, bag button.
