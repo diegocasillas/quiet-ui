@@ -1,6 +1,6 @@
 local _, ns = ...
 
--- One window: what stays visible, which player frame, and how soon chat lines fade.
+-- One window: what stays visible, which bars fade together, the player frame, and chat.
 -- The frame is named so UISpecialFrames can close it on Escape.
 
 local ROWS = {
@@ -12,11 +12,6 @@ local ROWS = {
     { key = "quests", label = "Quest tracker" },
     { key = "auras", label = "Buffs and debuffs" },
     { key = "menu", label = "Bag button" },
-}
-
-local STYLES = {
-    { key = "resource", label = "Personal resource" },
-    { key = "classic", label = "Classic" },
 }
 
 local draft = {}
@@ -45,6 +40,7 @@ function ns.Pinned(name)
     return type(visible) == "table" and visible[name] and true or false
 end
 
+-- "classic" shows the portrait beside the resource bar. Missing keeps it for edit mode.
 function ns.PlayerStyle()
     if ns.CharDB().player == "classic" then return "classic" end
     return "resource"
@@ -103,8 +99,8 @@ local function Paint()
     for _, row in ipairs(frame.rows) do
         PaintBox(row.box, draft[row.key])
     end
-    for _, row in ipairs(frame.styles) do
-        PaintBox(row.box, draft.player == row.key)
+    if frame.playerRow then
+        PaintBox(frame.playerRow.box, draft.player)
     end
     if frame.chat then
         PaintBox(frame.chat.box, draft.chat)
@@ -112,15 +108,24 @@ local function Paint()
     if frame.fade then
         frame.fade.value:SetText(FadeText(draft.chatFade))
     end
+    if frame.groupRows then
+        for _, row in ipairs(frame.groupRows) do
+            row.value:SetText(tostring(draft.groups[row.id]))
+        end
+    end
 end
 
 local function ReadDraft()
     for _, row in ipairs(ROWS) do
         draft[row.key] = ns.Pinned(row.key)
     end
-    draft.player = ns.PlayerStyle()
+    draft.player = ns.PlayerStyle() == "classic"
     draft.chat = ns.ModernChat()
     draft.chatFade = ns.ChatFade()
+    draft.groups = {}
+    for _, row in ipairs(ns.BAR_ROWS) do
+        draft.groups[row.id] = ns.BarGroup(row.id)
+    end
 end
 
 local function Write()
@@ -133,7 +138,7 @@ local function Write()
         end
     end
     db.visible = visible
-    if draft.player == "classic" then
+    if draft.player then
         db.player = "classic"
     else
         db.player = nil
@@ -148,6 +153,15 @@ local function Write()
     else
         db.chatFade = draft.chatFade
     end
+    local groups
+    for _, row in ipairs(ns.BAR_ROWS) do
+        local n = draft.groups[row.id]
+        if n ~= row.group then
+            groups = groups or {}
+            groups[row.id] = n
+        end
+    end
+    db.groups = groups
 end
 
 local function ActionButton(parent, text, onClick)
@@ -189,6 +203,15 @@ local function NudgeFade(delta)
     Paint()
 end
 
+local function NudgeGroup(id, delta)
+    local n = (draft.groups[id] or 1) + delta
+    local max = #ns.BAR_ROWS
+    if n < 1 then n = 1 end
+    if n > max then n = max end
+    draft.groups[id] = n
+    Paint()
+end
+
 local function Mini(parent, text, onClick)
     local button = Backdropped("Button", nil, parent)
     button:SetSize(22, 22)
@@ -203,14 +226,14 @@ local function Mini(parent, text, onClick)
     return button
 end
 
-local function FadeRow(parent)
+local function Stepper(parent, label, onDelta)
     local row = CreateFrame("Frame", nil, parent)
     row:SetSize(348, 22)
     row.label = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     row.label:SetPoint("LEFT", 2, 0)
-    row.label:SetText("Fade after")
-    row.plus = Mini(row, "+", function() NudgeFade(5) end)
-    row.minus = Mini(row, "-", function() NudgeFade(-5) end)
+    row.label:SetText(label)
+    row.plus = Mini(row, "+", function() onDelta(1) end)
+    row.minus = Mini(row, "-", function() onDelta(-1) end)
     row.value = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     row.value:SetWidth(44)
     row.value:SetJustifyH("CENTER")
@@ -260,23 +283,31 @@ local function CreateSetup()
         widget.rows[#widget.rows + 1] = row
     end
 
-    widget.player = Section(widget, "Player frame")
-    widget.styles = {}
-    for _, info in ipairs(STYLES) do
-        local row = Choice(widget, info.label, function()
-            draft.player = info.key
-            Paint()
+    widget.groupHeader = Section(widget, "Fade together")
+    widget.groupRows = {}
+    for _, info in ipairs(ns.BAR_ROWS) do
+        local id = info.id
+        local row = Stepper(widget, info.label, function(sign)
+            NudgeGroup(id, sign)
         end)
-        row.key = info.key
-        widget.styles[#widget.styles + 1] = row
+        row.id = id
+        widget.groupRows[#widget.groupRows + 1] = row
     end
+
+    widget.player = Section(widget, "Player frame")
+    widget.playerRow = Choice(widget, "Player frame", function()
+        draft.player = not draft.player
+        Paint()
+    end)
 
     widget.chatHeader = Section(widget, "Chat")
     widget.chat = Choice(widget, "Modern chat", function()
         draft.chat = not draft.chat
         Paint()
     end)
-    widget.fade = FadeRow(widget)
+    widget.fade = Stepper(widget, "Fade after", function(sign)
+        NudgeFade(sign * 5)
+    end)
 
     widget.reset = ActionButton(widget, "Reset default", function()
         local db = ns.CharDB()
@@ -284,6 +315,7 @@ local function CreateSetup()
         db.player = nil
         db.chat = nil
         db.chatFade = nil
+        db.groups = nil
         ReadDraft()
         Paint()
         if ns.ApplyAll then ns.ApplyAll() end
@@ -307,12 +339,17 @@ local function CreateSetup()
         y = y - 24
     end
     y = y - 6
-    widget.player:SetPoint("TOPLEFT", 16, y)
+    widget.groupHeader:SetPoint("TOPLEFT", 16, y)
     y = y - 20
-    for _, row in ipairs(widget.styles) do
+    for _, row in ipairs(widget.groupRows) do
         row:SetPoint("TOPLEFT", 16, y)
         y = y - 24
     end
+    y = y - 6
+    widget.player:SetPoint("TOPLEFT", 16, y)
+    y = y - 20
+    widget.playerRow:SetPoint("TOPLEFT", 16, y)
+    y = y - 24
     y = y - 6
     widget.chatHeader:SetPoint("TOPLEFT", 16, y)
     y = y - 20

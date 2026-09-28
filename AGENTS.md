@@ -5,8 +5,8 @@ Opinionated UI for WoW Forever. Modern and quiet: few frames, few buttons, text 
 ## Product
 
 - The goal is a clean UI, not a configurable framework.
-- `/quiet` turns it on or off (`on` / `off`, no argument toggles). `/quiet setup` is the one window: check what stays visible, pick the player frame, choose modern chat and how soon its lines fade, then Save. Reset default restores the rules below and saves immediately. Import layout writes the bundled Edit Mode layout right away, even after "Not now". Escape closes the window without saving.
-- `QuietUIDB` is the account and may hold only `enabled`, the button position after dragging, and `layoutHash` (the last answered layout version). The setup is per character in `QuietUICharDB`: `visible` (which rows stay on screen; a missing flag means off), `player` (`classic`, or missing for the personal resource preset), `chat` (`false` turns modern chat off; missing means on), `chatFade` (seconds a modern-chat line stays at the bottom; missing means 10, `0` keeps it), and `previousLayout` (the Edit Mode layout index that was active before QuietUI). No sliders and no libraries like Ace3.
+- `/quiet` turns it on or off (`on` / `off`, no argument toggles). `/quiet setup` is the one window: check what stays visible, set which bars fade together, turn the player frame on or off, choose modern chat and how soon its lines fade, then Save. Reset default restores the rules below and saves immediately. Import layout writes the bundled Edit Mode layout right away, even after "Not now". Escape closes the window without saving.
+- `QuietUIDB` is the account and may hold only `enabled`, the button position after dragging, and `layoutHash` (the last answered layout version). The setup is per character in `QuietUICharDB`: `visible` (which rows stay on screen; a missing flag means off), `player` (`classic` shows the portrait and pet beside the personal resource bar; missing keeps them for edit mode), `chat` (`false` turns modern chat off; missing means on), `chatFade` (seconds a modern-chat line stays at the bottom; missing means 10, `0` keeps it), `groups` (fade group per bar; a missing key keeps the default below), and `previousLayout` (the Edit Mode layout index that was active before QuietUI). No sliders and no libraries like Ace3.
 - Player-facing text (chat, tooltip) is English.
 
 ## Look
@@ -14,12 +14,12 @@ Opinionated UI for WoW Forever. Modern and quiet: few frames, few buttons, text 
 - Flat, dark, thin border. Background `0.05, 0.05, 0.05, 0.75`, border `0.85, 0.85, 0.85, 0.35`, highlight `0.95, 0.75, 0.25`.
 - Message prefix: `|cff8fd4c8QuietUI|r`.
 - A short friendly greeting on login and reload: the state, then one short line each for `/quiet` and `/quiet setup` so commands never wrap. No other chat messages unless the player acts or something fails.
-- A checked row in `/quiet setup` stays visible and skips the fade below. Unchecked rows keep it.
-- Action bars and the XP bar fade out unless hovered, in combat, in a vehicle, in edit mode, or in an instance (party, raid, pvp, arena). The XP bar also shows for 5 s after a quest turn-in that gives XP.
+- A checked row under Always visible stays visible and skips the fade below. Unchecked rows keep it. The player frame check turns the portrait and pet on beside the resource bar, and they still fade.
+- Action bars fade in groups. Hover shows the whole group. The default is bars 1–3 with the stance bar and the pet bar, bars 4–5, and each later bar on its own. The same number in `/quiet setup` fades together. Combat, a vehicle, edit mode, an instance (party, raid, pvp, arena), an open spell flyout, an item on the cursor, or the Action bars check shows every group. The XP bar fades out unless hovered or in edit mode. It also shows for 5 s after a quest turn-in that gives XP, while a spell flyout is open, or while an item is on the cursor. Combat, a vehicle and an instance do not show it.
 - The cooldown manager shows only in combat, in an instance, in a group, or in edit mode. Hover does not show it.
 - The damage meter behaves the same and stays for 10 s after combat.
 - The personal resource bar shows only in combat, in an instance, or in edit mode, and anywhere while mana, focus, or energy is below 70 %. Its health bar also shows anywhere while health is not full. Hover does not show it.
-- The player frame (`PlayerFrame`) follows the setup preset. Personal resource (default) shows it only in edit mode. Classic also shows it with a target, in combat, in an instance (party, raid, pvp, arena), in a group, in a vehicle, and on hover.
+- The player frame (`PlayerFrame`) is off unless setup sets `player` to `classic`. Off, it shows only in edit mode. On, it also shows with a target, in combat, in an instance (party, raid, pvp, arena), in a group, in a vehicle, on hover, and while a pet is out. `PetFrame` uses the same alpha. The personal resource bar keeps its own rules.
 - The quest tracker (`ObjectiveTrackerFrame` / `QuestWatchFrame`) shows only on hover or in edit mode.
 - Buffs and debuffs (`BuffFrame`, `DebuffFrame`, `TemporaryEnchantFrame`) show only in combat, in an instance, in a group, on hover, or in edit mode.
 - The micro menu and bags collapse into one button. The button shows only on hover, while bag slots are shown, while an item is on the cursor, or while dragged. Left click opens bags, right click shows the bag slots for swapping, drag moves it.
@@ -40,7 +40,7 @@ Opinionated UI for WoW Forever. Modern and quiet: few frames, few buttons, text 
 
 - Action bars only through alpha. Do not use `Hide()`, `Show()`, or state drivers on bars.
 - No secure snippets. Do not touch `ChatFrame_OpenChat`.
-- `PlayerFrame` only through alpha, per the rule above. Do not hide target, party, or raid frames, the minimap, vehicle / extra action / zone ability, or the LFG eye (`QueueStatus`, `LFGEye`).
+- `PlayerFrame` and `PetFrame` only through alpha, per the rule above. Do not hide target, party, or raid frames, the minimap, vehicle / extra action / zone ability, or the LFG eye (`QueueStatus`, `LFGEye`).
 - Blizzard overwrites alpha. Hold the wanted value with a `SetAlpha` hook and the `_quietApplying` flag so the hook does not loop.
 - Disabling must restore saved alpha and textures (`RestoreAll`). Wire new behavior into both `ApplyAll` and `RestoreAll`.
 
@@ -50,7 +50,7 @@ Opinionated UI for WoW Forever. Modern and quiet: few frames, few buttons, text 
   - `Core.lua`: `DB`, `Print`, `Report`, alpha hooks, fading, texture hiding, restore.
   - `Frames.lua`: bar / bag / spared classification, `Mute`.
   - `Bars.lua`: action bars and `ShowAll`.
-  - `Faders.lua`: XP bar, cooldown manager, damage meter, player frame, quest tracker, buffs.
+  - `Faders.lua`: XP bar, cooldown manager, damage meter, player frame, pet frame, quest tracker, buffs.
   - `Menu.lua`: the bag button and micro menu.
   - `Chat.lua`: chat chrome, line bubbles, and the input box.
   - `LayoutString.lua`: only the Edit Mode export string. Update it by pasting a new export.

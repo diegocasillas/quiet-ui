@@ -1,7 +1,7 @@
 local _, ns = ...
 
 -- Non-bar frames that fade: XP bar, cooldown manager, personal resource bar,
--- damage meter, the player frame, the quest tracker, and buffs.
+-- damage meter, the player frame, the pet frame, the quest tracker, and buffs.
 
 local STATUS_NAMES = {
     "StatusTrackingBarManager",
@@ -116,8 +116,8 @@ function ns.MarkQuestXP(xp)
     end
 end
 
-local function XPShouldShow(showAll)
-    if showAll then return true end
+local function XPShouldShow()
+    if ns.XPForced() then return true end
     if lastQuestXP and type(GetTime) == "function" then
         return GetTime() - lastQuestXP < XP_AFTER_QUEST
     end
@@ -155,22 +155,44 @@ local function Flag(fn, ...)
     return ok and result and true or false
 end
 
--- Personal resource keeps the portrait for edit mode. Classic also shows it
--- with a target, in combat, in an instance, in a group, in a vehicle, and on hover.
+-- A child already follows its parent alpha. Fading it again would compound.
+local function Under(frame, ancestor)
+    if not frame or not frame.GetParent or not ancestor then return false end
+    local parent = frame:GetParent()
+    local depth = 0
+    while parent and depth < 6 do
+        if parent == ancestor then return true end
+        if not parent.GetParent then return false end
+        parent = parent:GetParent()
+        depth = depth + 1
+    end
+    return false
+end
+
+-- Off, the portrait stays for edit mode. On, it shows beside the resource bar
+-- with a target, in combat, in an instance, in a group, in a vehicle, on hover,
+-- and while a pet is out. The pet frame uses the same alpha.
 local function UpdatePlayer(elapsed)
-    local frame = PlayerFrame
-    if not IsFadeable(frame) or not frame:IsShown() then return end
+    local player = PlayerFrame
+    local pet = PetFrame
     local show = ns.InEditMode()
     if ns.PlayerStyle() == "classic" then
         show = show
-            or ns.MouseOver(frame)
+            or ns.MouseOver(player)
+            or ns.MouseOver(pet)
             or InCombatLockdown()
             or ns.InForcedInstance()
             or ns.InGroup()
             or Flag(UnitHasVehicleUI, "player")
             or Flag(UnitExists, "target")
+            or Flag(UnitExists, "pet")
     end
-    ns.UpdateFaded(frame, show, elapsed)
+    if IsFadeable(player) and player:IsShown() then
+        ns.UpdateFaded(player, show, elapsed)
+    end
+    if IsFadeable(pet) and pet:IsShown() and not Under(pet, player) then
+        ns.UpdateFaded(pet, show, elapsed)
+    end
 end
 
 local function ResourceForced()
@@ -307,7 +329,7 @@ local function Run(label, fn, ...)
 end
 
 function ns.UpdateFaders(showAll, elapsed)
-    Run("xp bar", UpdateGroup, statusFrames, XPShouldShow(showAll) or ns.Pinned("xp"), elapsed)
+    Run("xp bar", UpdateGroup, statusFrames, XPShouldShow() or ns.Pinned("xp"), elapsed)
     Run("cooldown manager", UpdateGroup, cooldownFrames, CooldownsShouldShow() or ns.Pinned("cooldowns"), elapsed, true)
     Run("damage meter", UpdateGroup, meterFrames, MeterShouldShow(showAll) or ns.Pinned("meter"), elapsed)
     Run("resource bar", UpdateResource, elapsed)

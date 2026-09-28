@@ -26,8 +26,8 @@ Checked rows in `/quiet setup` stay visible. Everything else follows this:
 
 | Element | Shows when |
 | --- | --- |
-| Action bars | hover, combat, a vehicle, a dungeon, raid, battleground or arena, Edit Mode |
-| XP bar | the same, and for a few seconds after a quest gives XP |
+| Action bars | hover on that fade group, combat, a vehicle, a dungeon, raid, battleground or arena, Edit Mode |
+| XP bar | hover, Edit Mode, a few seconds after a quest gives XP, an open spell flyout, or an item on the cursor |
 | Cooldown manager | combat, a group, an instance, Edit Mode |
 | Damage meter | the same as the action bars, and it stays a moment after combat |
 | Personal resource | combat, an instance, Edit Mode, or when mana, focus or energy is low. The health part also shows while you are hurt |
@@ -35,16 +35,17 @@ Checked rows in `/quiet setup` stay visible. Everything else follows this:
 | Buffs and debuffs | hover, combat, a group, an instance, Edit Mode |
 | Bag button | hover, while the bag slots are open, or while an item is on the cursor |
 
+Hover brings back a whole group, not one bar. Bars 1–3, the stance bar and the pet bar fade together, bars 4–5 fade together, and each later bar fades on its own. `/quiet setup` changes the number. The same number fades together. Combat, a vehicle, a dungeon, raid, battleground, arena and Edit Mode still show every bar.
+
 ![Action bars fade in on hover](docs/images/img002.png)
 
 ![QuietUI in combat](docs/images/img003.png)
 
 ### Player frame
 
-Pick one in `/quiet setup`:
+A checkbox in `/quiet setup`, off by default. The personal resource bar keeps its own rules.
 
-- **Personal resource** (the default). The portrait frame stays hidden. You use the personal resource bar above.
-- **Classic.** The portrait frame shows with a target, in combat, in a group, in an instance, in a vehicle, on hover, and in Edit Mode.
+Off, the portrait stays hidden. On, the portrait and your pet show with a target, in combat, in a group, in an instance, in a vehicle, on hover, in Edit Mode, and whenever a pet is out.
 
 ### One button instead of two rows
 
@@ -92,16 +93,18 @@ Turning QuietUI off does not switch your Edit Mode layout.
 
 **Always visible.** Check a row and that piece stays on screen: action bars,
 XP bar, cooldown manager, damage meter, personal resource, quest tracker,
-buffs and debuffs, bag button.
+buffs and debuffs, bag button. The Action bars check keeps every bar visible.
 
-**Player frame.** Personal resource or Classic, as above.
+**Fade together.** Each bar has a number: Bar 1 through Bar 8, the stance bar and the pet bar. The same number fades in together on hover. The default is 1 for bars 1–3, the stance bar and the pet bar, 2 for bars 4–5, then a number of its own for the rest.
+
+**Player frame.** A checkbox, off by default. On, the portrait and your pet show beside the personal resource bar, as above.
 
 **Chat.** Modern chat is a toggle, on by default. Uncheck it and Save to use the original chat. Fade after sets how long a line stays at the bottom: steps of 5 seconds, up to 60. Stay keeps the line. The default is 10 seconds.
 
 - **Save** keeps the choices and closes the window.
-- **Reset default** clears the checks, puts Personal resource, Modern chat, and a 10 second fade back, and applies that at once.
+- **Reset default** clears the checks, turns the player frame off, puts Modern chat and a 10 second fade back, restores the fade groups, and applies that at once.
 - **Import layout** writes the QuietUI Edit Mode layout.
-- **Escape** closes the window and drops checks you have not saved.
+- **Escape** closes the window and drops anything you have not saved.
 
 ## Install
 
