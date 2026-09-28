@@ -54,9 +54,9 @@ function ns.PlayerStyle()
     return "classic"
 end
 
--- Missing means off. Checked, buffs follow the player frame.
+-- Missing means on. Only an explicit false leaves buffs on their own.
 function ns.GroupAuras()
-    return ns.CharDB().groupAuras == true
+    return ns.CharDB().groupAuras ~= false
 end
 
 -- Missing means on. Only an explicit false turns the modern chat off.
@@ -249,9 +249,9 @@ local function Write()
         db.player = "resource"
     end
     if draft.groupAuras then
-        db.groupAuras = true
-    else
         db.groupAuras = nil
+    else
+        db.groupAuras = false
     end
     if draft.chat then
         db.chat = nil
