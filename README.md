@@ -35,7 +35,9 @@ Checked rows in `/quiet setup` stay visible. Everything else follows this:
 | Buffs and debuffs | hover, combat, a group, an instance, Edit Mode |
 | Bag button | hover, while the bag slots are open, or while an item is on the cursor |
 
-Hover brings back a whole group, not one bar. Bars 1–3, the stance bar and the pet bar fade together, bars 4–5 fade together, and each later bar fades on its own. `/quiet setup` changes the number. The same number fades together. Combat, a vehicle, a dungeon, raid, battleground, arena and Edit Mode still show every bar.
+Hold `` ` `` to show every row above at once. Letting go follows the same rules, including a checked row. The portrait stays hidden unless the player frame is on, and chat stays as it is. Change the key under QuietUI in Key Bindings; `` ` `` is the default when that key is free.
+
+Hover brings back a whole group, not one bar. Bars 1–3, the stance bar, the pet bar and the totem bar fade together, bars 4–5 fade together, and each later bar fades on its own. The swing timer is group 10. `/quiet setup` changes the number. The same number fades together. Combat, a vehicle, a dungeon, raid, battleground, arena and Edit Mode still show every bar.
 
 ![Action bars fade in on hover](docs/images/img002.png)
 
@@ -43,9 +45,9 @@ Hover brings back a whole group, not one bar. Bars 1–3, the stance bar and the
 
 ### Player frame
 
-A checkbox in `/quiet setup`, off by default. The personal resource bar keeps its own rules.
+A checkbox in `/quiet setup`, on by default. The personal resource bar keeps its own rules.
 
-Off, the portrait stays hidden. On, the portrait and your pet show with a target, in combat, in a group, in an instance, in a vehicle, on hover, in Edit Mode, and whenever a pet is out.
+Off, the portrait stays hidden. On, the portrait and your pet show with a target, in combat, in a group, in an instance, in a vehicle, on hover, in Edit Mode, and while `` ` `` is held. A pet on its own does not keep them up.
 
 ### One button instead of two rows
 
@@ -87,22 +89,22 @@ Turning QuietUI off does not switch your Edit Mode layout.
 
 ## The setup window
 
-`/quiet setup` is the only window.
+`/quiet setup` is the only window. The same choices sit on four tabs: Visible, Bars, Player, and Chat.
 
 ![Setup window](docs/images/img007.png)
 
 **Always visible.** Check a row and that piece stays on screen: action bars,
-XP bar, cooldown manager, damage meter, personal resource, quest tracker,
-buffs and debuffs, bag button. The Action bars check keeps every bar visible.
+swing timer, XP bar, cooldown manager, damage meter, personal resource, quest tracker,
+buffs and debuffs, bag button. The Action bars check keeps every bar visible. The Swing timer check keeps that bar up on its own.
 
-**Fade together.** Each bar has a number: Bar 1 through Bar 8, the stance bar and the pet bar. The same number fades in together on hover. The default is 1 for bars 1–3, the stance bar and the pet bar, 2 for bars 4–5, then a number of its own for the rest.
+**Fade together.** Each bar has a number: Bar 1 through Bar 8, the stance bar, the pet bar, the totem bar and the swing timer. The same number fades in together on hover. The default is 1 for bars 1–3, the stance bar, the pet bar and the totem bar, 2 for bars 4–5, then a number of its own for the rest. The swing timer is 10.
 
-**Player frame.** A checkbox, off by default. On, the portrait and your pet show beside the personal resource bar, as above.
+**Player frame.** A checkbox, on by default. On, the portrait and your pet show beside the personal resource bar, as above.
 
 **Chat.** Modern chat is a toggle, on by default. Uncheck it and Save to use the original chat. Fade after sets how long a line stays at the bottom: steps of 5 seconds, up to 60. Stay keeps the line. The default is 10 seconds.
 
 - **Save** keeps the choices and closes the window.
-- **Reset default** clears the checks, turns the player frame off, puts Modern chat and a 10 second fade back, restores the fade groups, and applies that at once.
+- **Reset default** clears the checks, turns the player frame on, puts Modern chat and a 10 second fade back, restores the fade groups, and applies that at once.
 - **Import layout** writes the QuietUI Edit Mode layout.
 - **Escape** closes the window and drops anything you have not saved.
 

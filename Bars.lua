@@ -32,6 +32,16 @@ ns.BAR_ROWS = {
     { id = "8", label = "Bar 8", group = 5, names = { "MultiBar7" } },
     { id = "stance", label = "Stance bar", group = 1, names = { "StanceBar", "StanceBarFrame", "ShapeshiftBarFrame" } },
     { id = "pet", label = "Pet bar", group = 1, names = { "PetActionBar", "PetActionBarFrame" } },
+    { id = "totem", label = "Totem bar", group = 1, names = { "MultiCastActionBarFrame", "TotemFrame" } },
+    { id = "swing", label = "Swing timer", group = 10, names = {
+        "SwingTimerFrame",
+        "SwingTimer",
+        "MainHandSwingTimer",
+        "OffHandSwingTimer",
+        "RangedSwingTimer",
+        "SwingTimerMainHand",
+        "SwingTimerOffHand",
+    } },
 }
 
 function ns.BarGroup(id)
@@ -59,6 +69,8 @@ local MAIN_BAR = {
 -- Buttons sit several levels deep and outside the root's rect.
 local DEEP_HOVER = {
     GamepadMainActionBarFrame = true,
+    MultiCastActionBarFrame = true,
+    TotemFrame = true,
 }
 
 -- Orphan classic art. Children of a bar already follow that bar's alpha.
@@ -283,8 +295,53 @@ local function FollowArt(alpha)
     end
 end
 
+local swingFound = {}
+local swingScan = 0
+
+local function LooksLikeSwing(frame)
+    if not ns.Usable(frame) or not frame.SetAlpha then return false end
+    local name = ns.FrameName(frame)
+    if name and name:find("Swing") then return true end
+    if type(frame.GetDebugName) ~= "function" then return false end
+    local ok, debugName = pcall(frame.GetDebugName, frame)
+    return ok and type(debugName) == "string" and debugName:find("Swing") ~= nil
+end
+
+-- The swing timer is not one fixed global. Main hand and off hand are separate
+-- frames, and only the debug name is stable.
+local function WalkSwing(root, depth)
+    if depth > 1 or not ns.Usable(root) or type(root.GetChildren) ~= "function" then return end
+    local ok, children = pcall(function()
+        return { root:GetChildren() }
+    end)
+    if not ok or type(children) ~= "table" then return end
+    for _, child in ipairs(children) do
+        if LooksLikeSwing(child) then
+            swingFound[child] = true
+        end
+        local name = ns.FrameName(child)
+        if name == "PlayerFrame" or name == "MainActionBar" or name == "MainMenuBar"
+            or (name and name:find("Swing")) then
+            WalkSwing(child, depth + 1)
+        end
+    end
+end
+
+local function RefreshSwing()
+    local now = type(GetTime) == "function" and GetTime() or 0
+    if now < swingScan then return end
+    swingScan = now + 1
+    for frame in pairs(swingFound) do
+        swingFound[frame] = nil
+    end
+    if UIParent then
+        WalkSwing(UIParent, 0)
+    end
+end
+
 local function Collect()
     Clear(owner)
+    RefreshSwing()
     for index, row in ipairs(ns.BAR_ROWS) do
         local entry = resolved[index]
         if not entry then
@@ -308,6 +365,18 @@ local function Collect()
         end
         for _, bar in ipairs(frames) do
             owner[bar] = row.id
+        end
+        if row.id == "swing" then
+            for frame in pairs(swingFound) do
+                if not seen[frame] then
+                    count = count + 1
+                    frames[count] = frame
+                    owner[frame] = row.id
+                end
+            end
+            for extra = count + 1, #frames do
+                frames[extra] = nil
+            end
         end
     end
 end
@@ -414,7 +483,7 @@ end
 
 function ns.UpdateBars(showAll, elapsed)
     Collect()
-    local forced = showAll or ns.Pinned("bars")
+    local forced = showAll or ns.Pinned("bars") or ns.Glancing()
     local showGroup = {}
     if not forced then
         for _, entry in ipairs(resolved) do
@@ -433,7 +502,7 @@ function ns.UpdateBars(showAll, elapsed)
     end
     local mainAlpha, gamepadAlpha
     for _, entry in ipairs(resolved) do
-        local show = forced or showGroup[ns.BarGroup(entry.id)] or false
+        local show = forced or ns.Pinned(entry.id) or showGroup[ns.BarGroup(entry.id)] or false
         for _, bar in ipairs(entry.frames) do
             local ok, err = pcall(function()
                 if not bar:IsShown() then return end

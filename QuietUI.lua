@@ -104,6 +104,26 @@ local function Rescan()
     ApplyAll()
 end
 
+-- A default on the header binding is stored as HEADER_QUIETUI, so ` does nothing.
+-- Take that key, or a free `, for QUIETUI_GLANCE. Leave any other action alone.
+local function EnsureGlanceBinding()
+    if type(GetBindingKey) ~= "function" or type(SetBinding) ~= "function" then return end
+    if type(GetBindingAction) ~= "function" then return end
+    if InCombatLockdown and InCombatLockdown() then return end
+    local ok, existing = pcall(GetBindingKey, "QUIETUI_GLANCE")
+    if ok and type(existing) == "string" and existing ~= "" then return end
+    local actionOk, action = pcall(GetBindingAction, "`")
+    if not actionOk or type(action) ~= "string" then return end
+    if action ~= "" and action ~= "HEADER_QUIETUI" then return end
+    local setOk, bound = pcall(SetBinding, "`", "QUIETUI_GLANCE")
+    if not setOk or not bound then return end
+    if type(SaveBindings) ~= "function" or type(GetCurrentBindingSet) ~= "function" then return end
+    local setOk2, set = pcall(GetCurrentBindingSet)
+    if setOk2 and type(set) == "number" then
+        pcall(SaveBindings, set)
+    end
+end
+
 local function Boot()
     local first = not booted
     booted = true
@@ -115,6 +135,7 @@ local function Boot()
         print("   |cffffffff/quiet setup|r  choose what stays visible")
     end
     Rescan()
+    EnsureGlanceBinding()
     if first and ns.DB().enabled then
         ArmLayoutSettle()
     end
@@ -235,6 +256,23 @@ HookGlobal("UpdateMicroButtons", ns.RefreshChrome)
 HookGlobal("FCF_SetWindowAlpha", ns.StripAllChat)
 HookGlobal("FCF_SetWindowColor", ns.StripAllChat)
 HookGlobal("FCF_DockUpdate", ns.StripAllChat)
+
+------------------------------------------------------------------------------
+-- Hold Glance to show the faded HUD. Release returns to the rules above.
+-- The binding system calls a global; down and up both arrive.
+------------------------------------------------------------------------------
+BINDING_CATEGORY_QUIETUI = "QuietUI"
+BINDING_NAME_QUIETUI_GLANCE = "Glance"
+
+local glancing = false
+
+function QuietUIGlance(keystate)
+    glancing = keystate == "down"
+end
+
+function ns.Glancing()
+    return glancing
+end
 
 ------------------------------------------------------------------------------
 -- /quiet on | off | setup, no argument toggles.

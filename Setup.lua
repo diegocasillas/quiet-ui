@@ -1,10 +1,11 @@
 local _, ns = ...
 
--- One window: what stays visible, which bars fade together, the player frame, and chat.
+-- One window, four tabs: what stays visible, which bars fade together, the player frame, and chat.
 -- The frame is named so UISpecialFrames can close it on Escape.
 
 local ROWS = {
     { key = "bars", label = "Action bars" },
+    { key = "swing", label = "Swing timer" },
     { key = "xp", label = "XP bar" },
     { key = "cooldowns", label = "Cooldown manager" },
     { key = "meter", label = "Damage meter" },
@@ -40,10 +41,10 @@ function ns.Pinned(name)
     return type(visible) == "table" and visible[name] and true or false
 end
 
--- "classic" shows the portrait beside the resource bar. Missing keeps it for edit mode.
+-- Missing means on. Only an explicit "resource" keeps the portrait for edit mode.
 function ns.PlayerStyle()
-    if ns.CharDB().player == "classic" then return "classic" end
-    return "resource"
+    if ns.CharDB().player == "resource" then return "resource" end
+    return "classic"
 end
 
 -- Missing means on. Only an explicit false turns the modern chat off.
@@ -113,6 +114,25 @@ local function Paint()
             row.value:SetText(tostring(draft.groups[row.id]))
         end
     end
+    if frame.tabs then
+        for _, tab in ipairs(frame.tabs) do
+            local on = tab.id == frame.page
+            if tab.SetBackdropBorderColor then
+                if on then
+                    tab:SetBackdropBorderColor(0.95, 0.75, 0.25, 0.9)
+                else
+                    tab:SetBackdropBorderColor(0.85, 0.85, 0.85, 0.35)
+                end
+            end
+            if tab.label and tab.label.SetTextColor then
+                if on then
+                    tab.label:SetTextColor(0.95, 0.75, 0.25)
+                else
+                    tab.label:SetTextColor(0.85, 0.85, 0.85)
+                end
+            end
+        end
+    end
 end
 
 local function ReadDraft()
@@ -139,9 +159,9 @@ local function Write()
     end
     db.visible = visible
     if draft.player then
-        db.player = "classic"
-    else
         db.player = nil
+    else
+        db.player = "resource"
     end
     if draft.chat then
         db.chat = nil
@@ -250,6 +270,51 @@ local function Section(parent, text)
     return label
 end
 
+local TABS = {
+    { id = "visible", label = "Visible", height = 238 },
+    { id = "bars", label = "Bars", height = 308 },
+    { id = "player", label = "Player", height = 48 },
+    { id = "chat", label = "Chat", height = 72 },
+}
+
+local function TabButton(parent, text, onClick)
+    local button = Backdropped("Button", nil, parent)
+    button:SetSize(84, 22)
+    Flat(button, 0.9)
+    button.label = button:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    button.label:SetPoint("CENTER")
+    button.label:SetText(text)
+    local highlight = button:CreateTexture(nil, "HIGHLIGHT")
+    highlight:SetAllPoints()
+    highlight:SetColorTexture(0.95, 0.75, 0.25, 0.15)
+    button:SetScript("OnClick", onClick)
+    return button
+end
+
+local function Page(parent, id, height)
+    local page = CreateFrame("Frame", nil, parent)
+    page.id = id
+    page:SetSize(348, height)
+    page:SetPoint("TOPLEFT", 16, -76)
+    page:SetFrameLevel(parent:GetFrameLevel() + 5)
+    page:Hide()
+    return page
+end
+
+local function ShowPage(widget, id)
+    widget.page = id
+    for _, page in ipairs(widget.pages) do
+        if page.id == id then page:Show() else page:Hide() end
+    end
+    for _, info in ipairs(TABS) do
+        if info.id == id then
+            widget:SetHeight(76 + info.height + 88)
+            break
+        end
+    end
+    Paint()
+end
+
 local function EnsureEscape(widget)
     local name = widget:GetName()
     if not name or not UISpecialFrames then return end
@@ -261,7 +326,7 @@ end
 
 local function CreateSetup()
     local widget = Backdropped("Frame", "QuietUISetup", UIParent)
-    widget:SetWidth(380)
+    widget:SetSize(380, 76 + TABS[1].height + 88)
     widget:SetPoint("CENTER")
     widget:SetFrameStrata("DIALOG")
     widget:EnableMouse(true)
@@ -271,43 +336,78 @@ local function CreateSetup()
 
     widget.title = widget:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
     widget.title:SetText("|cff8fd4c8QuietUI|r")
+    widget.title:SetPoint("TOP", 0, -14)
 
-    widget.always = Section(widget, "Always visible")
+    widget.tabs = {}
+    widget.pages = {}
+    local tabW, gap = 84, 4
+    local total = #TABS * tabW + (#TABS - 1) * gap
+    local x = -total / 2
+    for _, info in ipairs(TABS) do
+        local id = info.id
+        local tab = TabButton(widget, info.label, function()
+            ShowPage(widget, id)
+        end)
+        tab.id = id
+        tab:SetPoint("TOP", widget, "TOP", x + tabW / 2, -40)
+        x = x + tabW + gap
+        widget.tabs[#widget.tabs + 1] = tab
+        widget.pages[#widget.pages + 1] = Page(widget, id, info.height)
+    end
+
+    local visible = widget.pages[1]
+    widget.always = Section(visible, "Always visible")
+    widget.always:SetPoint("TOPLEFT", visible, "TOPLEFT", 0, 0)
     widget.rows = {}
+    local y = -20
     for _, info in ipairs(ROWS) do
-        local row = Choice(widget, info.label, function()
+        local row = Choice(visible, info.label, function()
             draft[info.key] = not draft[info.key]
             Paint()
         end)
         row.key = info.key
+        row:SetPoint("TOPLEFT", visible, "TOPLEFT", 0, y)
+        y = y - 24
         widget.rows[#widget.rows + 1] = row
     end
 
-    widget.groupHeader = Section(widget, "Fade together")
+    local bars = widget.pages[2]
+    widget.groupHeader = Section(bars, "Fade together")
+    widget.groupHeader:SetPoint("TOPLEFT", bars, "TOPLEFT", 0, 0)
     widget.groupRows = {}
+    y = -20
     for _, info in ipairs(ns.BAR_ROWS) do
         local id = info.id
-        local row = Stepper(widget, info.label, function(sign)
+        local row = Stepper(bars, info.label, function(sign)
             NudgeGroup(id, sign)
         end)
         row.id = id
+        row:SetPoint("TOPLEFT", bars, "TOPLEFT", 0, y)
+        y = y - 24
         widget.groupRows[#widget.groupRows + 1] = row
     end
 
-    widget.player = Section(widget, "Player frame")
-    widget.playerRow = Choice(widget, "Player frame", function()
+    local player = widget.pages[3]
+    widget.player = Section(player, "Player frame")
+    widget.player:SetPoint("TOPLEFT", player, "TOPLEFT", 0, 0)
+    widget.playerRow = Choice(player, "Player frame", function()
         draft.player = not draft.player
         Paint()
     end)
+    widget.playerRow:SetPoint("TOPLEFT", player, "TOPLEFT", 0, -20)
 
-    widget.chatHeader = Section(widget, "Chat")
-    widget.chat = Choice(widget, "Modern chat", function()
+    local chat = widget.pages[4]
+    widget.chatHeader = Section(chat, "Chat")
+    widget.chatHeader:SetPoint("TOPLEFT", chat, "TOPLEFT", 0, 0)
+    widget.chat = Choice(chat, "Modern chat", function()
         draft.chat = not draft.chat
         Paint()
     end)
-    widget.fade = Stepper(widget, "Fade after", function(sign)
+    widget.chat:SetPoint("TOPLEFT", chat, "TOPLEFT", 0, -20)
+    widget.fade = Stepper(chat, "Fade after", function(sign)
         NudgeFade(sign * 5)
     end)
+    widget.fade:SetPoint("TOPLEFT", chat, "TOPLEFT", 0, -44)
 
     widget.reset = ActionButton(widget, "Reset default", function()
         local db = ns.CharDB()
@@ -329,44 +429,21 @@ local function CreateSetup()
         if ns.ApplyAll then ns.ApplyAll() end
     end)
 
-    local y = -14
-    widget.title:SetPoint("TOP", 0, y)
-    y = y - 28
-    widget.always:SetPoint("TOPLEFT", 16, y)
-    y = y - 20
-    for _, row in ipairs(widget.rows) do
-        row:SetPoint("TOPLEFT", 16, y)
-        y = y - 24
-    end
-    y = y - 6
-    widget.groupHeader:SetPoint("TOPLEFT", 16, y)
-    y = y - 20
-    for _, row in ipairs(widget.groupRows) do
-        row:SetPoint("TOPLEFT", 16, y)
-        y = y - 24
-    end
-    y = y - 6
-    widget.player:SetPoint("TOPLEFT", 16, y)
-    y = y - 20
-    widget.playerRow:SetPoint("TOPLEFT", 16, y)
-    y = y - 24
-    y = y - 6
-    widget.chatHeader:SetPoint("TOPLEFT", 16, y)
-    y = y - 20
-    widget.chat:SetPoint("TOPLEFT", 16, y)
-    y = y - 24
-    widget.fade:SetPoint("TOPLEFT", 16, y)
-    y = y - 24
-    widget:SetHeight(-y + 50)
+    widget.glance = widget:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+    widget.glance:SetWidth(348)
+    widget.glance:SetJustifyH("CENTER")
+    widget.glance:SetText("Hold ` to look. Letting go follows these rules. Change the key in Key Bindings.")
+    widget.glance:SetPoint("BOTTOM", 0, 46)
     widget.reset:SetPoint("BOTTOMLEFT", 16, 16)
     widget.import:SetPoint("BOTTOM", 0, 16)
     widget.save:SetPoint("BOTTOMRIGHT", -16, 16)
+    ShowPage(widget, "visible")
     return widget
 end
 
 function ns.ShowSetup()
     frame = frame or CreateSetup()
     ReadDraft()
-    Paint()
     frame:Show()
+    ShowPage(frame, frame.page or "visible")
 end

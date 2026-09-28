@@ -1,0 +1,5 @@
+<Bindings>
+	<Binding name="QUIETUI_GLANCE" category="QUIETUI" runOnUp="true">
+		QuietUIGlance(keystate)
+	</Binding>
+</Bindings>

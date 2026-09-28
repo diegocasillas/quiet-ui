@@ -17,6 +17,9 @@ ns.BAR_NAMES = {
     "ShapeshiftBarFrame",
     "PetActionBar",
     "PetActionBarFrame",
+    "MultiCastActionBarFrame",
+    "TotemFrame",
+    "SwingTimerFrame",
     "GamepadMainActionBarFrame",
 }
 

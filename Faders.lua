@@ -171,13 +171,15 @@ end
 
 -- Off, the portrait stays for edit mode. On, it shows beside the resource bar
 -- with a target, in combat, in an instance, in a group, in a vehicle, on hover,
--- and while a pet is out. The pet frame uses the same alpha.
+-- and while Glance is held. A pet out does not keep it up. The pet frame uses
+-- the same alpha.
 local function UpdatePlayer(elapsed)
     local player = PlayerFrame
     local pet = PetFrame
     local show = ns.InEditMode()
     if ns.PlayerStyle() == "classic" then
         show = show
+            or ns.Glancing()
             or ns.MouseOver(player)
             or ns.MouseOver(pet)
             or InCombatLockdown()
@@ -185,7 +187,6 @@ local function UpdatePlayer(elapsed)
             or ns.InGroup()
             or Flag(UnitHasVehicleUI, "player")
             or Flag(UnitExists, "target")
-            or Flag(UnitExists, "pet")
     end
     if IsFadeable(player) and player:IsShown() then
         ns.UpdateFaded(player, show, elapsed)
@@ -197,6 +198,7 @@ end
 
 local function ResourceForced()
     return InCombatLockdown() or ns.InForcedInstance() or ns.InEditMode() or ns.Pinned("resource")
+        or ns.Glancing()
 end
 
 -- Health and power are secret on this client, so Lua cannot compare them. A
@@ -307,7 +309,7 @@ end
 
 local function UpdateAuras(elapsed)
     local show = InCombatLockdown() or ns.InForcedInstance() or ns.InGroup() or ns.InEditMode()
-        or ns.Pinned("auras")
+        or ns.Pinned("auras") or ns.Glancing()
     if not show then
         for _, frame in ipairs(auraFrames) do
             if MouseOverAny(frame) then
@@ -329,11 +331,12 @@ local function Run(label, fn, ...)
 end
 
 function ns.UpdateFaders(showAll, elapsed)
-    Run("xp bar", UpdateGroup, statusFrames, XPShouldShow() or ns.Pinned("xp"), elapsed)
-    Run("cooldown manager", UpdateGroup, cooldownFrames, CooldownsShouldShow() or ns.Pinned("cooldowns"), elapsed, true)
-    Run("damage meter", UpdateGroup, meterFrames, MeterShouldShow(showAll) or ns.Pinned("meter"), elapsed)
+    local glance = ns.Glancing()
+    Run("xp bar", UpdateGroup, statusFrames, XPShouldShow() or ns.Pinned("xp") or glance, elapsed)
+    Run("cooldown manager", UpdateGroup, cooldownFrames, CooldownsShouldShow() or ns.Pinned("cooldowns") or glance, elapsed, true)
+    Run("damage meter", UpdateGroup, meterFrames, MeterShouldShow(showAll) or ns.Pinned("meter") or glance, elapsed)
     Run("resource bar", UpdateResource, elapsed)
     Run("player frame", UpdatePlayer, elapsed)
-    Run("quest tracker", UpdateGroup, questFrames, ns.InEditMode() or ns.Pinned("quests"), elapsed)
+    Run("quest tracker", UpdateGroup, questFrames, ns.InEditMode() or ns.Pinned("quests") or glance, elapsed)
     Run("buffs", UpdateAuras, elapsed)
 end
