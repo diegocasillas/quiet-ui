@@ -95,7 +95,7 @@ Turning QuietUI off does not switch your Edit Mode layout.
 
 **Always visible.** Check a row and that piece stays on screen: action bars,
 swing timer, XP bar, cooldown manager, damage meter, personal resource, quest tracker,
-buffs and debuffs, bag button. The Action bars check keeps every bar visible. The Swing timer check keeps that bar up on its own.
+buffs and debuffs, bag button. The Action bars check keeps every action bar visible and leaves the swing timer down. The Swing timer check keeps that bar up on its own.
 
 **Fade together.** Each bar has a number: Bar 1 through Bar 8, the stance bar, the pet bar, the totem bar and the swing timer. The same number fades in together on hover. The default is 1 for bars 1–3, the stance bar, the pet bar and the totem bar, 2 for bars 4–5, then a number of its own for the rest. The swing timer is 10.
 

@@ -637,16 +637,24 @@ local showGroup = {}
 local barShow = {}
 local haveBarShow = false
 
+-- Combat, Glance and the other show-all rules cover every row. The Action bars
+-- check covers the action bars only; the swing timer has its own check.
+local function RowForced(id, showAllForced, barsPinned)
+    if id == "swing" then return showAllForced end
+    return showAllForced or barsPinned
+end
+
 function ns.UpdateBars(showAll, elapsed, rescan)
     if rescan == nil then rescan = true end
-    local forced = showAll or ns.Pinned("bars") or ns.Glancing()
+    local showAllForced = showAll or ns.Glancing()
+    local barsPinned = ns.Pinned("bars")
     if rescan or not haveBarShow then
         Collect()
         for key in pairs(showGroup) do
             showGroup[key] = nil
         end
         local hostile, friendly
-        if not forced then
+        if not showAllForced then
             hostile = HostileTarget()
             friendly = FriendlyTarget()
             for _, entry in ipairs(resolved) do
@@ -659,7 +667,8 @@ function ns.UpdateBars(showAll, elapsed, rescan)
             end
         end
         for _, entry in ipairs(resolved) do
-            barShow[entry.id] = forced or ns.Pinned(entry.id) or showGroup[ns.BarGroup(entry.id)]
+            barShow[entry.id] = RowForced(entry.id, showAllForced, barsPinned)
+                or ns.Pinned(entry.id) or showGroup[ns.BarGroup(entry.id)]
                 or (hostile and ns.BarTarget(entry.id, "hostile"))
                 or (friendly and ns.BarTarget(entry.id, "friendly"))
                 or false
@@ -668,7 +677,7 @@ function ns.UpdateBars(showAll, elapsed, rescan)
     end
     local mainAlpha, gamepadAlpha
     for _, entry in ipairs(resolved) do
-        local show = forced or barShow[entry.id]
+        local show = RowForced(entry.id, showAllForced, barsPinned) or barShow[entry.id]
         for _, bar in ipairs(entry.frames) do
             if ns.Usable(bar) and bar:IsShown() then
                 local name, alpha = ApplyBar(bar, show, elapsed)
