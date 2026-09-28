@@ -32,7 +32,7 @@ Checked rows in `/quiet setup` stay visible. Everything else follows this:
 | Damage meter | the same as the action bars, and it stays a moment after combat |
 | Personal resource | combat, an instance, Edit Mode, or when mana, focus or energy is low. The health part also shows while you are hurt |
 | Quest tracker | hover, Edit Mode |
-| Buffs and debuffs | hover, combat, a group, an instance, Edit Mode |
+| Buffs and debuffs | hover, combat, a group, an instance, Edit Mode. With Group buffs and debuffs with player frame checked, also while the player frame is visible |
 | Bag button | hover, while the bag slots are open, or while an item is on the cursor |
 
 Press `` ` `` to show every row above at once. Press again and the same rules apply, including a checked row. The portrait stays hidden unless the player frame is on, and chat stays as it is. Change the key under QuietUI in Key Bindings; `` ` `` is the default when that key is free.
@@ -48,6 +48,8 @@ Hover brings back a whole group, not one bar. Bars 1–3, the stance bar, the pe
 A checkbox in `/quiet setup`, on by default. The personal resource bar keeps its own rules.
 
 Off, the portrait stays hidden. On, the portrait and your pet show with a target, in combat, in a group, in an instance, in a vehicle, on hover, in Edit Mode, and while `` ` `` is on. They also show while mana, focus, or energy is below 70%. A pet on its own does not keep them up.
+
+**Group buffs and debuffs with player frame** is off unless you check it. Checked, buffs and debuffs show whenever the portrait does, including while mana, focus, or energy is low. Their own rules still apply, and the Always visible row still keeps them up. With the player frame off, this check does not pull them up.
 
 ### One button instead of two rows
 
@@ -103,12 +105,12 @@ buffs and debuffs, bag button. The Action bars check keeps every action bar visi
 
 **Enemy** and **Friend.** Each bar also has two checks. Enemy keeps that bar up while you can attack your target and that target is alive. Friend keeps it up while the target is friendly. Both can be on. Neither is on by default, and a check does not show the other bars that share its number.
 
-**Player frame.** A checkbox, on by default. On, the portrait and your pet show beside the personal resource bar, as above.
+**Player frame.** A checkbox, on by default. On, the portrait and your pet show beside the personal resource bar, as above. **Group buffs and debuffs with player frame** is off unless you check it. Checked, buffs and debuffs stay up while that frame is visible.
 
 **Chat.** Modern chat is a toggle, on by default. Uncheck it and Save to use the original chat. Fade after sets how long a line stays at the bottom: steps of 5 seconds, up to 60. Stay keeps the line. The default is 10 seconds.
 
 - **Save** keeps the choices and leaves the window open.
-- **Reset default** clears the checks, turns Force QuietUI layout off, turns the player frame on, puts Modern chat and a 10 second fade back, restores the fade groups, clears Enemy and Friend, and applies that at once.
+- **Reset default** clears the checks, turns Force QuietUI layout off, turns the player frame on, turns grouping buffs off, puts Modern chat and a 10 second fade back, restores the fade groups, clears Enemy and Friend, and applies that at once.
 - **Import layout** writes the QuietUI Edit Mode layout.
 - **X** and **Escape** close the window and drop anything you have not saved.
 

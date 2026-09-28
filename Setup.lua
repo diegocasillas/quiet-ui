@@ -54,6 +54,11 @@ function ns.PlayerStyle()
     return "classic"
 end
 
+-- Missing means off. Checked, buffs follow the player frame.
+function ns.GroupAuras()
+    return ns.CharDB().groupAuras == true
+end
+
 -- Missing means on. Only an explicit false turns the modern chat off.
 function ns.ModernChat()
     return ns.CharDB().chat ~= false
@@ -147,6 +152,9 @@ local function Paint()
     if frame.playerRow then
         PaintBox(frame.playerRow.box, draft.player)
     end
+    if frame.groupAuras then
+        PaintBox(frame.groupAuras.box, draft.groupAuras)
+    end
     if frame.chat then
         PaintBox(frame.chat.box, draft.chat)
     end
@@ -195,6 +203,7 @@ local function ReadDraft()
     end
     draft.forceLayout = ns.ForceQuietLayout()
     draft.player = ns.PlayerStyle() == "classic"
+    draft.groupAuras = ns.GroupAuras()
     draft.chat = ns.ModernChat()
     draft.chatFade = ns.ChatFade()
     draft.groups = {}
@@ -238,6 +247,11 @@ local function Write()
         db.player = nil
     else
         db.player = "resource"
+    end
+    if draft.groupAuras then
+        db.groupAuras = true
+    else
+        db.groupAuras = nil
     end
     if draft.chat then
         db.chat = nil
@@ -401,7 +415,7 @@ local TABS = {
     { id = "general", label = "General", height = 48 },
     { id = "visible", label = "Visible", height = 238 },
     { id = "bars", label = "Bars", height = 308 },
-    { id = "player", label = "Player", height = 48 },
+    { id = "player", label = "Player", height = 72 },
     { id = "chat", label = "Chat", height = 72 },
 }
 
@@ -656,6 +670,11 @@ local function CreateSetup()
         Paint()
     end)
     widget.playerRow:SetPoint("TOPLEFT", player, "TOPLEFT", 0, -20)
+    widget.groupAuras = Choice(player, "Group buffs and debuffs with player frame", function()
+        draft.groupAuras = not draft.groupAuras
+        Paint()
+    end)
+    widget.groupAuras:SetPoint("TOPLEFT", player, "TOPLEFT", 0, -44)
 
     local chat = widget.pages[5]
     widget.chatHeader = Section(chat, "Chat")
@@ -675,6 +694,7 @@ local function CreateSetup()
         db.visible = nil
         db.forceLayout = nil
         db.player = nil
+        db.groupAuras = nil
         db.chat = nil
         db.chatFade = nil
         db.groups = nil

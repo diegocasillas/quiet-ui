@@ -187,21 +187,25 @@ local function PaintPlayer(frame, show, elapsed)
     end
 end
 
+-- Boolean show for the portrait. Low power stays a secret alpha in PaintPlayer.
+-- Edit mode shows it even when the player frame is off.
+local function PlayerShouldShow()
+    if ns.InEditMode() then return true end
+    if ns.PlayerStyle() ~= "classic" then return false end
+    return ns.Glancing()
+        or ns.Hit(PlayerFrame)
+        or ns.Hit(PetFrame)
+        or ns.InCombat()
+        or ns.InForcedInstance()
+        or ns.InGroup()
+        or ns.InVehicle()
+        or ns.HasTarget()
+end
+
 local function UpdatePlayer(elapsed)
     local player = PlayerFrame
     local pet = PetFrame
-    local show = ns.InEditMode()
-    if ns.PlayerStyle() == "classic" then
-        show = show
-            or ns.Glancing()
-            or ns.Hit(player)
-            or ns.Hit(pet)
-            or ns.InCombat()
-            or ns.InForcedInstance()
-            or ns.InGroup()
-            or ns.InVehicle()
-            or ns.HasTarget()
-    end
+    local show = PlayerShouldShow()
     PaintPlayer(player, show, elapsed)
     if not Under(pet, player) then
         PaintPlayer(pet, show, elapsed)
@@ -391,6 +395,19 @@ local function UpdateAuras(elapsed)
                 break
             end
         end
+    end
+    if not show and ns.GroupAuras() and PlayerShouldShow() then
+        show = true
+    end
+    -- Same secret alpha as the portrait. It cannot be faded or merged with a boolean.
+    if not show and ns.GroupAuras() and ns.PlayerStyle() == "classic" then
+        local alpha = SafeAlpha("player power", LowPowerAlpha)
+        for _, frame in ipairs(auraFrames) do
+            if frame:IsShown() then
+                ns.HoldSecretAlpha(frame, alpha)
+            end
+        end
+        return
     end
     for _, frame in ipairs(auraFrames) do
         if frame:IsShown() then
