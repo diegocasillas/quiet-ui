@@ -76,7 +76,7 @@ you log in, and again if that layout changes, a small prompt asks once:
 - **Not now** leaves your layouts alone.
 
 **Import layout** in `/quiet setup` does the same later, including after Not now.
-Turning QuietUI off does not switch your Edit Mode layout.
+**Force QuietUI layout** on the General tab, off unless you check it and Save, is what switches to that layout when QuietUI turns on and back when it turns off. Unchecked, your Edit Mode layout stays as it is.
 
 ![Layout prompt](docs/images/img006.png)
 
@@ -89,9 +89,11 @@ Turning QuietUI off does not switch your Edit Mode layout.
 
 ## The setup window
 
-`/quiet setup` is the only window. The same choices sit on four tabs: Visible, Bars, Player, and Chat.
+`/quiet setup` is the only window. The same choices sit on five tabs: General, Visible, Bars, Player, and Chat.
 
 ![Setup window](docs/images/img007.png)
+
+**General.** Force QuietUI layout is off unless you check it. Checked and saved, turning QuietUI on selects the QuietUI Edit Mode layout, and turning it off selects the one you had before. Unchecked, the addon leaves your layout alone.
 
 **Always visible.** Check a row and that piece stays on screen: action bars,
 swing timer, XP bar, cooldown manager, damage meter, personal resource, quest tracker,
@@ -106,7 +108,7 @@ buffs and debuffs, bag button. The Action bars check keeps every action bar visi
 **Chat.** Modern chat is a toggle, on by default. Uncheck it and Save to use the original chat. Fade after sets how long a line stays at the bottom: steps of 5 seconds, up to 60. Stay keeps the line. The default is 10 seconds.
 
 - **Save** keeps the choices and leaves the window open.
-- **Reset default** clears the checks, turns the player frame on, puts Modern chat and a 10 second fade back, restores the fade groups, clears Enemy and Friend, and applies that at once.
+- **Reset default** clears the checks, turns Force QuietUI layout off, turns the player frame on, puts Modern chat and a 10 second fade back, restores the fade groups, clears Enemy and Friend, and applies that at once.
 - **Import layout** writes the QuietUI Edit Mode layout.
 - **X** and **Escape** close the window and drop anything you have not saved.
 

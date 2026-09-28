@@ -28,8 +28,13 @@ local function UpdateFades(elapsed, rescan)
 end
 
 -- Select once per enable, restore on disable. Both wait out combat and login.
+-- With Force QuietUI layout off, the active Edit Mode layout stays as it is.
 local function FinishLayout()
     if finishingLayout then return end
+    if not ns.ForceQuietLayout() then
+        layoutPending = nil
+        return
+    end
     if layoutPending ~= "select" and layoutPending ~= "restore" then return end
     finishingLayout = true
     local job = layoutPending
@@ -48,7 +53,7 @@ end
 
 -- A new character applies the default preset after login. Keep selecting until that settles.
 local function ArmLayoutSettle()
-    if not ns.DB().enabled then return end
+    if not ns.DB().enabled or not ns.ForceQuietLayout() then return end
     settleToken = settleToken + 1
     local token = settleToken
     layoutChosen = false
@@ -59,7 +64,7 @@ local function ArmLayoutSettle()
     if not (C_Timer and C_Timer.After) then return end
     for _, delay in ipairs({ 1, 3, 6 }) do
         C_Timer.After(delay, function()
-            if token ~= settleToken or not ns.DB().enabled then return end
+            if token ~= settleToken or not ns.DB().enabled or not ns.ForceQuietLayout() then return end
             if type(GetTime) == "function" and GetTime() > settleUntil then return end
             layoutChosen = false
             layoutPending = "select"
@@ -76,8 +81,12 @@ local function RestoreAll()
     settleToken = settleToken + 1
     settleUntil = 0
     layoutChosen = false
-    layoutPending = "restore"
-    FinishLayout()
+    if ns.ForceQuietLayout() then
+        layoutPending = "restore"
+        FinishLayout()
+    else
+        layoutPending = nil
+    end
 end
 
 local function ApplyAll()
@@ -86,9 +95,15 @@ local function ApplyAll()
         return
     end
     ns.RefreshWorld()
-    if not layoutChosen then
-        layoutPending = "select"
-        FinishLayout()
+    if ns.ForceQuietLayout() then
+        if not layoutChosen then
+            layoutPending = "select"
+            FinishLayout()
+        end
+    else
+        -- A later Save with force on selects again. previousLayout stays.
+        layoutChosen = false
+        layoutPending = nil
     end
     ns.EnsureLayout()
     ns.RefreshChrome()
@@ -207,7 +222,7 @@ end
 
 function handlers.EDIT_MODE_LAYOUTS_UPDATED()
     ns.EnsureLayout()
-    if not ns.DB().enabled then return end
+    if not ns.DB().enabled or not ns.ForceQuietLayout() then return end
     if type(GetTime) == "function" and GetTime() > settleUntil then return end
     layoutChosen = false
     layoutPending = "select"

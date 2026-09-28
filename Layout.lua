@@ -2,8 +2,9 @@ local _, ns = ...
 
 -- Offers the QuietUI Edit Mode layout from LayoutString.lua. Each new version
 -- of that string is offered once; an update still waits for consent.
--- Turning the addon on selects the layout (creating it when missing) and
--- remembers the previous one. Turning it off selects that layout again.
+-- With Force QuietUI layout on, turning the addon on selects the layout
+-- (creating it when missing) and remembers the previous one. Turning it off
+-- selects that layout again. With force off, the active layout stays as it is.
 -- Only C_EditMode is used: calling EditModeManagerFrame methods would taint it.
 
 local LAYOUT_NAME = "QuietUI"

@@ -1,6 +1,6 @@
 local _, ns = ...
 
--- One window, four tabs: what stays visible, which bars fade together and for which target, the player frame, and chat.
+-- One window, five tabs: the layout, what stays visible, which bars fade together and for which target, the player frame, and chat.
 -- The frame is named so UISpecialFrames can close it on Escape.
 
 local ROWS = {
@@ -52,6 +52,11 @@ function ns.ModernChat()
     return ns.CharDB().chat ~= false
 end
 
+-- Missing means off. Only an explicit true selects the QuietUI layout when the addon turns on.
+function ns.ForceQuietLayout()
+    return ns.CharDB().forceLayout == true
+end
+
 -- Seconds a line stays at the bottom. Missing means 10. 0 keeps the line.
 function ns.ChatFade()
     local n = ns.CharDB().chatFade
@@ -100,6 +105,9 @@ local function Paint()
     for _, row in ipairs(frame.rows) do
         PaintBox(row.box, draft[row.key])
     end
+    if frame.forceLayout then
+        PaintBox(frame.forceLayout.box, draft.forceLayout)
+    end
     if frame.playerRow then
         PaintBox(frame.playerRow.box, draft.player)
     end
@@ -141,6 +149,7 @@ local function ReadDraft()
     for _, row in ipairs(ROWS) do
         draft[row.key] = ns.Pinned(row.key)
     end
+    draft.forceLayout = ns.ForceQuietLayout()
     draft.player = ns.PlayerStyle() == "classic"
     draft.chat = ns.ModernChat()
     draft.chatFade = ns.ChatFade()
@@ -176,6 +185,11 @@ local function Write()
         end
     end
     db.visible = visible
+    if draft.forceLayout then
+        db.forceLayout = true
+    else
+        db.forceLayout = nil
+    end
     if draft.player then
         db.player = nil
     else
@@ -302,15 +316,16 @@ local function Section(parent, text)
 end
 
 local TABS = {
+    { id = "general", label = "General", height = 48 },
     { id = "visible", label = "Visible", height = 238 },
     { id = "bars", label = "Bars", height = 308 },
     { id = "player", label = "Player", height = 48 },
     { id = "chat", label = "Chat", height = 72 },
 }
 
-local function TabButton(parent, text, onClick)
+local function TabButton(parent, text, width, onClick)
     local button = Backdropped("Button", nil, parent)
-    button:SetSize(84, 22)
+    button:SetSize(width, 22)
     Flat(button, 0.9)
     button.label = button:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     button.label:SetPoint("CENTER")
@@ -385,12 +400,13 @@ local function CreateSetup()
 
     widget.tabs = {}
     widget.pages = {}
-    local tabW, gap = 84, 4
+    -- Five labels on one row inside the 380-wide window.
+    local tabW, gap = 68, 4
     local total = #TABS * tabW + (#TABS - 1) * gap
     local x = -total / 2
     for _, info in ipairs(TABS) do
         local id = info.id
-        local tab = TabButton(widget, info.label, function()
+        local tab = TabButton(widget, info.label, tabW, function()
             ShowPage(widget, id)
         end)
         tab.id = id
@@ -400,7 +416,16 @@ local function CreateSetup()
         widget.pages[#widget.pages + 1] = Page(widget, id, info.height)
     end
 
-    local visible = widget.pages[1]
+    local general = widget.pages[1]
+    widget.layoutHeader = Section(general, "Layout")
+    widget.layoutHeader:SetPoint("TOPLEFT", general, "TOPLEFT", 0, 0)
+    widget.forceLayout = Choice(general, "Force QuietUI layout", function()
+        draft.forceLayout = not draft.forceLayout
+        Paint()
+    end)
+    widget.forceLayout:SetPoint("TOPLEFT", general, "TOPLEFT", 0, -20)
+
+    local visible = widget.pages[2]
     widget.always = Section(visible, "Always visible")
     widget.always:SetPoint("TOPLEFT", visible, "TOPLEFT", 0, 0)
     widget.rows = {}
@@ -416,7 +441,7 @@ local function CreateSetup()
         widget.rows[#widget.rows + 1] = row
     end
 
-    local bars = widget.pages[2]
+    local bars = widget.pages[3]
     widget.groupHeader = Section(bars, "Fade together")
     widget.groupHeader:SetPoint("TOPLEFT", bars, "TOPLEFT", 0, 0)
     widget.groupRows = {}
@@ -454,7 +479,7 @@ local function CreateSetup()
     widget.friendHeader:SetPoint("TOP", first.friendly, "TOP", 0, 20)
     widget.groupColumn:SetPoint("TOP", first.step, "TOP", 0, 20)
 
-    local player = widget.pages[3]
+    local player = widget.pages[4]
     widget.player = Section(player, "Player frame")
     widget.player:SetPoint("TOPLEFT", player, "TOPLEFT", 0, 0)
     widget.playerRow = Choice(player, "Player frame", function()
@@ -463,7 +488,7 @@ local function CreateSetup()
     end)
     widget.playerRow:SetPoint("TOPLEFT", player, "TOPLEFT", 0, -20)
 
-    local chat = widget.pages[4]
+    local chat = widget.pages[5]
     widget.chatHeader = Section(chat, "Chat")
     widget.chatHeader:SetPoint("TOPLEFT", chat, "TOPLEFT", 0, 0)
     widget.chat = Choice(chat, "Modern chat", function()
@@ -479,6 +504,7 @@ local function CreateSetup()
     widget.reset = ActionButton(widget, "Reset default", function()
         local db = ns.CharDB()
         db.visible = nil
+        db.forceLayout = nil
         db.player = nil
         db.chat = nil
         db.chatFade = nil
@@ -505,7 +531,7 @@ local function CreateSetup()
     widget.reset:SetPoint("BOTTOMLEFT", 16, 16)
     widget.import:SetPoint("BOTTOM", 0, 16)
     widget.save:SetPoint("BOTTOMRIGHT", -16, 16)
-    ShowPage(widget, "visible")
+    ShowPage(widget, "general")
     return widget
 end
 
@@ -513,5 +539,5 @@ function ns.ShowSetup()
     frame = frame or CreateSetup()
     ReadDraft()
     frame:Show()
-    ShowPage(frame, frame.page or "visible")
+    ShowPage(frame, frame.page or "general")
 end
