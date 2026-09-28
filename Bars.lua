@@ -61,6 +61,13 @@ function ns.BarGroup(id)
     return n
 end
 
+-- Missing means off. kind is "hostile" or "friendly".
+function ns.BarTarget(id, kind)
+    if type(ns.CharDB) ~= "function" then return false end
+    local map = ns.CharDB()[kind]
+    return type(map) == "table" and map[id] and true or false
+end
+
 local MAIN_BAR = {
     MainMenuBar = true,
     MainActionBar = true,
@@ -125,6 +132,27 @@ end
 
 local function FlyoutOpen()
     return SpellFlyout and SpellFlyout.IsShown and SpellFlyout:IsShown() and true or false
+end
+
+-- A corpse still counts as attackable. Enemy needs a living target.
+local function TargetAlive()
+    if type(UnitIsDeadOrGhost) == "function" then
+        return not Safe(UnitIsDeadOrGhost, "target")
+    end
+    if type(UnitIsDead) == "function" then
+        return not Safe(UnitIsDead, "target")
+    end
+    return true
+end
+
+local function HostileTarget()
+    if type(UnitCanAttack) ~= "function" then return false end
+    return Safe(UnitCanAttack, "player", "target") and TargetAlive()
+end
+
+local function FriendlyTarget()
+    if type(UnitIsFriend) ~= "function" then return false end
+    return Safe(UnitIsFriend, "player", "target")
 end
 
 -- Combat, a vehicle and an instance do not count. Hover, a quest turn-in and
@@ -484,8 +512,11 @@ end
 function ns.UpdateBars(showAll, elapsed)
     Collect()
     local forced = showAll or ns.Pinned("bars") or ns.Glancing()
+    local hostile, friendly
     local showGroup = {}
     if not forced then
+        hostile = HostileTarget()
+        friendly = FriendlyTarget()
         for _, entry in ipairs(resolved) do
             local group = ns.BarGroup(entry.id)
             for _, bar in ipairs(entry.frames) do
@@ -502,7 +533,10 @@ function ns.UpdateBars(showAll, elapsed)
     end
     local mainAlpha, gamepadAlpha
     for _, entry in ipairs(resolved) do
-        local show = forced or ns.Pinned(entry.id) or showGroup[ns.BarGroup(entry.id)] or false
+        local show = forced or ns.Pinned(entry.id) or showGroup[ns.BarGroup(entry.id)]
+            or (hostile and ns.BarTarget(entry.id, "hostile"))
+            or (friendly and ns.BarTarget(entry.id, "friendly"))
+            or false
         for _, bar in ipairs(entry.frames) do
             local ok, err = pcall(function()
                 if not bar:IsShown() then return end

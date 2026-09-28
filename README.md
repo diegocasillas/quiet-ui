@@ -26,7 +26,7 @@ Checked rows in `/quiet setup` stay visible. Everything else follows this:
 
 | Element | Shows when |
 | --- | --- |
-| Action bars | hover on that fade group, combat, a vehicle, a dungeon, raid, battleground or arena, Edit Mode |
+| Action bars | hover on that fade group, combat, a vehicle, a dungeon, raid, battleground or arena, Edit Mode. A bar checked Enemy or Friend also shows while you can attack a living target, or while the target is friendly |
 | XP bar | hover, Edit Mode, a few seconds after a quest gives XP, an open spell flyout, or an item on the cursor |
 | Cooldown manager | combat, a group, an instance, Edit Mode |
 | Damage meter | the same as the action bars, and it stays a moment after combat |
@@ -37,7 +37,7 @@ Checked rows in `/quiet setup` stay visible. Everything else follows this:
 
 Hold `` ` `` to show every row above at once. Letting go follows the same rules, including a checked row. The portrait stays hidden unless the player frame is on, and chat stays as it is. Change the key under QuietUI in Key Bindings; `` ` `` is the default when that key is free.
 
-Hover brings back a whole group, not one bar. Bars 1–3, the stance bar, the pet bar and the totem bar fade together, bars 4–5 fade together, and each later bar fades on its own. The swing timer is group 10. `/quiet setup` changes the number. The same number fades together. Combat, a vehicle, a dungeon, raid, battleground, arena and Edit Mode still show every bar.
+Hover brings back a whole group, not one bar. Bars 1–3, the stance bar, the pet bar and the totem bar fade together, bars 4–5 fade together, and each later bar fades on its own. The swing timer is group 10. `/quiet setup` changes the number. The same number fades together. Combat, a vehicle, a dungeon, raid, battleground, arena and Edit Mode still show every bar. Enemy and Friend on a bar keep that one bar up for a living attackable target, or a friendly target, including out of combat. The rest of its fade group stays down until hover or one of the rules above.
 
 ![Action bars fade in on hover](docs/images/img002.png)
 
@@ -99,12 +99,14 @@ buffs and debuffs, bag button. The Action bars check keeps every bar visible. Th
 
 **Fade together.** Each bar has a number: Bar 1 through Bar 8, the stance bar, the pet bar, the totem bar and the swing timer. The same number fades in together on hover. The default is 1 for bars 1–3, the stance bar, the pet bar and the totem bar, 2 for bars 4–5, then a number of its own for the rest. The swing timer is 10.
 
+**Enemy** and **Friend.** Each bar also has two checks. Enemy keeps that bar up while you can attack your target and that target is alive. Friend keeps it up while the target is friendly. Both can be on. Neither is on by default, and a check does not show the other bars that share its number.
+
 **Player frame.** A checkbox, on by default. On, the portrait and your pet show beside the personal resource bar, as above.
 
 **Chat.** Modern chat is a toggle, on by default. Uncheck it and Save to use the original chat. Fade after sets how long a line stays at the bottom: steps of 5 seconds, up to 60. Stay keeps the line. The default is 10 seconds.
 
 - **Save** keeps the choices and closes the window.
-- **Reset default** clears the checks, turns the player frame on, puts Modern chat and a 10 second fade back, restores the fade groups, and applies that at once.
+- **Reset default** clears the checks, turns the player frame on, puts Modern chat and a 10 second fade back, restores the fade groups, clears Enemy and Friend, and applies that at once.
 - **Import layout** writes the QuietUI Edit Mode layout.
 - **Escape** closes the window and drops anything you have not saved.
 

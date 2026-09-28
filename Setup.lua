@@ -1,6 +1,6 @@
 local _, ns = ...
 
--- One window, four tabs: what stays visible, which bars fade together, the player frame, and chat.
+-- One window, four tabs: what stays visible, which bars fade together and for which target, the player frame, and chat.
 -- The frame is named so UISpecialFrames can close it on Escape.
 
 local ROWS = {
@@ -112,6 +112,8 @@ local function Paint()
     if frame.groupRows then
         for _, row in ipairs(frame.groupRows) do
             row.value:SetText(tostring(draft.groups[row.id]))
+            PaintBox(row.hostile.box, draft.hostile[row.id])
+            PaintBox(row.friendly.box, draft.friendly[row.id])
         end
     end
     if frame.tabs then
@@ -143,9 +145,25 @@ local function ReadDraft()
     draft.chat = ns.ModernChat()
     draft.chatFade = ns.ChatFade()
     draft.groups = {}
+    draft.hostile = {}
+    draft.friendly = {}
     for _, row in ipairs(ns.BAR_ROWS) do
         draft.groups[row.id] = ns.BarGroup(row.id)
+        draft.hostile[row.id] = ns.BarTarget(row.id, "hostile")
+        draft.friendly[row.id] = ns.BarTarget(row.id, "friendly")
     end
+end
+
+-- Only checked bar ids are stored. A missing map means every box is off.
+local function SavedFlags(flags)
+    local saved
+    for _, row in ipairs(ns.BAR_ROWS) do
+        if flags[row.id] then
+            saved = saved or {}
+            saved[row.id] = true
+        end
+    end
+    return saved
 end
 
 local function Write()
@@ -182,6 +200,8 @@ local function Write()
         end
     end
     db.groups = groups
+    db.hostile = SavedFlags(draft.hostile)
+    db.friendly = SavedFlags(draft.friendly)
 end
 
 local function ActionButton(parent, text, onClick)
@@ -242,6 +262,17 @@ local function Mini(parent, text, onClick)
     local highlight = button:CreateTexture(nil, "HIGHLIGHT")
     highlight:SetAllPoints()
     highlight:SetColorTexture(0.95, 0.75, 0.25, 0.2)
+    button:SetScript("OnClick", onClick)
+    return button
+end
+
+local function TargetBox(parent, onClick)
+    local button = CreateFrame("Button", nil, parent)
+    button:SetSize(44, 22)
+    button.box = Backdropped("Frame", nil, button)
+    button.box:SetSize(12, 12)
+    button.box:SetPoint("CENTER")
+    Flat(button.box, 0.9)
     button:SetScript("OnClick", onClick)
     return button
 end
@@ -382,10 +413,26 @@ local function CreateSetup()
             NudgeGroup(id, sign)
         end)
         row.id = id
+        row.hostile = TargetBox(row, function()
+            draft.hostile[id] = not draft.hostile[id]
+            Paint()
+        end)
+        row.friendly = TargetBox(row, function()
+            draft.friendly[id] = not draft.friendly[id]
+            Paint()
+        end)
+        row.friendly:SetPoint("RIGHT", row.minus, "LEFT", -8, 0)
+        row.hostile:SetPoint("RIGHT", row.friendly, "LEFT", -4, 0)
         row:SetPoint("TOPLEFT", bars, "TOPLEFT", 0, y)
         y = y - 24
         widget.groupRows[#widget.groupRows + 1] = row
     end
+    local first = widget.groupRows[1]
+    widget.enemyHeader = Section(bars, "Enemy")
+    widget.friendHeader = Section(bars, "Friend")
+    -- The first row starts 20px under "Fade together", so these titles share that line.
+    widget.enemyHeader:SetPoint("TOP", first.hostile, "TOP", 0, 20)
+    widget.friendHeader:SetPoint("TOP", first.friendly, "TOP", 0, 20)
 
     local player = widget.pages[3]
     widget.player = Section(player, "Player frame")
@@ -416,6 +463,8 @@ local function CreateSetup()
         db.chat = nil
         db.chatFade = nil
         db.groups = nil
+        db.hostile = nil
+        db.friendly = nil
         ReadDraft()
         Paint()
         if ns.ApplyAll then ns.ApplyAll() end
