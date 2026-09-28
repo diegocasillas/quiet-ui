@@ -16,11 +16,12 @@ local function Run(label, fn, ...)
     if not ok then ns.Report(label, err) end
 end
 
-local function UpdateFades(elapsed)
+local function UpdateFades(elapsed, rescan)
     if not ns.DB().enabled then return end
     ns.NextFadeTick()
+    ns.BeginTick(rescan)
     local showAll = ns.ShowAll()
-    ns.UpdateBars(showAll, elapsed)
+    ns.UpdateBars(showAll, elapsed, rescan)
     ns.UpdateFaders(showAll, elapsed)
     ns.UpdateMenuButton(elapsed)
 end
@@ -82,6 +83,7 @@ local function ApplyAll()
         RestoreAll()
         return
     end
+    ns.RefreshWorld()
     if not layoutChosen then
         layoutPending = "select"
         FinishLayout()
@@ -100,7 +102,9 @@ end
 ns.ApplyAll = ApplyAll
 
 local function Rescan()
+    ns.RefreshWorld()
     ns.FindFaders(true)
+    ns.ScanSwing()
     ApplyAll()
 end
 
@@ -183,10 +187,12 @@ function handlers.PLAYER_ENTERING_WORLD(isInitialLogin, isReloading)
 end
 
 function handlers.PLAYER_REGEN_DISABLED()
+    ns.NoteCombat(true)
     UpdateFades(0)
 end
 
 function handlers.PLAYER_REGEN_ENABLED()
+    ns.NoteCombat(false)
     ns.MarkCombatEnd()
     UpdateFades(0)
     ns.RefreshChrome()
@@ -207,9 +213,23 @@ function handlers.EDIT_MODE_LAYOUTS_UPDATED()
 end
 
 function handlers.UPDATE_CHAT_WINDOWS()
-    ns.StripAllChat()
+    ns.StripAllChat(true)
 end
 handlers.UPDATE_FLOATING_CHAT_WINDOWS = handlers.UPDATE_CHAT_WINDOWS
+
+function handlers.GROUP_ROSTER_UPDATE()
+    ns.RefreshWorld()
+end
+
+function handlers.PLAYER_TARGET_CHANGED()
+    ns.RefreshWorld()
+end
+
+function handlers.UNIT_ENTERED_VEHICLE()
+    ns.RefreshWorld()
+end
+
+handlers.UNIT_EXITED_VEHICLE = handlers.UNIT_ENTERED_VEHICLE
 
 -- These run before boot and while disabled; the rest only while active.
 local ALWAYS = {
@@ -219,6 +239,24 @@ local ALWAYS = {
 }
 
 local events = CreateFrame("Frame")
+local lastPointerX, lastPointerY
+local lastFlyout = false
+local lastGlance = false
+local wasHot = false
+local lastBusy = false
+local slowAcc = 0
+
+local function PointerMoved()
+    if type(GetCursorPosition) ~= "function" then return true end
+    local x, y = GetCursorPosition()
+    if x == lastPointerX and y == lastPointerY then return false end
+    lastPointerX, lastPointerY = x, y
+    return true
+end
+
+local function FlyoutShown()
+    return SpellFlyout and SpellFlyout.IsShown and SpellFlyout:IsShown() and true or false
+end
 
 events:SetScript("OnEvent", function(_, event, ...)
     if booted and (event == "PLAYER_REGEN_ENABLED" or event == "EDIT_MODE_LAYOUTS_UPDATED") then
@@ -232,16 +270,49 @@ end)
 
 events:SetScript("OnUpdate", function(_, elapsed)
     if not booted or not ns.DB().enabled then return end
-    Run("bars", UpdateFades, elapsed)
-    Run("bags", ns.UpdateBagSlots)
+    elapsed = elapsed or 0
+    local flyout = FlyoutShown()
+    local glance = ns.Glancing() and true or false
+    local rescan = PointerMoved() or ns.ConsumeHud() or flyout ~= lastFlyout or glance ~= lastGlance
+    lastFlyout = flyout
+    lastGlance = glance
+    if rescan or wasHot then
+        Run("bars", UpdateFades, elapsed, rescan)
+        wasHot = ns.FrameHot()
+    end
+    slowAcc = slowAcc + elapsed
+    if slowAcc >= 0.1 then
+        slowAcc = 0
+        ns.ForgetCursor()
+        local busy = ns.CursorBusy()
+        if busy ~= lastBusy then
+            lastBusy = busy
+            if not rescan and not wasHot then
+                Run("bars", UpdateFades, elapsed, true)
+                wasHot = ns.FrameHot()
+                rescan = true
+            end
+        end
+        if not rescan and not wasHot then
+            ns.NextFadeTick()
+            Run("faders", ns.UpdateFaders, ns.ShowAll(), elapsed)
+            if ns.FrameHot() then wasHot = true end
+        end
+        Run("bags", ns.UpdateBagSlots)
+        if ns.ModernChat() then
+            Run("input", ns.SyncVisibleEdits)
+        end
+    end
     if ns.ModernChat() then
-        Run("input", ns.SyncVisibleEdits)
         Run("bubbles", ns.UpdateChat, elapsed)
     end
-    chromeAcc = chromeAcc + (elapsed or 0)
+    chromeAcc = chromeAcc + elapsed
     if chromeAcc < 1 then return end
     chromeAcc = 0
     Run("frame scan", ns.FindFaders, false)
+    Run("swing", ns.ScanSwing)
+    Run("bar buttons", ns.ForgetBarButtons)
+    Run("world", ns.RefreshWorld)
     Run("menu", ns.RefreshChrome)
     if ns.ModernChat() then
         Run("chat", ns.StripAllChat)

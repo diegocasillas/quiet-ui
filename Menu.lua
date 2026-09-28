@@ -42,15 +42,9 @@ local refreshing = false
 ------------------------------------------------------------------------------
 -- Bag slots
 ------------------------------------------------------------------------------
-local function CursorHasItem()
-    if type(GetCursorInfo) ~= "function" then return false end
-    local ok, kind = pcall(GetCursorInfo)
-    return ok and kind == "item"
-end
-
 function ns.BagsShouldShow()
     if not ns.DB().enabled then return false end
-    return bagSlotsPinned or CursorHasItem()
+    return bagSlotsPinned or ns.CursorHasItem()
 end
 
 -- ItemButtonMixin:SetAlpha fades the icon, not the frame. HoldAlpha would
@@ -85,9 +79,13 @@ local function SetBagInput(frame, show)
     end
 end
 
+local shownSlots
+
 function ns.UpdateBagSlots()
     if not ns.DB().enabled then return end
     local show = ns.BagsShouldShow()
+    if show == shownSlots then return end
+    shownSlots = show
     local alpha = show and 1 or 0
     ns.EachBagFrame(function(frame)
         if UsesIconAlpha(frame) then
@@ -270,7 +268,11 @@ local function MuteMicroButtons()
         if not name or seen[name] or name:find("Queue") then return end
         seen[name] = true
         local frame = _G[name]
-        if frame then ns.Mute(frame) end
+        if not frame or frame._quietChrome then return end
+        ns.Mute(frame)
+        if frame._quietAlpha == 0 then
+            frame._quietChrome = true
+        end
     end
     for _, name in ipairs(MICRO_NAMES) do
         Consider(name)
@@ -289,7 +291,10 @@ function ns.RefreshChrome()
         MuteMicroButtons()
         for _, name in ipairs(MENU_FRAMES) do
             local frame = _G[name]
-            if frame then MuteMenuFrame(frame) end
+            if frame and not frame._quietChrome then
+                MuteMenuFrame(frame)
+                frame._quietChrome = true
+            end
         end
         EnsureButton()
     end)
@@ -300,13 +305,29 @@ end
 -- Hover, bag slots, a drag, or Glance keeps the button up. Setup can pin it on.
 function ns.UpdateMenuButton(elapsed)
     if not button or not button:IsShown() then return end
-    local show = ns.Pinned("menu") or ns.MouseOver(button) or button._moved or ns.BagsShouldShow()
+    local show = ns.Pinned("menu") or ns.Hit(button) or button._moved or ns.BagsShouldShow()
         or ns.Glancing()
     ns.UpdateFaded(button, show, elapsed)
 end
 
 function ns.ResetMenu()
     bagSlotsPinned = false
+    shownSlots = nil
+    local function clear(name)
+        local frame = _G[name]
+        if frame then frame._quietChrome = nil end
+    end
+    for _, name in ipairs(MICRO_NAMES) do
+        clear(name)
+    end
+    if type(MICRO_BUTTONS) == "table" then
+        for _, name in ipairs(MICRO_BUTTONS) do
+            clear(name)
+        end
+    end
+    for _, name in ipairs(MENU_FRAMES) do
+        clear(name)
+    end
     if button then button:Hide() end
     ns.EachBagFrame(function(frame)
         SetBagInput(frame, true)

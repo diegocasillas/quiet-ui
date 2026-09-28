@@ -57,6 +57,59 @@ function ns.MouseOver(frame)
     return frame:IsMouseOver() and true or false
 end
 
+-- One focus walk per tick. IsMouseOver on every button is the expensive fallback.
+local focusFallback = false
+local focusReady = false
+local focusHit = {}
+
+function ns.RefreshMouse()
+    if focusFallback then return end
+    for key in pairs(focusHit) do
+        focusHit[key] = nil
+    end
+    local foci
+    if type(GetMouseFoci) == "function" then
+        local ok, result = pcall(GetMouseFoci)
+        if not ok then
+            focusReady = false
+            return
+        end
+        if type(result) == "table" then foci = result end
+    elseif type(GetMouseFocus) == "function" then
+        local ok, result = pcall(GetMouseFocus)
+        if not ok then
+            focusReady = false
+            return
+        end
+        if result then foci = { result } end
+    else
+        focusFallback = true
+        return
+    end
+    focusReady = true
+    if not foci then return end
+    for i = 1, #foci do
+        local frame = foci[i]
+        local depth = 0
+        while frame and depth < 12 do
+            focusHit[frame] = true
+            if type(frame.GetParent) ~= "function" then break end
+            local ok, parent = pcall(frame.GetParent, frame)
+            if not ok then break end
+            frame = parent
+            depth = depth + 1
+        end
+    end
+end
+
+function ns.Hit(frame)
+    if not frame or not frame.IsShown or not frame:IsShown() then return false end
+    if focusFallback or not focusReady then
+        return frame.IsMouseOver and frame:IsMouseOver() and true or false
+    end
+    return focusHit[frame] and true or false
+end
+
 ------------------------------------------------------------------------------
 -- Frame alpha
 ------------------------------------------------------------------------------
@@ -95,6 +148,8 @@ end
 
 function ns.PushAlpha(frame, alpha)
     if not frame or not frame.SetAlpha then return end
+    -- The SetAlpha hook already puts back overwrites. Skip the read when nothing changed.
+    if frame._quietSecret == nil and frame._quietAlpha == alpha then return end
     frame._quietAlpha = alpha
     frame._quietSecret = nil
     local current = CurrentAlpha(frame)
@@ -158,17 +213,25 @@ end
 -- Old globals can alias new frames (MainMenuBar may be MainActionBar), so a
 -- frame fades at most once per tick or it would fade twice as fast.
 local fadeTick = 0
+local frameHot = false
 
 function ns.NextFadeTick()
     fadeTick = fadeTick + 1
+    frameHot = false
+end
+
+function ns.FrameHot()
+    return frameHot
 end
 
 function ns.UpdateFaded(frame, show, elapsed)
     if frame._quietTick == fadeTick then return end
     frame._quietTick = fadeTick
+    local target = show and 1 or 0
+    -- Already there. A fade still runs while the value is between 0 and 1.
+    if frame._quietAlpha == target then return end
     ns.Remember(frame)
     ns.EnsureAlphaHook(frame)
-    local target = show and 1 or 0
     local current = frame._quietAlpha
     if type(current) ~= "number" then
         current = CurrentAlpha(frame) or target
@@ -180,6 +243,7 @@ function ns.UpdateFaded(frame, show, elapsed)
             nextAlpha = current - step
         end
     end
+    if nextAlpha ~= target then frameHot = true end
     ns.PushAlpha(frame, nextAlpha)
 end
 

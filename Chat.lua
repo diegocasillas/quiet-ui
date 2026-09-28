@@ -57,6 +57,7 @@ local FADE_OUT = 0.5
 local MAX_LINKS = 12
 
 local stripping = false
+local chromeStripped = false
 local measureWide
 local copyBox
 
@@ -421,28 +422,47 @@ local function ClampScroll(frame, value)
 end
 
 local function TrackScroll(frame)
-    if frame._quietScrollHook or type(frame.GetScrollOffset) == "function" then return end
+    if frame._quietScrollHook then return end
     frame._quietScrollHook = true
-    frame._quietScroll = 0
+    local native = type(frame.GetScrollOffset) == "function"
+    if not native then
+        frame._quietScroll = 0
+    end
     local function hook(name, fn)
         if type(frame[name]) ~= "function" then return end
-        pcall(hooksecurefunc, frame, name, fn)
+        pcall(hooksecurefunc, frame, name, function(self)
+            self._quietDirty = true
+            if fn then fn(self) end
+        end)
     end
-    hook("ScrollUp", function(self)
-        self._quietScroll = ClampScroll(self, (self._quietScroll or 0) + 1)
-    end)
-    hook("ScrollDown", function(self)
-        self._quietScroll = ClampScroll(self, (self._quietScroll or 0) - 1)
-    end)
-    hook("PageUp", function(self)
-        self._quietScroll = ClampScroll(self, (self._quietScroll or 0) + 10)
-    end)
-    hook("PageDown", function(self)
-        self._quietScroll = ClampScroll(self, (self._quietScroll or 0) - 10)
-    end)
-    hook("ScrollToBottom", function(self)
-        self._quietScroll = 0
-    end)
+    if native then
+        hook("ScrollUp")
+        hook("ScrollDown")
+        hook("PageUp")
+        hook("PageDown")
+        hook("ScrollToBottom")
+    else
+        hook("ScrollUp", function(self)
+            self._quietScroll = ClampScroll(self, (self._quietScroll or 0) + 1)
+        end)
+        hook("ScrollDown", function(self)
+            self._quietScroll = ClampScroll(self, (self._quietScroll or 0) - 1)
+        end)
+        hook("PageUp", function(self)
+            self._quietScroll = ClampScroll(self, (self._quietScroll or 0) + 10)
+        end)
+        hook("PageDown", function(self)
+            self._quietScroll = ClampScroll(self, (self._quietScroll or 0) - 10)
+        end)
+        hook("ScrollToBottom", function(self)
+            self._quietScroll = 0
+        end)
+    end
+    if frame.HookScript then
+        frame:HookScript("OnSizeChanged", function(self)
+            self._quietDirty = true
+        end)
+    end
 end
 
 local function MaxLines(frame)
@@ -554,6 +574,7 @@ local function PushLine(frame, text, r, g, b, animate, addToStart)
     while #lines > cap do
         table.remove(lines, 1)
     end
+    frame._quietDirty = true
 end
 
 local function HoldFont(frame, fs)
@@ -859,9 +880,11 @@ end
 
 local function HideCopyBox()
     if not copyBox then return end
+    local anchor = copyBox.anchor
     copyBox.anchor = nil
     copyBox._quietStick = nil
     copyBox:Hide()
+    if anchor and anchor.chat then anchor.chat._quietDirty = true end
 end
 
 local function EnsureCopyBox()
@@ -903,7 +926,9 @@ local function EnsureCopyBox()
             end
             return
         end
+        local anchor = self.anchor
         self:Hide()
+        if anchor and anchor.chat then anchor.chat._quietDirty = true end
     end)
     copyBox = box
     return box
@@ -942,6 +967,7 @@ local function ShowCopyBox(anchor, text)
     box:SetPoint("BOTTOMLEFT", anchor, "TOPLEFT", 0, 4)
     box:SetText(text)
     box:Show()
+    if anchor.chat then anchor.chat._quietDirty = true end
     local function focus()
         if not box:IsShown() then return end
         box:SetFocus()
@@ -1200,19 +1226,47 @@ local function SizeBubble(bubble, msg, maxW)
     return bubble.h
 end
 
-local function SyncCopy(bubble)
+local function ShowCopy(bubble, hot)
     local icon = bubble.copy
     if not icon then return end
-    if not bubble:IsShown() or (bubble.msg and bubble.msg.secret) then
-        icon:Hide()
+    if not hot or not bubble:IsShown() or (bubble.msg and bubble.msg.secret) then
+        if icon:IsShown() then
+            icon:EnableMouse(false)
+            icon:Hide()
+        end
         return
     end
     icon:Show()
-    local hot = ns.MouseOver(bubble) or ns.MouseOver(icon)
-    icon:EnableMouse(hot and true or false)
-    icon:SetAlpha(hot and 0.85 or 0)
-    if hot and icon.SetFrameLevel and bubble.GetFrameLevel then
-        pcall(icon.SetFrameLevel, icon, (bubble:GetFrameLevel() or 1) + 5)
+    icon:EnableMouse(true)
+    icon:SetAlpha(0.85)
+    if icon.SetFrameLevel and bubble.GetFrameLevel then
+        local level = (bubble:GetFrameLevel() or 1) + 5
+        if icon._quietLevel ~= level then
+            icon._quietLevel = level
+            pcall(icon.SetFrameLevel, icon, level)
+        end
+    end
+end
+
+local function EnterBubble(bubble)
+    bubble._quietHot = true
+    ShowCopy(bubble, true)
+    if bubble.chat then bubble.chat._quietDirty = true end
+end
+
+-- OnLeave fires before the pointer reaches the copy icon. Check once it lands.
+local function SettleHot(bubble)
+    if not bubble then return end
+    local function apply()
+        local hot = ns.MouseOver(bubble) or (bubble.copy and ns.MouseOver(bubble.copy))
+        bubble._quietHot = hot and true or false
+        ShowCopy(bubble, bubble._quietHot)
+        if bubble.chat then bubble.chat._quietDirty = true end
+    end
+    if C_Timer and C_Timer.After then
+        C_Timer.After(0, apply)
+    else
+        apply()
     end
 end
 
@@ -1225,11 +1279,17 @@ local function SlideX(msg)
     return -SLIDE_X * (1 - k)
 end
 
--- 0 hides the line. The last half second fades it. A missing interval stays at 10.
-local function LineAlpha(msg)
+local function ChatLife()
     local life = 10
     if ns.ChatFade then life = ns.ChatFade() end
-    if type(life) ~= "number" or life <= 0 or not msg.born then return 1 end
+    if type(life) ~= "number" then return 10 end
+    return life
+end
+
+-- 0 hides the line. The last half second fades it. A missing interval stays at 10.
+local function LineAlpha(msg)
+    local life = ChatLife()
+    if life <= 0 or not msg.born then return 1 end
     local left = life - (GetTime() - msg.born)
     if left <= 0 then return 0 end
     if left >= FADE_OUT then return 1 end
@@ -1239,8 +1299,7 @@ end
 -- Keeps the line under the pointer, including the copy box. Does not reveal older lines.
 local function BubbleHeld(bubble)
     if not bubble then return false end
-    if ns.MouseOver(bubble) then return true end
-    if bubble.copy and ns.MouseOver(bubble.copy) then return true end
+    if bubble._quietHot then return true end
     return copyBox and copyBox:IsShown() and copyBox.anchor == bubble or false
 end
 
@@ -1255,13 +1314,19 @@ local function ReleaseBubble(frame, bubble)
     if copyBox and copyBox.anchor == bubble then
         HideCopyBox()
     end
+    bubble._quietHot = false
+    ShowCopy(bubble, false)
     bubble:Hide()
     bubble:SetAlpha(1)
     bubble.msg = nil
     bubble._y = nil
     bubble._quietSizeKey = nil
     bubble._quietLaid = nil
-    if bubble.copy then bubble.copy:Hide() end
+    bubble._quietPX = nil
+    bubble._quietPY = nil
+    bubble._quietPA = nil
+    bubble._quietLevel = nil
+    bubble._quietFontStamp = nil
     frame._quietPool[#frame._quietPool + 1] = bubble
 end
 
@@ -1276,6 +1341,12 @@ local function CreateBubble(frame)
     bubble:SetScript("OnMouseWheel", function(_, delta)
         Wheel(frame, delta)
     end)
+    bubble:SetScript("OnEnter", function(self)
+        EnterBubble(self)
+    end)
+    bubble:SetScript("OnLeave", function(self)
+        SettleHot(self)
+    end)
     TintRound(bubble, 0, 0, 0, 0.48)
     local text = bubble:CreateFontString(nil, "OVERLAY")
     text:SetPoint("TOPLEFT", bubble, "TOPLEFT", PAD, -PAD)
@@ -1289,6 +1360,7 @@ local function CreateBubble(frame)
     icon:SetPoint("LEFT", bubble, "RIGHT", 3, 0)
     icon:SetAlpha(0)
     icon:EnableMouse(false)
+    icon.bubble = bubble
     icon:SetScript("OnClick", function()
         if C_Timer and C_Timer.After then
             C_Timer.After(0, function() CopyLine(bubble) end)
@@ -1297,10 +1369,12 @@ local function CreateBubble(frame)
         end
     end)
     icon:SetScript("OnEnter", function(self)
+        if self.bubble then EnterBubble(self.bubble) end
         if self.front then self.front:SetVertexColor(0.95, 0.75, 0.25, 1) end
     end)
     icon:SetScript("OnLeave", function(self)
         if self.front then self.front:SetVertexColor(0.9, 0.9, 0.9, 0.85) end
+        SettleHot(self.bubble)
     end)
     icon:SetScript("OnMouseWheel", function(_, delta)
         Wheel(frame, delta)
@@ -1331,32 +1405,81 @@ local function HideActive(frame)
     end
 end
 
+local function FontStamp(frame)
+    local saved = frame._quietSavedFont
+    local font, size, flags
+    if saved and type(saved[2]) == "number" and saved[2] > 2 then
+        font, size, flags = saved[1], saved[2], saved[3]
+    elseif frame.GetFont then
+        local ok, f, s, fl = pcall(frame.GetFont, frame)
+        if ok then font, size, flags = f, s, fl end
+    end
+    return tostring(font) .. "\0" .. tostring(size) .. "\0" .. tostring(flags)
+end
+
 local function LayoutFrame(frame, elapsed)
     if not ns.Usable(frame) or not frame._quietLines then return end
     if not frame.IsShown or not frame:IsShown() then
-        HideActive(frame)
+        if frame._quietShown ~= false then
+            frame._quietShown = false
+            HideActive(frame)
+        end
         return
     end
-    RepairTinyFont(frame)
-    if #frame._quietLines > 0 then
-        HideNativeText(frame)
+    if frame._quietShown == false then
+        frame._quietDirty = true
     end
+    frame._quietShown = true
     local width = frame.GetWidth and frame:GetWidth()
     local height = frame.GetHeight and frame:GetHeight()
     if type(width) ~= "number" or ns.IsSecret(width) or width < 40 then return end
     if type(height) ~= "number" or ns.IsSecret(height) or height < 20 then return end
     local lines = frame._quietLines
-    local byMsg = frame._quietByMsg
     local offset = math.floor(ScrollOffset(frame))
     if offset < 0 then offset = 0 end
     local maxOffset = math.max(0, #lines - 1)
     if offset > maxOffset then offset = maxOffset end
+    local life = ChatLife()
+    local now = GetTime()
+    local restack = frame._quietDirty or frame._quietW ~= width or frame._quietH ~= height
+        or frame._quietOffset ~= offset or frame._quietLife ~= life
+    local due = frame._quietNext == 0 or (type(frame._quietNext) == "number" and frame._quietNext > 0 and now >= frame._quietNext)
+    if not restack and not due then return end
+    frame._quietDirty = nil
+    frame._quietW, frame._quietH = width, height
+    frame._quietOffset = offset
+    frame._quietLife = life
+    RepairTinyFont(frame)
+    local byMsg = frame._quietByMsg
     -- Only the bottom view drops old lines. Scrolling still walks the full list.
     local fading = offset == 0
     local index = #lines - offset
     local y = 4
-    local seen = {}
-    local stack = {}
+    local seen = frame._quietSeen
+    if not seen then
+        seen = {}
+        frame._quietSeen = seen
+    else
+        for key in pairs(seen) do
+            seen[key] = nil
+        end
+    end
+    local stack = frame._quietStack
+    if not stack then
+        stack = {}
+        frame._quietStack = stack
+    end
+    local stackN = 0
+    local fontStamp = frame._quietFont
+    if restack or not fontStamp then
+        fontStamp = FontStamp(frame)
+        frame._quietFont = fontStamp
+    end
+    local nextAt = nil
+    local function sooner(when)
+        if nextAt == 0 then return end
+        if when == 0 or not nextAt or when < nextAt then nextAt = when end
+    end
     local guard = 0
     while index >= 1 and guard < 40 do
         guard = guard + 1
@@ -1375,8 +1498,15 @@ local function LayoutFrame(frame, elapsed)
         end
         if place then
             local bubble = known or AcquireBubble(frame)
-            ApplyFont(bubble, frame)
-            local h = SizeBubble(bubble, msg, width - 8)
+            local h = bubble.h
+            if bubble.msg ~= msg or not h or not bubble._quietSizeKey or restack then
+                if bubble._quietFontStamp ~= fontStamp then
+                    ApplyFont(bubble, frame)
+                    bubble._quietFontStamp = fontStamp
+                    bubble._quietSizeKey = nil
+                end
+                h = SizeBubble(bubble, msg, width - 8)
+            end
             if y > 4 and y + h > height - 2 then
                 if not known then
                     ReleaseBubble(frame, bubble)
@@ -1385,7 +1515,8 @@ local function LayoutFrame(frame, elapsed)
             end
             byMsg[msg] = bubble
             seen[msg] = true
-            stack[#stack + 1] = bubble
+            stackN = stackN + 1
+            stack[stackN] = bubble
             local target = y
             if bubble.msg ~= msg or bubble._y == nil then
                 bubble._y = target
@@ -1394,21 +1525,44 @@ local function LayoutFrame(frame, elapsed)
             end
             bubble.msg = msg
             bubble.chat = frame
-            bubble:ClearAllPoints()
-            bubble:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 4 + SlideX(msg), bubble._y)
-            bubble:SetAlpha(alpha)
-            bubble:Show()
+            local x = 4 + SlideX(msg)
+            if bubble._quietPX ~= x or bubble._quietPY ~= bubble._y then
+                bubble:ClearAllPoints()
+                bubble:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", x, bubble._y)
+                bubble._quietPX, bubble._quietPY = x, bubble._y
+            end
+            if bubble._quietPA ~= alpha then
+                bubble:SetAlpha(alpha)
+                bubble._quietPA = alpha
+            end
+            if not bubble:IsShown() then bubble:Show() end
+            if msg.slide and now - msg.slide < SLIDE_TIME then sooner(0) end
+            if bubble._y ~= target then sooner(0) end
+            if fading and life > 0 and msg.born and not BubbleHeld(bubble) then
+                local fadeAt = msg.born + life - FADE_OUT
+                if now < fadeAt - 0.02 then
+                    sooner(fadeAt)
+                else
+                    sooner(0)
+                end
+            end
             y = y + h + GAP
         end
         index = index - 1
     end
-    -- Same level, newest raised last so it stays above the lines it pushes up.
-    local level = (frame:GetFrameLevel() or 0) + 2
-    for i = #stack, 1, -1 do
-        local bubble = stack[i]
-        pcall(bubble.SetFrameLevel, bubble, level)
-        SyncCopy(bubble)
+    for i = stackN + 1, #stack do
+        stack[i] = nil
     end
+    -- Same level, newest raised last so it stays above the lines it pushes up.
+    if restack then
+        local level = (frame:GetFrameLevel() or 0) + 2
+        for i = stackN, 1, -1 do
+            local bubble = stack[i]
+            bubble._quietLevel = level
+            pcall(bubble.SetFrameLevel, bubble, level)
+        end
+    end
+    frame._quietNext = nextAt
     for msg, bubble in pairs(byMsg) do
         if not seen[msg] then
             byMsg[msg] = nil
@@ -1478,6 +1632,7 @@ local function BindBubbles(frame)
             self._quietScroll = (self._quietScroll or 0) + 1
         end
         PushLine(self, text, r, g, b, ns.DB().enabled and bottom, false)
+        HideNativeText(self)
         if self._quietScrollHook then
             self._quietScroll = ClampScroll(self, self._quietScroll or 0)
         end
@@ -1487,16 +1642,21 @@ local function BindBubbles(frame)
         pcall(hooksecurefunc, frame, "Clear", function(self)
             if self._quietLines then Wipe(self._quietLines) end
             self._quietScroll = 0
+            self._quietDirty = true
         end)
     end
 end
 
 function ns.UpdateChat(elapsed)
     if not ns.DB().enabled or not ns.ModernChat() then return end
+    local now = GetTime()
     for i = 1, ChatCount() do
         local frame = _G["ChatFrame" .. i]
         if frame and frame._quietBubbles then
-            LayoutFrame(frame, elapsed)
+            local wake = frame._quietNext
+            if frame._quietDirty or wake == 0 or (type(wake) == "number" and wake > 0 and now >= wake) then
+                LayoutFrame(frame, elapsed)
+            end
         end
     end
 end
@@ -1505,11 +1665,15 @@ function ns.RestoreChat()
     HideCopyBox()
     RestoreEdits()
     ns.ReleaseChatHold()
+    chromeStripped = false
     for i = 1, ChatCount() do
         local frame = _G["ChatFrame" .. i]
         if frame and frame._quietBubbles then
+            frame._quietStripped = nil
             HideActive(frame)
             RestoreFonts(frame)
+        elseif frame then
+            frame._quietStripped = nil
         end
     end
 end
@@ -1517,6 +1681,15 @@ end
 ------------------------------------------------------------------------------
 -- Chat windows
 ------------------------------------------------------------------------------
+local function MarkStripped(frame)
+    if not frame then return end
+    if frame._quietLines and #frame._quietLines > 0 then
+        HideNativeText(frame)
+    end
+    frame._quietStripped = true
+    frame._quietDirty = true
+end
+
 local function StripChat(frame)
     if not frame or not ns.DB().enabled then return end
     ns.HideTextures(frame)
@@ -1531,6 +1704,7 @@ local function StripChat(frame)
     ns.Mute(frame.TextToSpeechButton)
     if not name then
         BindBubbles(frame)
+        MarkStripped(frame)
         return
     end
     for _, suffix in ipairs(CHAT_BUTTON_SUFFIX) do
@@ -1539,6 +1713,7 @@ local function StripChat(frame)
     StripTab(_G[name .. "Tab"])
     BindEdit(_G[name .. "EditBox"])
     BindBubbles(frame)
+    MarkStripped(frame)
 end
 
 local function StripDock()
@@ -1548,18 +1723,25 @@ local function StripDock()
     ns.HideBackground(dock.Background or _G.GeneralDockManagerBackground)
 end
 
-function ns.StripAllChat()
+function ns.StripAllChat(force)
     if stripping or not ns.DB().enabled or not ns.ModernChat() then return end
     stripping = true
     ns.MarkingChat = true
+    if force then chromeStripped = false end
     local ok, err = pcall(function()
         for i = 1, ChatCount() do
-            StripChat(_G["ChatFrame" .. i])
+            local frame = _G["ChatFrame" .. i]
+            if frame and (force or not frame._quietStripped) then
+                StripChat(frame)
+            end
         end
-        for _, name in ipairs(CHAT_CHROME) do
-            ns.Mute(_G[name])
+        if not chromeStripped then
+            for _, name in ipairs(CHAT_CHROME) do
+                ns.Mute(_G[name])
+            end
+            StripDock()
+            chromeStripped = true
         end
-        StripDock()
     end)
     ns.MarkingChat = false
     stripping = false

@@ -100,6 +100,13 @@ function ns.FindFaders(deep)
     FindNamed(resourceFrames, RESOURCE_NAMES)
     FindNamed(questFrames, QUEST_NAMES)
     FindNamed(auraFrames, AURA_NAMES)
+    for i = 1, #resourceFrames do
+        resourceFrames[i]._quietKids = nil
+        resourceFrames[i]._quietResourceHeld = nil
+    end
+    for i = 1, #auraFrames do
+        auraFrames[i]._quietKids = nil
+    end
     FindMeters(deep)
 end
 
@@ -107,6 +114,7 @@ function ns.MarkCombatEnd()
     if type(GetTime) == "function" then
         lastCombat = GetTime()
     end
+    ns.TouchHud()
 end
 
 function ns.MarkQuestXP(xp)
@@ -114,6 +122,7 @@ function ns.MarkQuestXP(xp)
     if type(GetTime) == "function" then
         lastQuestXP = GetTime()
     end
+    ns.TouchHud()
 end
 
 local function XPShouldShow()
@@ -136,7 +145,7 @@ end
 local function UpdateGroup(frames, show, elapsed, noHover)
     if not show and not noHover then
         for _, frame in ipairs(frames) do
-            if ns.MouseOver(frame) then
+            if ns.Hit(frame) then
                 show = true
                 break
             end
@@ -147,12 +156,6 @@ local function UpdateGroup(frames, show, elapsed, noHover)
             ns.UpdateFaded(frame, show, elapsed)
         end
     end
-end
-
-local function Flag(fn, ...)
-    if type(fn) ~= "function" then return false end
-    local ok, result = pcall(fn, ...)
-    return ok and result and true or false
 end
 
 -- A child already follows its parent alpha. Fading it again would compound.
@@ -180,13 +183,13 @@ local function UpdatePlayer(elapsed)
     if ns.PlayerStyle() == "classic" then
         show = show
             or ns.Glancing()
-            or ns.MouseOver(player)
-            or ns.MouseOver(pet)
-            or InCombatLockdown()
+            or ns.Hit(player)
+            or ns.Hit(pet)
+            or ns.InCombat()
             or ns.InForcedInstance()
             or ns.InGroup()
-            or Flag(UnitHasVehicleUI, "player")
-            or Flag(UnitExists, "target")
+            or ns.InVehicle()
+            or ns.HasTarget()
     end
     if IsFadeable(player) and player:IsShown() then
         ns.UpdateFaded(player, show, elapsed)
@@ -197,7 +200,7 @@ local function UpdatePlayer(elapsed)
 end
 
 local function ResourceForced()
-    return InCombatLockdown() or ns.InForcedInstance() or ns.InEditMode() or ns.Pinned("resource")
+    return ns.InCombat() or ns.InForcedInstance() or ns.InEditMode() or ns.Pinned("resource")
         or ns.Glancing()
 end
 
@@ -255,25 +258,46 @@ local function HealthPart(frame)
     if ns.Usable(health) and health.SetAlpha then return health end
 end
 
+local function KidsOf(frame)
+    local kids = frame._quietKids
+    if kids then return kids end
+    kids = {}
+    frame._quietKids = kids
+    if not frame.GetChildren then return kids end
+    for _, child in ipairs({ frame:GetChildren() }) do
+        kids[#kids + 1] = child
+    end
+    return kids
+end
+
 -- Two secret alphas cannot be merged, so the health part follows missing
 -- health and every other child follows low power; the frame itself stays at 1.
 local function HoldResourceParts(frame, forced)
     local health = HealthPart(frame)
-    if not health or not frame.GetChildren then
+    local kids = KidsOf(frame)
+    if not health or #kids == 0 then
         if forced then return false end
         ns.HoldSecretAlpha(frame, SafeAlpha("player power", LowPowerAlpha))
         return true
     end
     if forced then
-        for _, child in ipairs({ frame:GetChildren() }) do
-            if ns.Usable(child) and child.SetAlpha then ns.HoldAlpha(child, 1) end
+        if frame._quietResourceHeld ~= "forced" then
+            for i = 1, #kids do
+                local child = kids[i]
+                if ns.Usable(child) and child.SetAlpha then ns.HoldAlpha(child, 1) end
+            end
+            frame._quietResourceHeld = "forced"
         end
         return false
     end
-    ns.HoldAlpha(frame, 1)
+    frame._quietResourceHeld = nil
+    if frame._quietAlpha ~= 1 then
+        ns.HoldAlpha(frame, 1)
+    end
     local healthAlpha = SafeAlpha("player health", MissingHealthAlpha)
     local powerAlpha = SafeAlpha("player power", LowPowerAlpha)
-    for _, child in ipairs({ frame:GetChildren() }) do
+    for i = 1, #kids do
+        local child = kids[i]
         if child == health then
             ns.HoldSecretAlpha(child, healthAlpha)
         elseif ns.Usable(child) and child.SetAlpha then
@@ -294,21 +318,21 @@ end
 
 -- Cooldowns matter only when fighting or grouped, so hover does not count.
 local function CooldownsShouldShow()
-    return InCombatLockdown() or ns.InForcedInstance() or ns.InGroup() or ns.InEditMode()
+    return ns.InCombat() or ns.InForcedInstance() or ns.InGroup() or ns.InEditMode()
 end
 
 -- Aura buttons can sit outside their container's bounds, so children count too.
 local function MouseOverAny(frame)
-    if ns.MouseOver(frame) then return true end
-    if not frame.GetChildren then return false end
-    for _, child in ipairs({ frame:GetChildren() }) do
-        if ns.Usable(child) and ns.MouseOver(child) then return true end
+    if ns.Hit(frame) then return true end
+    local kids = KidsOf(frame)
+    for i = 1, #kids do
+        if ns.Usable(kids[i]) and ns.Hit(kids[i]) then return true end
     end
     return false
 end
 
 local function UpdateAuras(elapsed)
-    local show = InCombatLockdown() or ns.InForcedInstance() or ns.InGroup() or ns.InEditMode()
+    local show = ns.InCombat() or ns.InForcedInstance() or ns.InGroup() or ns.InEditMode()
         or ns.Pinned("auras") or ns.Glancing()
     if not show then
         for _, frame in ipairs(auraFrames) do

@@ -100,34 +100,114 @@ local function Safe(fn, ...)
     return ok and result and true or false
 end
 
+local world = {
+    combat = false,
+    instance = false,
+    group = false,
+    vehicle = false,
+    target = false,
+}
+
 function ns.InEditMode()
     local frame = EditModeManagerFrame
     return frame and frame.IsShown and frame:IsShown() and true or false
 end
 
+function ns.RefreshWorld()
+    local combat = world.combat
+    if type(InCombatLockdown) == "function" then
+        local ok, locked = pcall(InCombatLockdown)
+        if ok then combat = locked and true or false end
+    end
+    local group = type(IsInGroup) == "function" and Safe(IsInGroup) or false
+    local vehicle = type(UnitHasVehicleUI) == "function" and Safe(UnitHasVehicleUI, "player") or false
+    local target = type(UnitExists) == "function" and Safe(UnitExists, "target") or false
+    local instance = false
+    if type(IsInInstance) == "function" then
+        instance = Safe(function()
+            local inInstance, kind = IsInInstance()
+            return inInstance and (
+                kind == "party" or kind == "raid" or kind == "pvp" or kind == "arena"
+            )
+        end)
+    end
+    if combat ~= world.combat or group ~= world.group or vehicle ~= world.vehicle
+        or target ~= world.target or instance ~= world.instance then
+        world.combat, world.group, world.vehicle = combat, group, vehicle
+        world.target, world.instance = target, instance
+        ns.TouchHud()
+    end
+end
+
+function ns.NoteCombat(on)
+    local nextOn = on and true or false
+    if nextOn ~= world.combat then
+        world.combat = nextOn
+        ns.TouchHud()
+    end
+end
+
+function ns.InCombat()
+    return world.combat
+end
+
 function ns.InGroup()
-    if type(IsInGroup) ~= "function" then return false end
-    return Safe(IsInGroup)
+    return world.group
 end
 
 function ns.InForcedInstance()
-    if type(IsInInstance) ~= "function" then return false end
-    return Safe(function()
-        local inInstance, kind = IsInInstance()
-        return inInstance and (
-            kind == "party" or kind == "raid" or kind == "pvp" or kind == "arena"
-        )
-    end)
+    return world.instance
 end
 
-local function InVehicle()
-    if type(UnitHasVehicleUI) ~= "function" then return false end
-    return Safe(UnitHasVehicleUI, "player")
+function ns.InVehicle()
+    return world.vehicle
 end
 
-local function CursorBusy()
-    if type(GetCursorInfo) ~= "function" then return false end
-    return Safe(function() return GetCursorInfo() ~= nil end)
+function ns.HasTarget()
+    return world.target
+end
+
+-- false means this tick has not read the cursor yet. nil is a real empty cursor.
+local cursorKind = false
+local hudDirty = true
+
+function ns.TouchHud()
+    hudDirty = true
+end
+
+function ns.ConsumeHud()
+    local dirty = hudDirty
+    hudDirty = false
+    return dirty
+end
+
+function ns.ForgetCursor()
+    cursorKind = false
+end
+
+function ns.BeginTick(hover)
+    if not hover then return end
+    cursorKind = false
+    ns.RefreshMouse()
+end
+
+local function CursorKind()
+    if cursorKind ~= false then return cursorKind end
+    if type(GetCursorInfo) ~= "function" then
+        cursorKind = nil
+        return nil
+    end
+    local ok, kind = pcall(GetCursorInfo)
+    cursorKind = ok and kind or nil
+    return cursorKind
+end
+
+function ns.CursorBusy()
+    return CursorKind() ~= nil
+end
+
+function ns.CursorHasItem()
+    return CursorKind() == "item"
 end
 
 local function FlyoutOpen()
@@ -158,13 +238,13 @@ end
 -- Combat, a vehicle and an instance do not count. Hover, a quest turn-in and
 -- a pinned row are decided in the fader.
 function ns.XPForced()
-    return ns.InEditMode() or FlyoutOpen() or CursorBusy()
+    return ns.InEditMode() or FlyoutOpen() or ns.CursorBusy()
 end
 
 -- Action bars and the damage meter are fully visible while this is true.
 function ns.ShowAll()
-    return InCombatLockdown() or ns.InEditMode() or InVehicle() or ns.InForcedInstance()
-        or FlyoutOpen() or CursorBusy()
+    return world.combat or ns.InEditMode() or world.vehicle or world.instance
+        or FlyoutOpen() or ns.CursorBusy()
 end
 
 local function Parent(frame)
@@ -264,28 +344,78 @@ local function EachDeepButton(bar, fn, depth)
     end
 end
 
+local buttonCache = {}
+local deepCache = {}
+local regionCache = {}
+
+local function RememberButtons(bar, list, deep)
+    local seen = {}
+    local function add(button)
+        if seen[button] then return end
+        seen[button] = true
+        list[#list + 1] = button
+    end
+    EachOwnButton(bar, add)
+    if deep then EachDeepButton(bar, add) end
+end
+
+local function ButtonsFor(bar, deep)
+    local cache = deep and deepCache or buttonCache
+    local list = cache[bar]
+    if list then return list end
+    list = {}
+    cache[bar] = list
+    RememberButtons(bar, list, deep)
+    return list
+end
+
+local function RegionsFor(bar)
+    local list = regionCache[bar]
+    if list then return list end
+    list = {}
+    regionCache[bar] = list
+    if not bar.GetRegions then return list end
+    for _, region in ipairs({ bar:GetRegions() }) do
+        if region and region.SetAlpha and region.GetObjectType then
+            local ok, kind = pcall(region.GetObjectType, region)
+            if ok and kind == "Texture" then
+                list[#list + 1] = region
+            end
+        end
+    end
+    return list
+end
+
+function ns.ForgetBarButtons()
+    for bar in pairs(buttonCache) do
+        buttonCache[bar] = nil
+    end
+    for bar in pairs(deepCache) do
+        deepCache[bar] = nil
+    end
+    for bar in pairs(regionCache) do
+        regionCache[bar] = nil
+    end
+end
+
+local function ListHovered(list)
+    for i = 1, #list do
+        if ns.Hit(list[i]) then return true end
+    end
+    return false
+end
+
 local function ButtonsHovered(bar)
-    local hit = false
-    EachOwnButton(bar, function(button)
-        if not hit and ns.MouseOver(button) then
-            hit = true
-        end
-    end)
-    if hit then return true end
+    if ListHovered(ButtonsFor(bar, false)) then return true end
     if not DEEP_HOVER[ns.FrameName(bar) or ""] then return false end
-    EachDeepButton(bar, function(button)
-        if not hit and ns.MouseOver(button) then
-            hit = true
-        end
-    end)
-    return hit
+    return ListHovered(ButtonsFor(bar, true))
 end
 
 -- Hover on a nested bar belongs to that bar, not the frame behind it.
 local function OverNested(bar)
     for other in pairs(owner) do
         if other ~= bar and owner[other] ~= owner[bar] and IsAncestor(other, bar) then
-            if ns.MouseOver(other) or ButtonsHovered(other) then
+            if ns.Hit(other) or ButtonsHovered(other) then
                 return true
             end
         end
@@ -296,7 +426,7 @@ end
 local function BarHovered(bar)
     if ButtonsHovered(bar) then return true end
     if OverNested(bar) then return false end
-    return ns.MouseOver(bar)
+    return ns.Hit(bar)
 end
 
 -- A bar that parents the bag slots stays visible while those slots are shown.
@@ -355,7 +485,7 @@ local function WalkSwing(root, depth)
     end
 end
 
-local function RefreshSwing()
+function ns.ScanSwing()
     local now = type(GetTime) == "function" and GetTime() or 0
     if now < swingScan then return end
     swingScan = now + 1
@@ -369,7 +499,6 @@ end
 
 local function Collect()
     Clear(owner)
-    RefreshSwing()
     for index, row in ipairs(ns.BAR_ROWS) do
         local entry = resolved[index]
         if not entry then
@@ -445,23 +574,18 @@ end
 local function FadeHosted(bar, show, elapsed)
     ns.HoldAlpha(bar, 1)
     local alpha
-    local function take(frame)
-        local nextAlpha = FadeButton(frame, show, elapsed)
+    local list = ButtonsFor(bar, true)
+    for i = 1, #list do
+        local nextAlpha = FadeButton(list[i], show, elapsed)
         if type(nextAlpha) == "number" then
             alpha = nextAlpha
         end
     end
-    EachOwnButton(bar, take)
-    EachDeepButton(bar, take)
-    if type(alpha) == "number" and bar.GetRegions then
-        for _, region in ipairs({ bar:GetRegions() }) do
-            if region and region.SetAlpha and region.GetObjectType then
-                local ok, kind = pcall(region.GetObjectType, region)
-                if ok and kind == "Texture" then
-                    Watch(region)
-                    ns.HoldAlpha(region, alpha)
-                end
-            end
+    if type(alpha) == "number" then
+        local regions = RegionsFor(bar)
+        for i = 1, #regions do
+            Watch(regions[i])
+            ns.HoldAlpha(regions[i], alpha)
         end
     end
     return alpha
@@ -509,47 +633,52 @@ local function ReleaseUnwatched()
     Clear(seenHeld)
 end
 
-function ns.UpdateBars(showAll, elapsed)
-    Collect()
+local showGroup = {}
+local barShow = {}
+local haveBarShow = false
+
+function ns.UpdateBars(showAll, elapsed, rescan)
+    if rescan == nil then rescan = true end
     local forced = showAll or ns.Pinned("bars") or ns.Glancing()
-    local hostile, friendly
-    local showGroup = {}
-    if not forced then
-        hostile = HostileTarget()
-        friendly = FriendlyTarget()
-        for _, entry in ipairs(resolved) do
-            local group = ns.BarGroup(entry.id)
-            for _, bar in ipairs(entry.frames) do
-                local ok, err = pcall(function()
-                    if bar:IsShown() and (BarHovered(bar) or BarCoversBags(bar)) then
+    if rescan or not haveBarShow then
+        Collect()
+        for key in pairs(showGroup) do
+            showGroup[key] = nil
+        end
+        local hostile, friendly
+        if not forced then
+            hostile = HostileTarget()
+            friendly = FriendlyTarget()
+            for _, entry in ipairs(resolved) do
+                local group = ns.BarGroup(entry.id)
+                for _, bar in ipairs(entry.frames) do
+                    if ns.Usable(bar) and bar:IsShown() and (BarHovered(bar) or BarCoversBags(bar)) then
                         showGroup[group] = true
                     end
-                end)
-                if not ok then
-                    ns.Report("bar " .. entry.id, err)
                 end
             end
         end
+        for _, entry in ipairs(resolved) do
+            barShow[entry.id] = forced or ns.Pinned(entry.id) or showGroup[ns.BarGroup(entry.id)]
+                or (hostile and ns.BarTarget(entry.id, "hostile"))
+                or (friendly and ns.BarTarget(entry.id, "friendly"))
+                or false
+        end
+        haveBarShow = true
     end
     local mainAlpha, gamepadAlpha
     for _, entry in ipairs(resolved) do
-        local show = forced or ns.Pinned(entry.id) or showGroup[ns.BarGroup(entry.id)]
-            or (hostile and ns.BarTarget(entry.id, "hostile"))
-            or (friendly and ns.BarTarget(entry.id, "friendly"))
-            or false
+        local show = forced or barShow[entry.id]
         for _, bar in ipairs(entry.frames) do
-            local ok, err = pcall(function()
-                if not bar:IsShown() then return end
+            if ns.Usable(bar) and bar:IsShown() then
                 local name, alpha = ApplyBar(bar, show, elapsed)
-                if type(alpha) ~= "number" then return end
-                if MAIN_BAR[name] then
-                    mainAlpha = alpha
-                elseif name == "GamepadMainActionBarFrame" then
-                    gamepadAlpha = alpha
+                if type(alpha) == "number" then
+                    if MAIN_BAR[name] then
+                        mainAlpha = alpha
+                    elseif name == "GamepadMainActionBarFrame" then
+                        gamepadAlpha = alpha
+                    end
                 end
-            end)
-            if not ok then
-                ns.Report("bar " .. entry.id, err)
             end
         end
     end

@@ -100,6 +100,7 @@ end
 
 -- Alpha 0 for chrome that is neither spared, a bar, nor part of the bags.
 function ns.Mute(frame)
+    if type(frame) ~= "table" or frame._quietAlpha == 0 then return end
     if not ns.Usable(frame) or ns.IsSpared(frame) or ns.IsBagRelated(frame) then return end
     ns.HoldAlpha(frame, 0)
 end
