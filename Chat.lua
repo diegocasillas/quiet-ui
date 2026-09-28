@@ -528,8 +528,7 @@ do
     end
 end
 
--- Zone notices shorten to "Changed Channel: [1]", which says nothing.
-local function ChannelNotice(text)
+local function PlainLine(text)
     text = text:gsub("|c%x%x%x%x%x%x%x%x", "")
     text = text:gsub("|r", "")
     text = text:gsub("|H.-|h", "")
@@ -538,10 +537,97 @@ local function ChannelNotice(text)
     text = text:gsub("^%s*%[%d+:%d+:?%d*%]%s*", "")
     text = text:gsub("^%s*%d%d?:%d%d:%d%d%s+", "")
     text = text:gsub("^%s*%d%d?:%d%d%s+", "")
-    text = text:match("^%s*(.*)") or text
+    return text:match("^%s*(.*)") or text
+end
+
+-- Zone notices shorten to "Changed Channel: [1]", which says nothing.
+local function ChannelNotice(text)
+    text = PlainLine(text)
     for i = 1, #NOTICE_LEADS do
         local lead = NOTICE_LEADS[i]
         if text:sub(1, #lead) == lead then return true end
+    end
+    return false
+end
+
+-- "You loot %s" matches money. "You receive loot:" does not.
+local function SpecAt(fmt, i)
+    if fmt:sub(i, i) ~= "%" then return nil end
+    if fmt:sub(i + 1, i + 1) == "%" then return "%%" end
+    return fmt:match("^%%%d+%$[%a]", i) or fmt:match("^%%%.?%d*[%a]", i)
+end
+
+local function MatchesFormat(text, fmt)
+    local pos = 1
+    local i = 1
+    local first = true
+    while i <= #fmt do
+        local spec = SpecAt(fmt, i)
+        if spec then
+            if spec == "%%" and text:sub(pos, pos) ~= "%" then return false end
+            if spec == "%%" then pos = pos + 1 end
+            i = i + #spec
+            first = false
+        else
+            local lit = fmt:match("^[^%%]+", i)
+            if not lit then return false end
+            local at = text:find(lit, pos, true)
+            if not at or (first and at ~= 1) then return false end
+            pos = at + #lit
+            i = i + #lit
+            first = false
+        end
+    end
+    return true
+end
+
+local REWARD_FORMATS = {}
+local rewardSeen = {}
+
+local function AddFormat(fmt)
+    if type(fmt) ~= "string" or fmt == "" or rewardSeen[fmt] then return end
+    rewardSeen[fmt] = true
+    REWARD_FORMATS[#REWARD_FORMATS + 1] = fmt
+end
+
+local function AddSource(name, fallback)
+    local fmt = _G[name]
+    if type(fmt) ~= "string" then fmt = fallback end
+    AddFormat(fmt)
+end
+
+AddSource("YOU_LOOT_MONEY", "You loot %s")
+AddSource("LOOT_MONEY_SPLIT", "Your share of the loot is %s.")
+AddSource("YOU_LOOT_MONEY_GUILD", "You loot %s (%s deposited to guild bank)")
+AddSource("COMBATLOG_XPGAIN_FIRSTPERSON_UNNAMED", "You gain %d experience.")
+AddSource("COMBATLOG_XPGAIN_FIRSTPERSON", "%s dies, you gain %d experience.")
+AddSource("ERR_QUEST_REWARD_EXP_I", "Experience gained: %d.")
+
+local XP_ONLY = {
+    "COMBATLOG_XPGAIN_FIRSTPERSON_GROUP",
+    "COMBATLOG_XPGAIN_FIRSTPERSON_RAID",
+    "COMBATLOG_XPGAIN_QUEST",
+    "COMBATLOG_XPGAIN_EXHAUSTION1",
+    "COMBATLOG_XPGAIN_EXHAUSTION1_GROUP",
+    "COMBATLOG_XPGAIN_EXHAUSTION1_RAID",
+    "COMBATLOG_XPGAIN_EXHAUSTION2",
+    "COMBATLOG_XPGAIN_EXHAUSTION2_GROUP",
+    "COMBATLOG_XPGAIN_EXHAUSTION2_RAID",
+    "COMBATLOG_XPGAIN_EXHAUSTION4",
+    "COMBATLOG_XPGAIN_EXHAUSTION4_GROUP",
+    "COMBATLOG_XPGAIN_EXHAUSTION4_RAID",
+    "COMBATLOG_XPGAIN_EXHAUSTION5",
+    "COMBATLOG_XPGAIN_EXHAUSTION5_GROUP",
+    "COMBATLOG_XPGAIN_EXHAUSTION5_RAID",
+}
+for i = 1, #XP_ONLY do
+    AddSource(XP_ONLY[i])
+end
+
+local function RewardNotice(text)
+    text = PlainLine(text)
+    for i = 1, #REWARD_FORMATS do
+        if MatchesFormat(text, REWARD_FORMATS[i]) then return true end
     end
     return false
 end
@@ -552,7 +638,7 @@ local function PushLine(frame, text, r, g, b, animate, addToStart)
     local secret = ns.IsSecret(text)
     if not secret then
         if text == "" then return end
-        if ChannelNotice(text) then return end
+        if ChannelNotice(text) or RewardNotice(text) then return end
         text = ShortChannel(text)
     end
     local lines = frame._quietLines

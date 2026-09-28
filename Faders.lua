@@ -172,10 +172,21 @@ local function Under(frame, ancestor)
     return false
 end
 
+local HoldVitalAlpha
+
 -- Off, the portrait stays for edit mode. On, it shows beside the resource bar
 -- with a target, in combat, in an instance, in a group, in a vehicle, on hover,
--- and while Glance is held. A pet out does not keep it up. The pet frame uses
--- the same alpha.
+-- and while Glance is held. It also shows while mana, focus, or energy is
+-- below 70%. A pet out does not keep it up. The pet frame uses the same alpha.
+local function PaintPlayer(frame, show, elapsed)
+    if not (IsFadeable(frame) and frame:IsShown()) then return end
+    if show or ns.PlayerStyle() ~= "classic" then
+        ns.UpdateFaded(frame, show, elapsed)
+    else
+        HoldVitalAlpha(frame)
+    end
+end
+
 local function UpdatePlayer(elapsed)
     local player = PlayerFrame
     local pet = PetFrame
@@ -191,11 +202,9 @@ local function UpdatePlayer(elapsed)
             or ns.InVehicle()
             or ns.HasTarget()
     end
-    if IsFadeable(player) and player:IsShown() then
-        ns.UpdateFaded(player, show, elapsed)
-    end
-    if IsFadeable(pet) and pet:IsShown() and not Under(pet, player) then
-        ns.UpdateFaded(pet, show, elapsed)
+    PaintPlayer(player, show, elapsed)
+    if not Under(pet, player) then
+        PaintPlayer(pet, show, elapsed)
     end
 end
 
@@ -232,12 +241,30 @@ local function ThresholdCurve(limit)
     return curves[limit] or nil
 end
 
+-- Mana, focus and energy. Rage and the rest stay out even when the type number
+-- is hidden, as long as the token is still a plain string.
+local function RestingPower()
+    if type(UnitPowerType) ~= "function" then return nil end
+    local kind, token = UnitPowerType("player")
+    if type(token) == "string" and not ns.IsSecret(token) then
+        if token == "MANA" or token == "FOCUS" or token == "ENERGY" then return kind end
+        return nil
+    end
+    if not ns.IsSecret(kind) then
+        if RESTS_AT_MAX[kind] then return kind end
+        return nil
+    end
+    return kind
+end
+
 local function LowPowerAlpha()
-    local kind = UnitPowerType("player")
-    if ns.IsSecret(kind) or not RESTS_AT_MAX[kind] then return 0 end
+    local kind = RestingPower()
+    if kind == nil then return 0 end
     local curve = ThresholdCurve(LOW_POWER)
     if not curve or type(UnitPowerPercent) ~= "function" then return 0 end
-    return UnitPowerPercent("player", kind, false, curve)
+    local ok, alpha = pcall(UnitPowerPercent, "player", kind, false, curve)
+    if ok and alpha ~= nil then return alpha end
+    return 0
 end
 
 local function MissingHealthAlpha()
@@ -251,6 +278,10 @@ local function SafeAlpha(label, fn)
     if ok then return alpha end
     ns.Report(label, alpha)
     return 0
+end
+
+function HoldVitalAlpha(frame)
+    ns.HoldSecretAlpha(frame, SafeAlpha("player power", LowPowerAlpha))
 end
 
 local function HealthPart(frame)

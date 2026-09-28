@@ -47,7 +47,7 @@ Hover brings back a whole group, not one bar. Bars 1–3, the stance bar, the pe
 
 A checkbox in `/quiet setup`, on by default. The personal resource bar keeps its own rules.
 
-Off, the portrait stays hidden. On, the portrait and your pet show with a target, in combat, in a group, in an instance, in a vehicle, on hover, in Edit Mode, and while `` ` `` is held. A pet on its own does not keep them up.
+Off, the portrait stays hidden. On, the portrait and your pet show with a target, in combat, in a group, in an instance, in a vehicle, on hover, in Edit Mode, and while `` ` `` is held. They also show while mana, focus, or energy is below 70%. A pet on its own does not keep them up.
 
 ### One button instead of two rows
 
@@ -63,7 +63,7 @@ The micro menu and all bag buttons collapse into a single small button.
 
 A toggle in `/quiet setup`, on by default. Uncheck it and the original chat comes back.
 
-Each message is its own rounded bubble. A new line slides in from the left. At the bottom a line fades away after 10 seconds. Scroll up and the older lines are still there. Hover a line to copy it. Channel tags stay short, and the input appears only while you type. **Enter** works as always.
+Each message is its own rounded bubble. A new line slides in from the left. At the bottom a line fades away after 10 seconds. Scroll up and the older lines are still there. Hover a line to copy it. Channel tags stay short, and the input appears only while you type. Money and experience lines are left out. Loot stays. **Enter** works as always.
 
 ![Modern chat](docs/images/img005.png)
 
