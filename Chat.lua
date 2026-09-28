@@ -1226,6 +1226,15 @@ local function SizeBubble(bubble, msg, maxW)
     return bubble.h
 end
 
+local function RaiseCopy(icon, bubble)
+    if icon.SetFrameStrata then
+        pcall(icon.SetFrameStrata, icon, "DIALOG")
+    end
+    if icon.SetFrameLevel and bubble.GetFrameLevel then
+        pcall(icon.SetFrameLevel, icon, (bubble:GetFrameLevel() or 1) + 20)
+    end
+end
+
 local function ShowCopy(bubble, hot)
     local icon = bubble.copy
     if not icon then return end
@@ -1236,35 +1245,34 @@ local function ShowCopy(bubble, hot)
         end
         return
     end
+    RaiseCopy(icon, bubble)
     icon:Show()
     icon:EnableMouse(true)
     icon:SetAlpha(0.85)
-    if icon.SetFrameLevel and bubble.GetFrameLevel then
-        local level = (bubble:GetFrameLevel() or 1) + 5
-        if icon._quietLevel ~= level then
-            icon._quietLevel = level
-            pcall(icon.SetFrameLevel, icon, level)
-        end
-    end
 end
 
 local function EnterBubble(bubble)
+    bubble._quietSettle = (bubble._quietSettle or 0) + 1
     bubble._quietHot = true
     ShowCopy(bubble, true)
     if bubble.chat then bubble.chat._quietDirty = true end
 end
 
--- OnLeave fires before the pointer reaches the copy icon. Check once it lands.
+-- OnLeave fires while the pointer is still crossing to the icon. Recheck after it lands.
 local function SettleHot(bubble)
     if not bubble then return end
+    bubble._quietSettle = (bubble._quietSettle or 0) + 1
+    local token = bubble._quietSettle
     local function apply()
-        local hot = ns.MouseOver(bubble) or (bubble.copy and ns.MouseOver(bubble.copy))
+        if bubble._quietSettle ~= token then return end
+        local icon = bubble.copy
+        local hot = ns.MouseOver(bubble) or (icon and icon:IsShown() and ns.MouseOver(icon))
         bubble._quietHot = hot and true or false
         ShowCopy(bubble, bubble._quietHot)
         if bubble.chat then bubble.chat._quietDirty = true end
     end
     if C_Timer and C_Timer.After then
-        C_Timer.After(0, apply)
+        C_Timer.After(0.12, apply)
     else
         apply()
     end
@@ -1357,7 +1365,12 @@ local function CreateBubble(frame)
     bubble.text = text
     local icon = CreateFrame("Button", nil, UIParent)
     icon:SetSize(12, 12)
-    icon:SetPoint("LEFT", bubble, "RIGHT", 3, 0)
+    -- Overlap the bubble and grow the hit box so the pointer never crosses a dead gap.
+    icon:SetPoint("LEFT", bubble, "RIGHT", -6, 0)
+    if icon.SetHitRectInsets then
+        icon:SetHitRectInsets(-8, -8, -10, -10)
+    end
+    icon:RegisterForClicks("LeftButtonUp")
     icon:SetAlpha(0)
     icon:EnableMouse(false)
     icon.bubble = bubble
