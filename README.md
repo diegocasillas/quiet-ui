@@ -105,10 +105,10 @@ buffs and debuffs, bag button. The Action bars check keeps every bar visible. Th
 
 **Chat.** Modern chat is a toggle, on by default. Uncheck it and Save to use the original chat. Fade after sets how long a line stays at the bottom: steps of 5 seconds, up to 60. Stay keeps the line. The default is 10 seconds.
 
-- **Save** keeps the choices and closes the window.
+- **Save** keeps the choices and leaves the window open.
 - **Reset default** clears the checks, turns the player frame on, puts Modern chat and a 10 second fade back, restores the fade groups, clears Enemy and Friend, and applies that at once.
 - **Import layout** writes the QuietUI Edit Mode layout.
-- **Escape** closes the window and drops anything you have not saved.
+- **X** and **Escape** close the window and drop anything you have not saved.
 
 ## Install
 

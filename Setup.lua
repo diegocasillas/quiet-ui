@@ -369,6 +369,20 @@ local function CreateSetup()
     widget.title:SetText("|cff8fd4c8QuietUI|r")
     widget.title:SetPoint("TOP", 0, -14)
 
+    widget.close = Backdropped("Button", nil, widget)
+    widget.close:SetSize(18, 18)
+    widget.close:SetPoint("TOPRIGHT", -10, -10)
+    Flat(widget.close, 0.9)
+    widget.close.label = widget.close:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    widget.close.label:SetPoint("CENTER")
+    widget.close.label:SetText("X")
+    local closeHighlight = widget.close:CreateTexture(nil, "HIGHLIGHT")
+    closeHighlight:SetAllPoints()
+    closeHighlight:SetColorTexture(0.95, 0.75, 0.25, 0.2)
+    widget.close:SetScript("OnClick", function()
+        widget:Hide()
+    end)
+
     widget.tabs = {}
     widget.pages = {}
     local tabW, gap = 84, 4
@@ -480,7 +494,6 @@ local function CreateSetup()
     end)
     widget.save = ActionButton(widget, "Save", function()
         Write()
-        widget:Hide()
         if ns.ApplyAll then ns.ApplyAll() end
     end)
 
