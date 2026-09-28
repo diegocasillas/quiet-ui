@@ -65,7 +65,7 @@ The micro menu and all bag buttons collapse into a single small button.
 
 A toggle in `/quiet setup`, on by default. Uncheck it and the original chat comes back.
 
-Each message is its own rounded bubble. A new line slides in from the left. At the bottom a line fades away after 10 seconds. Scroll up and the older lines are still there. Hover a line to copy it. Channel tags stay short, and the input appears only while you type. Money and experience lines are left out. Loot stays. **Enter** works as always.
+Each message is its own rounded bubble. A new line slides in from the left. At the bottom a line fades away after 10 seconds. Hover the chat and the lines that fit in the window come back; the wheel scrolls from anywhere on that block. Hover a line to copy it. Channel tags stay short, and the input appears only while you type. Money and experience lines are left out. Loot stays. **Enter** works as always.
 
 ![Modern chat](docs/images/img005.png)
 

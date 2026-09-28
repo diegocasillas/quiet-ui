@@ -1390,11 +1390,75 @@ local function LineAlpha(msg)
     return left / FADE_OUT
 end
 
--- Keeps the line under the pointer, including the copy box. Does not reveal older lines.
+-- Keeps this line up, including the copy box.
 local function BubbleHeld(bubble)
     if not bubble then return false end
     if bubble._quietHot then return true end
     return copyBox and copyBox:IsShown() and copyBox.anchor == bubble or false
+end
+
+-- Above the chat frame, under the bubbles. This client does not deliver the wheel
+-- to a pass-through or motion-only frame, so the catcher keeps the mouse.
+local function EnsureCatcher(frame)
+    if frame._quietCatcher then return frame._quietCatcher end
+    local ok, box = pcall(CreateFrame, "Frame", nil, UIParent)
+    if not ok or not box then return end
+    if box.EnableMouse then box:EnableMouse(true) end
+    if type(box.SetMouseMotionEnabled) == "function" then
+        pcall(box.SetMouseMotionEnabled, box, true)
+    end
+    if type(box.SetMouseClickEnabled) == "function" then
+        pcall(box.SetMouseClickEnabled, box, true)
+    end
+    box:EnableMouseWheel(true)
+    box:SetScript("OnMouseWheel", function(_, delta)
+        Wheel(frame, delta)
+    end)
+    box:Hide()
+    frame._quietCatcher = box
+    return box
+end
+
+local function PlaceCatcher(frame)
+    local box = frame._quietCatcher
+    if not box then return end
+    if not ns.Usable(frame) or not frame.IsShown or not frame:IsShown() then
+        box:Hide()
+        return
+    end
+    if box._quietSpan ~= frame then
+        box:SetParent(UIParent)
+        box:ClearAllPoints()
+        box:SetAllPoints(frame)
+        box._quietSpan = frame
+    end
+    local strata = frame.GetFrameStrata and frame:GetFrameStrata()
+    if type(strata) == "string" and box._quietStrata ~= strata then
+        box:SetFrameStrata(strata)
+        box._quietStrata = strata
+    end
+    local level = frame.GetFrameLevel and frame:GetFrameLevel() or 0
+    if type(level) ~= "number" then level = 0 end
+    if box._quietAnchor ~= level then
+        box:SetFrameLevel(level + 1)
+        box._quietAnchor = level
+        frame._quietDirty = true
+    end
+    if not box:IsShown() then box:Show() end
+end
+
+-- The block, a bubble, or the copy icon. The copy box alone does not count.
+local function FrameHot(frame)
+    local box = frame._quietCatcher
+    if box and box:IsShown() and ns.Hit(box) then return true end
+    local byMsg = frame._quietByMsg
+    if not byMsg then return false end
+    for _, bubble in pairs(byMsg) do
+        if bubble._quietHot or (bubble:IsShown() and ns.MouseOver(bubble)) then
+            return true
+        end
+    end
+    return false
 end
 
 local function Ease(current, target, elapsed)
@@ -1431,6 +1495,9 @@ local function CreateBubble(frame)
     bubble.links = {}
     bubble:EnableMouse(true)
     bubble:EnableMouseWheel(true)
+    local level = (frame.GetFrameLevel and frame:GetFrameLevel() or 0) + 2
+    if type(level) ~= "number" then level = 2 end
+    pcall(bubble.SetFrameLevel, bubble, level)
     if bubble.SetClipsChildren then bubble:SetClipsChildren(true) end
     bubble:SetScript("OnMouseWheel", function(_, delta)
         Wheel(frame, delta)
@@ -1550,8 +1617,9 @@ local function LayoutFrame(frame, elapsed)
     frame._quietLife = life
     RepairTinyFont(frame)
     local byMsg = frame._quietByMsg
-    -- Only the bottom view drops old lines. Scrolling still walks the full list.
+    -- Only the bottom view drops old lines. Hover shows the page that fits; scrolling walks the rest.
     local fading = offset == 0
+    local reveal = fading and frame._quietHover
     local index = #lines - offset
     local y = 4
     local seen = frame._quietSeen
@@ -1586,7 +1654,7 @@ local function LayoutFrame(frame, elapsed)
         local known = byMsg[msg]
         local alpha = 1
         local place = true
-        if fading then
+        if fading and not reveal then
             alpha = LineAlpha(msg)
             if known and BubbleHeld(known) then
                 alpha = 1
@@ -1637,7 +1705,7 @@ local function LayoutFrame(frame, elapsed)
             if not bubble:IsShown() then bubble:Show() end
             if msg.slide and now - msg.slide < SLIDE_TIME then sooner(0) end
             if bubble._y ~= target then sooner(0) end
-            if fading and life > 0 and msg.born and not BubbleHeld(bubble) then
+            if not reveal and fading and life > 0 and msg.born and not BubbleHeld(bubble) then
                 local fadeAt = msg.born + life - FADE_OUT
                 if now < fadeAt - 0.02 then
                     sooner(fadeAt)
@@ -1744,6 +1812,14 @@ local function BindBubbles(frame)
             self._quietDirty = true
         end)
     end
+    EnsureCatcher(frame)
+    if frame.EnableMouseWheel then frame:EnableMouseWheel(true) end
+    if frame.HookScript and not frame._quietWheel then
+        frame._quietWheel = true
+        frame:HookScript("OnMouseWheel", function(self, delta)
+            Wheel(self, delta)
+        end)
+    end
 end
 
 function ns.UpdateChat(elapsed)
@@ -1752,6 +1828,12 @@ function ns.UpdateChat(elapsed)
     for i = 1, ChatCount() do
         local frame = _G["ChatFrame" .. i]
         if frame and frame._quietBubbles then
+            PlaceCatcher(frame)
+            local hot = FrameHot(frame)
+            if hot ~= frame._quietHover then
+                frame._quietHover = hot
+                frame._quietDirty = true
+            end
             local wake = frame._quietNext
             if frame._quietDirty or wake == 0 or (type(wake) == "number" and wake > 0 and now >= wake) then
                 LayoutFrame(frame, elapsed)
@@ -1769,6 +1851,8 @@ function ns.RestoreChat()
         local frame = _G["ChatFrame" .. i]
         if frame and frame._quietBubbles then
             frame._quietStripped = nil
+            frame._quietHover = false
+            if frame._quietCatcher then frame._quietCatcher:Hide() end
             HideActive(frame)
             RestoreFonts(frame)
         elseif frame then
