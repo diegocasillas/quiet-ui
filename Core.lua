@@ -176,6 +176,25 @@ function ns.Hit(frame)
     return focusHit[frame] and true or false
 end
 
+-- Motion without clicks. A catcher can sit under buttons and still see empty slots.
+function ns.ArmCatcher(frame)
+    if not frame then return end
+    local motion = false
+    if type(frame.SetMouseMotionEnabled) == "function" then
+        motion = pcall(frame.SetMouseMotionEnabled, frame, true)
+    end
+    if type(frame.SetMouseClickEnabled) == "function" then
+        pcall(frame.SetMouseClickEnabled, frame, false)
+    end
+    if motion then return end
+    if frame.EnableMouse then
+        frame:EnableMouse(true)
+    end
+    if type(frame.SetPassThroughButtons) == "function" then
+        pcall(frame.SetPassThroughButtons, frame, "LeftButton", "RightButton")
+    end
+end
+
 ------------------------------------------------------------------------------
 -- Frame alpha
 ------------------------------------------------------------------------------

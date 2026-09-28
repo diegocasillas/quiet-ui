@@ -435,26 +435,11 @@ local function ShownQuest()
     end
 end
 
-local function ArmCatcher(frame)
-    local motion = false
-    if type(frame.SetMouseMotionEnabled) == "function" then
-        motion = pcall(frame.SetMouseMotionEnabled, frame, true)
-    end
-    if type(frame.SetMouseClickEnabled) == "function" then
-        pcall(frame.SetMouseClickEnabled, frame, false)
-    end
-    if motion then return end
-    frame:EnableMouse(true)
-    if type(frame.SetPassThroughButtons) == "function" then
-        pcall(frame.SetPassThroughButtons, frame, "LeftButton", "RightButton")
-    end
-end
-
 local function EnsureQuestCatcher()
     if questCatcher then return questCatcher end
     local ok, created = pcall(CreateFrame, "Frame", nil, UIParent)
     if not ok or not created then return end
-    ArmCatcher(created)
+    ns.ArmCatcher(created)
     created:Hide()
     questCatcher = created
     return created
