@@ -245,6 +245,9 @@ local lastGlance = false
 local wasHot = false
 local lastBusy = false
 local slowAcc = 0
+local fallbackAcc = 0
+-- No focus API: a full button walk stays near 20 Hz instead of every pixel.
+local FALLBACK_RESCAN = 0.05
 
 local function PointerMoved()
     if type(GetCursorPosition) ~= "function" then return true end
@@ -273,16 +276,35 @@ events:SetScript("OnUpdate", function(_, elapsed)
     elapsed = elapsed or 0
     local flyout = FlyoutShown()
     local glance = ns.Glancing() and true or false
-    local rescan = PointerMoved() or ns.ConsumeHud() or flyout ~= lastFlyout or glance ~= lastGlance
+    local moved = PointerMoved()
+    local hud = ns.ConsumeHud()
+    slowAcc = slowAcc + elapsed
+    local slow = slowAcc >= 0.1
+    if slow then slowAcc = 0 end
+    local focusChanged = false
+    if moved or slow then
+        local changed = ns.FocusChanged()
+        if changed == nil then
+            if moved then
+                fallbackAcc = fallbackAcc + elapsed
+                if fallbackAcc >= FALLBACK_RESCAN then
+                    fallbackAcc = 0
+                    focusChanged = true
+                end
+            end
+        else
+            fallbackAcc = 0
+            focusChanged = changed
+        end
+    end
+    local rescan = focusChanged or hud or flyout ~= lastFlyout or glance ~= lastGlance
     lastFlyout = flyout
     lastGlance = glance
     if rescan or wasHot then
         Run("bars", UpdateFades, elapsed, rescan)
         wasHot = ns.FrameHot()
     end
-    slowAcc = slowAcc + elapsed
-    if slowAcc >= 0.1 then
-        slowAcc = 0
+    if slow then
         ns.ForgetCursor()
         local busy = ns.CursorBusy()
         if busy ~= lastBusy then

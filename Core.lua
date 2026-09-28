@@ -57,49 +57,115 @@ function ns.MouseOver(frame)
     return frame:IsMouseOver() and true or false
 end
 
--- One focus walk per tick. IsMouseOver on every button is the expensive fallback.
+-- Hover follows the frame under the cursor, not the pixel. The same chain
+-- means the bars do not need another walk. IsMouseOver is the fallback when
+-- this client has no focus API.
 local focusFallback = false
 local focusReady = false
+local focusFresh = false
 local focusHit = {}
+local focusChain = {}
+local focusCount = 0
+local nextChain = {}
+local nextCount = 0
 
-function ns.RefreshMouse()
-    if focusFallback then return end
+local function ReadFoci()
+    if type(GetMouseFoci) == "function" then
+        local ok, result = pcall(GetMouseFoci)
+        if not ok then return nil, false end
+        if type(result) == "table" then return result, true end
+        return nil, true
+    elseif type(GetMouseFocus) == "function" then
+        local ok, result = pcall(GetMouseFocus)
+        if not ok then return nil, false end
+        if result then return { result }, true end
+        return nil, true
+    end
+    focusFallback = true
+    return nil, false
+end
+
+local function WalkFoci(foci)
+    local n = 0
+    if foci then
+        for i = 1, #foci do
+            local frame = foci[i]
+            local depth = 0
+            while frame and depth < 12 do
+                n = n + 1
+                nextChain[n] = frame
+                if type(frame.GetParent) ~= "function" then break end
+                local ok, parent = pcall(frame.GetParent, frame)
+                if not ok then break end
+                frame = parent
+                depth = depth + 1
+            end
+        end
+    end
+    for i = n + 1, nextCount do
+        nextChain[i] = nil
+    end
+    nextCount = n
+    return n
+end
+
+local function CommitChain(n)
     for key in pairs(focusHit) do
         focusHit[key] = nil
     end
-    local foci
-    if type(GetMouseFoci) == "function" then
-        local ok, result = pcall(GetMouseFoci)
-        if not ok then
-            focusReady = false
-            return
-        end
-        if type(result) == "table" then foci = result end
-    elseif type(GetMouseFocus) == "function" then
-        local ok, result = pcall(GetMouseFocus)
-        if not ok then
-            focusReady = false
-            return
-        end
-        if result then foci = { result } end
-    else
-        focusFallback = true
+    for i = 1, n do
+        local frame = nextChain[i]
+        focusHit[frame] = true
+        focusChain[i] = frame
+    end
+    for i = n + 1, focusCount do
+        focusChain[i] = nil
+    end
+    focusCount = n
+    focusReady = true
+    focusFresh = true
+end
+
+local function SampleFocus()
+    if focusFallback then return nil end
+    local foci, ok = ReadFoci()
+    if focusFallback or not ok then
+        focusReady = false
+        return nil
+    end
+    return WalkFoci(foci)
+end
+
+local function SameChain(n)
+    if n ~= focusCount then return false end
+    for i = 1, n do
+        if nextChain[i] ~= focusChain[i] then return false end
+    end
+    return true
+end
+
+-- True when the hovered frames changed. Nil when this client has no focus API.
+-- Zero is a real sample: nothing is under the cursor.
+function ns.FocusChanged()
+    local n = SampleFocus()
+    if n == nil then return nil end
+    if SameChain(n) then
+        focusReady = true
+        return false
+    end
+    CommitChain(n)
+    return true
+end
+
+function ns.RefreshMouse()
+    if focusFresh then
+        focusFresh = false
         return
     end
-    focusReady = true
-    if not foci then return end
-    for i = 1, #foci do
-        local frame = foci[i]
-        local depth = 0
-        while frame and depth < 12 do
-            focusHit[frame] = true
-            if type(frame.GetParent) ~= "function" then break end
-            local ok, parent = pcall(frame.GetParent, frame)
-            if not ok then break end
-            frame = parent
-            depth = depth + 1
-        end
-    end
+    local n = SampleFocus()
+    if n == nil then return end
+    CommitChain(n)
+    focusFresh = false
 end
 
 function ns.Hit(frame)

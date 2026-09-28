@@ -307,11 +307,30 @@ local function HoldResourceParts(frame, forced)
     return true
 end
 
+-- Secret alpha cannot be compared, so a settled bar is held at 10 Hz.
+-- A change of combat, instance, edit mode, pin, or Glance applies at once.
+local nextResource = 0
+local lastResource
+local resourceForced
+
 local function UpdateResource(elapsed)
-    local forced = ResourceForced()
+    local forced = ResourceForced() and true or false
+    local now = type(GetTime) == "function" and GetTime() or nil
+    if now and forced == resourceForced and now < nextResource then return end
+    local step = elapsed
+    if now and (elapsed or 0) > 0 then
+        if forced == resourceForced and lastResource then
+            step = now - lastResource
+        end
+        lastResource = now
+        nextResource = now + 0.1
+    elseif now and forced ~= resourceForced then
+        nextResource = now
+    end
+    resourceForced = forced
     for _, frame in ipairs(resourceFrames) do
         if frame:IsShown() and not HoldResourceParts(frame, forced) then
-            ns.UpdateFaded(frame, true, elapsed)
+            ns.UpdateFaded(frame, true, step)
         end
     end
 end
