@@ -35,7 +35,7 @@ Checked rows in `/quiet setup` stay visible. Everything else follows this:
 | Buffs and debuffs | hover, combat, a group, an instance, Edit Mode |
 | Bag button | hover, while the bag slots are open, or while an item is on the cursor |
 
-Hold `` ` `` to show every row above at once. Letting go follows the same rules, including a checked row. The portrait stays hidden unless the player frame is on, and chat stays as it is. Change the key under QuietUI in Key Bindings; `` ` `` is the default when that key is free.
+Press `` ` `` to show every row above at once. Press again and the same rules apply, including a checked row. The portrait stays hidden unless the player frame is on, and chat stays as it is. Change the key under QuietUI in Key Bindings; `` ` `` is the default when that key is free.
 
 Hover brings back a whole group, not one bar. Bars 1–3, the stance bar, the pet bar and the totem bar fade together, bars 4–5 fade together, and each later bar fades on its own. The swing timer is group 10. `/quiet setup` changes the number. The same number fades together. Combat, a vehicle, a dungeon, raid, battleground, arena and Edit Mode still show every bar. Enemy and Friend on a bar keep that one bar up for a living attackable target, or a friendly target, including out of combat. The rest of its fade group stays down until hover or one of the rules above.
 
@@ -47,7 +47,7 @@ Hover brings back a whole group, not one bar. Bars 1–3, the stance bar, the pe
 
 A checkbox in `/quiet setup`, on by default. The personal resource bar keeps its own rules.
 
-Off, the portrait stays hidden. On, the portrait and your pet show with a target, in combat, in a group, in an instance, in a vehicle, on hover, in Edit Mode, and while `` ` `` is held. They also show while mana, focus, or energy is below 70%. A pet on its own does not keep them up.
+Off, the portrait stays hidden. On, the portrait and your pet show with a target, in combat, in a group, in an instance, in a vehicle, on hover, in Edit Mode, and while `` ` `` is on. They also show while mana, focus, or energy is below 70%. A pet on its own does not keep them up.
 
 ### One button instead of two rows
 

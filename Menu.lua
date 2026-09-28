@@ -302,7 +302,7 @@ function ns.RefreshChrome()
     if not ok then ns.Report("menu", err) end
 end
 
--- Hover, bag slots, a drag, or Glance keeps the button up. Setup can pin it on.
+-- Hover, bag slots, a drag, or Glance on keeps the button up. Setup can pin it on.
 function ns.UpdateMenuButton(elapsed)
     if not button or not button:IsShown() then return end
     local show = ns.Pinned("menu") or ns.Hit(button) or button._moved or ns.BagsShouldShow()

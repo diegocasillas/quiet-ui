@@ -637,7 +637,7 @@ local showGroup = {}
 local barShow = {}
 local haveBarShow = false
 
--- Combat, Glance and the other show-all rules cover every row. The Action bars
+-- Combat, Glance on, and the other show-all rules cover every row. The Action bars
 -- check covers the action bars only; the swing timer has its own check.
 local function RowForced(id, showAllForced, barsPinned)
     if id == "swing" then return showAllForced end

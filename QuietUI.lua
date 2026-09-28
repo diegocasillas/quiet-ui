@@ -5,6 +5,7 @@ local ADDON, ns = ...
 local booted = false
 local hookedGlobal = {}
 local chromeAcc = 0
+local glancing = false
 local layoutPending = nil
 local layoutChosen = false
 local finishingLayout = false
@@ -68,6 +69,7 @@ local function ArmLayoutSettle()
 end
 
 local function RestoreAll()
+    glancing = false
     ns.ResetMenu()
     ns.RestoreChat()
     ns.RestoreAlpha()
@@ -351,16 +353,15 @@ HookGlobal("FCF_SetWindowColor", ns.StripAllChat)
 HookGlobal("FCF_DockUpdate", ns.StripAllChat)
 
 ------------------------------------------------------------------------------
--- Hold Glance to show the faded HUD. Release returns to the rules above.
+-- Press Glance to show the faded HUD. Press again and the rules apply.
 -- The binding system calls a global; down and up both arrive.
 ------------------------------------------------------------------------------
 BINDING_CATEGORY_QUIETUI = "QuietUI"
 BINDING_NAME_QUIETUI_GLANCE = "Glance"
 
-local glancing = false
-
 function QuietUIGlance(keystate)
-    glancing = keystate == "down"
+    if keystate ~= "down" then return end
+    glancing = not glancing
 end
 
 function ns.Glancing()

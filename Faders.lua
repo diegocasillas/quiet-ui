@@ -176,7 +176,7 @@ local HoldVitalAlpha
 
 -- Off, the portrait stays for edit mode. On, it shows beside the resource bar
 -- with a target, in combat, in an instance, in a group, in a vehicle, on hover,
--- and while Glance is held. It also shows while mana, focus, or energy is
+-- and while Glance is on. It also shows while mana, focus, or energy is
 -- below 70%. A pet out does not keep it up. The pet frame uses the same alpha.
 local function PaintPlayer(frame, show, elapsed)
     if not (IsFadeable(frame) and frame:IsShown()) then return end
