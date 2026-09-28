@@ -423,6 +423,10 @@ local function CreateSetup()
         end)
         row.friendly:SetPoint("RIGHT", row.minus, "LEFT", -8, 0)
         row.hostile:SetPoint("RIGHT", row.friendly, "LEFT", -4, 0)
+        -- Spans the stepper so the column title uses the button top, same as Enemy and Friend.
+        row.step = CreateFrame("Frame", nil, row)
+        row.step:SetPoint("TOPLEFT", row.minus, "TOPLEFT", 0, 0)
+        row.step:SetPoint("BOTTOMRIGHT", row.plus, "BOTTOMRIGHT", 0, 0)
         row:SetPoint("TOPLEFT", bars, "TOPLEFT", 0, y)
         y = y - 24
         widget.groupRows[#widget.groupRows + 1] = row
@@ -430,9 +434,11 @@ local function CreateSetup()
     local first = widget.groupRows[1]
     widget.enemyHeader = Section(bars, "Enemy")
     widget.friendHeader = Section(bars, "Friend")
+    widget.groupColumn = Section(bars, "Group")
     -- The first row starts 20px under "Fade together", so these titles share that line.
     widget.enemyHeader:SetPoint("TOP", first.hostile, "TOP", 0, 20)
     widget.friendHeader:SetPoint("TOP", first.friendly, "TOP", 0, 20)
+    widget.groupColumn:SetPoint("TOP", first.step, "TOP", 0, 20)
 
     local player = widget.pages[3]
     widget.player = Section(player, "Player frame")
