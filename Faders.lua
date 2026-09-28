@@ -421,6 +421,76 @@ local function Run(label, fn, ...)
     if not ok then ns.Report(label, err) end
 end
 
+-- The tracker container is not mouse-enabled, so the gaps between quests are
+-- not hover. This frame is not its child: a faded parent would drop the mouse.
+local questCatcher
+local questCatcherTarget
+
+local function ShownQuest()
+    for i = 1, #questFrames do
+        local frame = questFrames[i]
+        if ns.Usable(frame) and frame:IsShown() then
+            return frame
+        end
+    end
+end
+
+local function ArmCatcher(frame)
+    local motion = false
+    if type(frame.SetMouseMotionEnabled) == "function" then
+        motion = pcall(frame.SetMouseMotionEnabled, frame, true)
+    end
+    if type(frame.SetMouseClickEnabled) == "function" then
+        pcall(frame.SetMouseClickEnabled, frame, false)
+    end
+    if motion then return end
+    frame:EnableMouse(true)
+    if type(frame.SetPassThroughButtons) == "function" then
+        pcall(frame.SetPassThroughButtons, frame, "LeftButton", "RightButton")
+    end
+end
+
+local function EnsureQuestCatcher()
+    if questCatcher then return questCatcher end
+    local ok, created = pcall(CreateFrame, "Frame", nil, UIParent)
+    if not ok or not created then return end
+    ArmCatcher(created)
+    created:Hide()
+    questCatcher = created
+    return created
+end
+
+local function PlaceQuestCatcher()
+    local box = EnsureQuestCatcher()
+    if not box then return end
+    local target = ShownQuest()
+    if not target or ns.InEditMode() or not ns.DB().enabled then
+        box:Hide()
+        questCatcherTarget = nil
+        return
+    end
+    if questCatcherTarget ~= target then
+        box:SetParent(UIParent)
+        box:ClearAllPoints()
+        box:SetAllPoints(target)
+        questCatcherTarget = target
+    end
+    local strata = target.GetFrameStrata and target:GetFrameStrata()
+    if type(strata) == "string" then
+        box:SetFrameStrata(strata)
+    end
+    local level = target.GetFrameLevel and target:GetFrameLevel() or 1
+    if type(level) ~= "number" then level = 1 end
+    box:SetFrameLevel(math.max(level - 1, 0))
+    if not box:IsShown() then box:Show() end
+end
+
+function ns.HideQuestCatcher()
+    if not questCatcher then return end
+    questCatcher:Hide()
+    questCatcherTarget = nil
+end
+
 function ns.UpdateFaders(showAll, elapsed)
     local glance = ns.Glancing()
     Run("xp bar", UpdateGroup, statusFrames, XPShouldShow() or ns.Pinned("xp") or glance, elapsed)
@@ -428,6 +498,8 @@ function ns.UpdateFaders(showAll, elapsed)
     Run("damage meter", UpdateGroup, meterFrames, MeterShouldShow(showAll) or ns.Pinned("meter") or glance, elapsed)
     Run("resource bar", UpdateResource, elapsed)
     Run("player frame", UpdatePlayer, elapsed)
-    Run("quest tracker", UpdateGroup, questFrames, ns.InEditMode() or ns.Pinned("quests") or glance, elapsed)
+    Run("quest catcher", PlaceQuestCatcher)
+    local questHot = questCatcher and ns.Hit(questCatcher)
+    Run("quest tracker", UpdateGroup, questFrames, ns.InEditMode() or ns.Pinned("quests") or glance or questHot, elapsed)
     Run("buffs", UpdateAuras, elapsed)
 end

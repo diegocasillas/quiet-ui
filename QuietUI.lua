@@ -75,6 +75,7 @@ end
 
 local function RestoreAll()
     glancing = false
+    ns.HideQuestCatcher()
     ns.ResetMenu()
     ns.RestoreChat()
     ns.RestoreAlpha()

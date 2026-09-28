@@ -31,7 +31,7 @@ Checked rows in `/quiet setup` stay visible. Everything else follows this:
 | Cooldown manager | combat, a group, an instance, Edit Mode |
 | Damage meter | the same as the action bars, and it stays a moment after combat |
 | Personal resource | combat, an instance, Edit Mode, or when mana, focus or energy is low. The health part also shows while you are hurt |
-| Quest tracker | hover, Edit Mode |
+| Quest tracker | hover anywhere on it, Edit Mode |
 | Buffs and debuffs | hover, combat, a group, an instance, Edit Mode. With Group buffs and debuffs with player frame checked, also while the player frame is visible |
 | Bag button | hover, while the bag slots are open, or while an item is on the cursor |
 
