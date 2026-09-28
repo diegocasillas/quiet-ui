@@ -157,11 +157,15 @@ local function Boot()
     end
     Rescan()
     EnsureGlanceBinding()
+    ns.EnsureMinimap()
     if first and ns.DB().enabled then
         ArmLayoutSettle()
     end
     if first and C_Timer and C_Timer.After then
-        C_Timer.After(0.5, ApplyAll)
+        C_Timer.After(0.5, function()
+            ApplyAll()
+            ns.EnsureMinimap()
+        end)
         C_Timer.After(2, Rescan)
     end
 end

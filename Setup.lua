@@ -2,6 +2,7 @@ local _, ns = ...
 
 -- One window, five tabs: the layout, what stays visible, which bars fade together and for which target, the player frame, and chat.
 -- The frame is named so UISpecialFrames can close it on Escape.
+-- The window keeps the tallest page, so switching tabs does not resize it.
 
 local ROWS = {
     { key = "bars", label = "Action bars" },
@@ -15,8 +16,14 @@ local ROWS = {
     { key = "menu", label = "Bag button" },
 }
 
+local CONTENT_W = 348
+-- Bottom-left of the minimap, clear of the tracking button.
+local MINIMAP_ANGLE = 225
+
 local draft = {}
 local frame
+local minimapButton
+local minimapHooked
 
 -- Per character. An older build kept this on the account; the first character
 -- to load keeps that copy, then the account keys are dropped.
@@ -83,21 +90,50 @@ local function Flat(widget, alpha)
     widget:SetBackdropBorderColor(0.85, 0.85, 0.85, 0.35)
 end
 
-local function Backdropped(kind, name, parent)
+local function Backdropped(kind, name, parent, template)
+    if template then
+        local ok, widget = pcall(CreateFrame, kind, name, parent, template)
+        if ok and widget then return widget end
+    end
     local ok, widget = pcall(CreateFrame, kind, name, parent, "BackdropTemplate")
     if ok and widget then return widget end
     return CreateFrame(kind, name, parent)
 end
 
-local function PaintBox(box, on)
-    if not box.SetBackdropColor then return end
-    if on then
-        box:SetBackdropColor(0.95, 0.75, 0.25, 0.9)
-        box:SetBackdropBorderColor(0.95, 0.75, 0.25, 0.9)
-    else
-        box:SetBackdropColor(0.05, 0.05, 0.05, 0.9)
-        box:SetBackdropBorderColor(0.85, 0.85, 0.85, 0.35)
+-- Thin gold edge for the short tabs and steppers. The panel-button template is too tall for them.
+local function GoldEdge(widget)
+    if not widget.SetBackdrop then return false end
+    local ok = pcall(function()
+        widget:SetBackdrop({
+            bgFile = "Interface\\Buttons\\WHITE8X8",
+            edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Gold-Border",
+            tile = true,
+            tileSize = 16,
+            edgeSize = 4,
+            insets = { left = 1, right = 1, top = 1, bottom = 1 },
+        })
+        widget:SetBackdropColor(0.08, 0.06, 0.04, 0.92)
+        widget:SetBackdropBorderColor(0.75, 0.6, 0.28, 0.95)
+    end)
+    return ok
+end
+
+local function SkinSmall(button)
+    button._quietGold = GoldEdge(button) and true or false
+    if not button._quietGold then Flat(button, 0.9) end
+    if button._quietGold and button.label and button.label.SetTextColor then
+        button.label:SetTextColor(1, 0.82, 0.35)
     end
+end
+
+local function PaintBox(box, on)
+    if not box then return end
+    if box.SetChecked then
+        box:SetChecked(on and true or false)
+        return
+    end
+    if not box.check then return end
+    if on then box.check:Show() else box.check:Hide() end
 end
 
 local function Paint()
@@ -127,7 +163,13 @@ local function Paint()
     if frame.tabs then
         for _, tab in ipairs(frame.tabs) do
             local on = tab.id == frame.page
-            if tab.SetBackdropBorderColor then
+            if tab._quietGold and tab.SetBackdropBorderColor then
+                if on then
+                    tab:SetBackdropBorderColor(1, 0.86, 0.4, 1)
+                else
+                    tab:SetBackdropBorderColor(0.55, 0.45, 0.25, 0.85)
+                end
+            elseif tab.SetBackdropBorderColor then
                 if on then
                     tab:SetBackdropBorderColor(0.95, 0.75, 0.25, 0.9)
                 else
@@ -136,7 +178,9 @@ local function Paint()
             end
             if tab.label and tab.label.SetTextColor then
                 if on then
-                    tab.label:SetTextColor(0.95, 0.75, 0.25)
+                    tab.label:SetTextColor(1, 0.86, 0.35)
+                elseif tab._quietGold then
+                    tab.label:SetTextColor(0.85, 0.8, 0.65)
                 else
                     tab.label:SetTextColor(0.85, 0.85, 0.85)
                 end
@@ -219,10 +263,22 @@ local function Write()
 end
 
 local function ActionButton(parent, text, onClick)
-    local button = Backdropped("Button", nil, parent)
+    -- A plain Button also has SetText, so the template has to be the thing that succeeded.
+    local ok, button = pcall(CreateFrame, "Button", nil, parent, "UIPanelButtonTemplate")
+    if ok and button then
+        button:SetSize(112, 22)
+        button:SetText(text)
+        local label = button.GetFontString and button:GetFontString()
+        if label and label.SetFontObject then
+            pcall(label.SetFontObject, label, "GameFontNormalSmall")
+        end
+        button:SetScript("OnClick", onClick)
+        return button
+    end
+    button = Backdropped("Button", nil, parent)
     button:SetSize(112, 22)
-    Flat(button, 0.9)
-    button.label = button:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    if not GoldEdge(button) then Flat(button, 0.9) end
+    button.label = button:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     button.label:SetPoint("CENTER")
     button.label:SetText(text)
     local highlight = button:CreateTexture(nil, "HIGHLIGHT")
@@ -232,15 +288,34 @@ local function ActionButton(parent, text, onClick)
     return button
 end
 
+local function CheckMark(parent)
+    -- The loose checkbox textures draw only the tick on this client. The template keeps the box.
+    local ok, box = pcall(CreateFrame, "CheckButton", nil, parent, "UICheckButtonTemplate")
+    if ok and box and box.SetChecked then
+        box:SetSize(22, 22)
+        box:EnableMouse(false)
+        if box.Text then box.Text:Hide() end
+        local text = box.GetFontString and box:GetFontString()
+        if text then text:Hide() end
+        return box
+    end
+    box = parent:CreateTexture(nil, "ARTWORK")
+    box:SetSize(20, 20)
+    box:SetTexture("Interface\\Buttons\\UI-CheckBox-Up")
+    box.check = parent:CreateTexture(nil, "OVERLAY")
+    box.check:SetAllPoints(box)
+    box.check:SetTexture("Interface\\Buttons\\UI-CheckBox-Check")
+    box.check:Hide()
+    return box
+end
+
 local function Choice(parent, text, onClick)
     local button = CreateFrame("Button", nil, parent)
-    button:SetSize(348, 22)
-    button.box = Backdropped("Frame", nil, button)
-    button.box:SetSize(12, 12)
-    button.box:SetPoint("LEFT", 2, 0)
-    Flat(button.box, 0.9)
+    button:SetSize(CONTENT_W, 22)
+    button.box = CheckMark(button)
+    button.box:SetPoint("LEFT", 0, 0)
     button.label = button:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    button.label:SetPoint("LEFT", button.box, "RIGHT", 8, 0)
+    button.label:SetPoint("LEFT", button.box, "RIGHT", 4, 0)
     button.label:SetText(text)
     local highlight = button:CreateTexture(nil, "HIGHLIGHT")
     highlight:SetAllPoints()
@@ -269,10 +344,10 @@ end
 local function Mini(parent, text, onClick)
     local button = Backdropped("Button", nil, parent)
     button:SetSize(22, 22)
-    Flat(button, 0.9)
     button.label = button:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     button.label:SetPoint("CENTER")
     button.label:SetText(text)
+    SkinSmall(button)
     local highlight = button:CreateTexture(nil, "HIGHLIGHT")
     highlight:SetAllPoints()
     highlight:SetColorTexture(0.95, 0.75, 0.25, 0.2)
@@ -283,17 +358,15 @@ end
 local function TargetBox(parent, onClick)
     local button = CreateFrame("Button", nil, parent)
     button:SetSize(44, 22)
-    button.box = Backdropped("Frame", nil, button)
-    button.box:SetSize(12, 12)
+    button.box = CheckMark(button)
     button.box:SetPoint("CENTER")
-    Flat(button.box, 0.9)
     button:SetScript("OnClick", onClick)
     return button
 end
 
 local function Stepper(parent, label, onDelta)
     local row = CreateFrame("Frame", nil, parent)
-    row:SetSize(348, 22)
+    row:SetSize(CONTENT_W, 22)
     row.label = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     row.label:SetPoint("LEFT", 2, 0)
     row.label:SetText(label)
@@ -309,9 +382,18 @@ local function Stepper(parent, label, onDelta)
 end
 
 local function Section(parent, text)
-    local label = parent:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    label:SetText("|cff8fd4c8" .. text .. "|r")
-    label:SetJustifyH("LEFT")
+    -- Gold title only. The old group-indicator bar is the classic paperdoll and collides with the column titles.
+    local row = CreateFrame("Frame", nil, parent)
+    row:SetSize(CONTENT_W, 16)
+    row.label = row:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    row.label:SetPoint("TOPLEFT", 0, 0)
+    row.label:SetText(text)
+    return row
+end
+
+local function ColumnLabel(parent, text)
+    local label = parent:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    label:SetText(text)
     return label
 end
 
@@ -323,13 +405,28 @@ local TABS = {
     { id = "chat", label = "Chat", height = 72 },
 }
 
+-- Portrait frame needs room under the portrait. Gold dialog needs room inside the thick edge.
+local CHROME = {
+    portrait = { width = 400, side = 26, tabY = -74, pageY = -102, footer = 88, buttonY = 16, glanceY = 46 },
+    gold = { width = 424, side = 38, tabY = -56, pageY = -88, footer = 100, buttonY = 28, glanceY = 58, titleY = -30, closeX = -18, closeY = -16 },
+    flat = { width = 380, side = 16, tabY = -40, pageY = -76, footer = 88, buttonY = 16, glanceY = 46, titleY = -14, closeX = -10, closeY = -10 },
+}
+
+local function MaxPage()
+    local max = 0
+    for _, info in ipairs(TABS) do
+        if info.height > max then max = info.height end
+    end
+    return max
+end
+
 local function TabButton(parent, text, width, onClick)
     local button = Backdropped("Button", nil, parent)
     button:SetSize(width, 22)
-    Flat(button, 0.9)
     button.label = button:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     button.label:SetPoint("CENTER")
     button.label:SetText(text)
+    SkinSmall(button)
     local highlight = button:CreateTexture(nil, "HIGHLIGHT")
     highlight:SetAllPoints()
     highlight:SetColorTexture(0.95, 0.75, 0.25, 0.15)
@@ -337,12 +434,12 @@ local function TabButton(parent, text, width, onClick)
     return button
 end
 
-local function Page(parent, id, height)
+local function Page(parent, id, height, metrics)
     local page = CreateFrame("Frame", nil, parent)
     page.id = id
-    page:SetSize(348, height)
-    page:SetPoint("TOPLEFT", 16, -76)
-    page:SetFrameLevel(parent:GetFrameLevel() + 5)
+    page:SetSize(CONTENT_W, height)
+    page:SetPoint("TOPLEFT", metrics.side, metrics.pageY)
+    page:SetFrameLevel(parent:GetFrameLevel() + 20)
     page:Hide()
     return page
 end
@@ -351,12 +448,6 @@ local function ShowPage(widget, id)
     widget.page = id
     for _, page in ipairs(widget.pages) do
         if page.id == id then page:Show() else page:Hide() end
-    end
-    for _, info in ipairs(TABS) do
-        if info.id == id then
-            widget:SetHeight(76 + info.height + 88)
-            break
-        end
     end
     Paint()
 end
@@ -370,37 +461,114 @@ local function EnsureEscape(widget)
     UISpecialFrames[#UISpecialFrames + 1] = name
 end
 
+local function ApplyTitle(widget, text)
+    if widget.SetTitle then
+        local ok = pcall(widget.SetTitle, widget, text)
+        if ok then return end
+    end
+    local title = widget.TitleText
+    if not title and widget.TitleContainer then
+        title = widget.TitleContainer.TitleText
+    end
+    if title and title.SetText then
+        title:SetText(text)
+    end
+end
+
+local function ApplyPortrait(widget)
+    pcall(function()
+        if widget.SetPortraitToUnit then
+            widget:SetPortraitToUnit("player")
+            return
+        end
+        if type(SetPortraitTexture) ~= "function" then return end
+        local texture = widget.portrait
+        if not texture and widget.PortraitContainer then
+            texture = widget.PortraitContainer.portrait
+        end
+        if texture then
+            SetPortraitTexture(texture, "player")
+        end
+    end)
+end
+
+local function GoldWindow(widget)
+    if not widget.SetBackdrop then return false end
+    local ok = pcall(function()
+        widget:SetBackdrop({
+            bgFile = "Interface\\DialogFrame\\UI-DialogBox-Gold-Background",
+            edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Gold-Border",
+            tile = true,
+            tileSize = 32,
+            edgeSize = 32,
+            insets = { left = 11, right = 12, top = 12, bottom = 11 },
+        })
+        widget:SetBackdropColor(1, 1, 1, 1)
+        widget:SetBackdropBorderColor(1, 1, 1, 1)
+    end)
+    return ok
+end
+
+local function CloseButton(parent, metrics)
+    local button = Backdropped("Button", nil, parent)
+    button:SetSize(22, 22)
+    button:SetPoint("TOPRIGHT", metrics.closeX, metrics.closeY)
+    button:SetFrameLevel(parent:GetFrameLevel() + 20)
+    button.label = button:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    button.label:SetPoint("CENTER")
+    button.label:SetText("X")
+    SkinSmall(button)
+    local highlight = button:CreateTexture(nil, "HIGHLIGHT")
+    highlight:SetAllPoints()
+    highlight:SetColorTexture(0.95, 0.75, 0.25, 0.2)
+    button:SetScript("OnClick", function()
+        parent:Hide()
+    end)
+    return button
+end
+
+local function PortraitChrome(widget)
+    return widget.SetTitle or widget.TitleText or widget.TitleContainer
+        or widget.PortraitContainer or widget.portrait
+end
+
 local function CreateSetup()
-    local widget = Backdropped("Frame", "QuietUISetup", UIParent)
-    widget:SetSize(380, 76 + TABS[1].height + 88)
+    local ok, widget = pcall(CreateFrame, "Frame", "QuietUISetup", UIParent, "PortraitFrameTemplate")
+    local kind = "flat"
+    if ok and widget and PortraitChrome(widget) then
+        kind = "portrait"
+        widget._quietPortrait = true
+        ApplyTitle(widget, "QuietUI")
+        ApplyPortrait(widget)
+    else
+        if not (ok and widget) then
+            widget = Backdropped("Frame", "QuietUISetup", UIParent)
+        end
+        if GoldWindow(widget) then
+            kind = "gold"
+        else
+            Flat(widget, 0.9)
+        end
+    end
+    local metrics = CHROME[kind]
+    widget:ClearAllPoints()
+    widget:SetSize(metrics.width, -metrics.pageY + MaxPage() + metrics.footer)
     widget:SetPoint("CENTER")
     widget:SetFrameStrata("DIALOG")
     widget:EnableMouse(true)
-    Flat(widget, 0.9)
     widget:Hide()
     EnsureEscape(widget)
 
-    widget.title = widget:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    widget.title:SetText("|cff8fd4c8QuietUI|r")
-    widget.title:SetPoint("TOP", 0, -14)
-
-    widget.close = Backdropped("Button", nil, widget)
-    widget.close:SetSize(18, 18)
-    widget.close:SetPoint("TOPRIGHT", -10, -10)
-    Flat(widget.close, 0.9)
-    widget.close.label = widget.close:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    widget.close.label:SetPoint("CENTER")
-    widget.close.label:SetText("X")
-    local closeHighlight = widget.close:CreateTexture(nil, "HIGHLIGHT")
-    closeHighlight:SetAllPoints()
-    closeHighlight:SetColorTexture(0.95, 0.75, 0.25, 0.2)
-    widget.close:SetScript("OnClick", function()
-        widget:Hide()
-    end)
+    if kind ~= "portrait" then
+        widget.title = widget:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+        widget.title:SetText("QuietUI")
+        widget.title:SetPoint("TOP", 0, metrics.titleY)
+        widget.close = CloseButton(widget, metrics)
+    end
 
     widget.tabs = {}
     widget.pages = {}
-    -- Five labels on one row inside the 380-wide window.
+    -- Five labels on one row. Centered, so a wider gold frame still holds them.
     local tabW, gap = 68, 4
     local total = #TABS * tabW + (#TABS - 1) * gap
     local x = -total / 2
@@ -410,10 +578,11 @@ local function CreateSetup()
             ShowPage(widget, id)
         end)
         tab.id = id
-        tab:SetPoint("TOP", widget, "TOP", x + tabW / 2, -40)
+        tab:SetFrameLevel(widget:GetFrameLevel() + 20)
+        tab:SetPoint("TOP", widget, "TOP", x + tabW / 2, metrics.tabY)
         x = x + tabW + gap
         widget.tabs[#widget.tabs + 1] = tab
-        widget.pages[#widget.pages + 1] = Page(widget, id, info.height)
+        widget.pages[#widget.pages + 1] = Page(widget, id, info.height, metrics)
     end
 
     local general = widget.pages[1]
@@ -471,9 +640,9 @@ local function CreateSetup()
         widget.groupRows[#widget.groupRows + 1] = row
     end
     local first = widget.groupRows[1]
-    widget.enemyHeader = Section(bars, "Enemy")
-    widget.friendHeader = Section(bars, "Friend")
-    widget.groupColumn = Section(bars, "Group")
+    widget.enemyHeader = ColumnLabel(bars, "Enemy")
+    widget.friendHeader = ColumnLabel(bars, "Friend")
+    widget.groupColumn = ColumnLabel(bars, "Group")
     -- The first row starts 20px under "Fade together", so these titles share that line.
     widget.enemyHeader:SetPoint("TOP", first.hostile, "TOP", 0, 20)
     widget.friendHeader:SetPoint("TOP", first.friendly, "TOP", 0, 20)
@@ -522,15 +691,18 @@ local function CreateSetup()
         Write()
         if ns.ApplyAll then ns.ApplyAll() end
     end)
+    widget.reset:SetFrameLevel(widget:GetFrameLevel() + 20)
+    widget.import:SetFrameLevel(widget:GetFrameLevel() + 20)
+    widget.save:SetFrameLevel(widget:GetFrameLevel() + 20)
 
     widget.glance = widget:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
-    widget.glance:SetWidth(348)
+    widget.glance:SetWidth(CONTENT_W)
     widget.glance:SetJustifyH("CENTER")
     widget.glance:SetText("Press ` to show everything. Press again to follow these rules. Change the key in Key Bindings.")
-    widget.glance:SetPoint("BOTTOM", 0, 46)
-    widget.reset:SetPoint("BOTTOMLEFT", 16, 16)
-    widget.import:SetPoint("BOTTOM", 0, 16)
-    widget.save:SetPoint("BOTTOMRIGHT", -16, 16)
+    widget.glance:SetPoint("BOTTOM", 0, metrics.glanceY)
+    widget.reset:SetPoint("BOTTOMLEFT", metrics.side, metrics.buttonY)
+    widget.import:SetPoint("BOTTOM", 0, metrics.buttonY)
+    widget.save:SetPoint("BOTTOMRIGHT", -metrics.side, metrics.buttonY)
     ShowPage(widget, "general")
     return widget
 end
@@ -538,6 +710,128 @@ end
 function ns.ShowSetup()
     frame = frame or CreateSetup()
     ReadDraft()
+    if frame._quietPortrait then
+        ApplyPortrait(frame)
+    end
     frame:Show()
     ShowPage(frame, frame.page or "general")
+end
+
+------------------------------------------------------------------------------
+-- Minimap button. Unnamed, parented to Minimap, so the fade walk never sees it.
+------------------------------------------------------------------------------
+
+local function MinimapDegrees()
+    local n = ns.DB().minimap
+    if type(n) ~= "number" or n ~= n then return MINIMAP_ANGLE end
+    n = n % 360
+    if n < 0 then n = n + 360 end
+    return n
+end
+
+local function PlaceMinimap(button)
+    local map = Minimap
+    if not map or not button then return end
+    local rad = math.rad(MinimapDegrees())
+    local w = map:GetWidth()
+    if type(w) ~= "number" or w <= 0 then w = 140 end
+    local radius = w / 2 + 5
+    button:ClearAllPoints()
+    button:SetPoint("CENTER", map, "CENTER", math.cos(rad) * radius, math.sin(rad) * radius)
+end
+
+local function CursorDegrees(map)
+    if type(GetCursorPosition) ~= "function" or not map.GetCenter then return nil end
+    local scale = map.GetEffectiveScale and map:GetEffectiveScale() or 1
+    if type(scale) ~= "number" or scale <= 0 then scale = 1 end
+    local cx, cy = GetCursorPosition()
+    local mx, my = map:GetCenter()
+    if type(cx) ~= "number" or type(cy) ~= "number" or type(mx) ~= "number" or type(my) ~= "number" then
+        return nil
+    end
+    local angle = math.deg(math.atan2(cy / scale - my, cx / scale - mx))
+    if angle < 0 then angle = angle + 360 end
+    return angle
+end
+
+local function ApplyGear(icon)
+    if icon.SetAtlas then
+        local ok, result = pcall(icon.SetAtlas, icon, "mechagon-projects")
+        if ok and result then return end
+    end
+    if not icon:SetTexture("Interface\\Icons\\INV_Misc_Gear_01") then
+        icon:SetTexture("Interface\\Icons\\INV_Misc_Wrench_01")
+    end
+    icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+end
+
+local function CreateMinimap()
+    local button = CreateFrame("Button", nil, Minimap)
+    button:SetSize(31, 31)
+    local level = Minimap:GetFrameLevel()
+    button:SetFrameLevel((type(level) == "number" and level or 0) + 8)
+    button:RegisterForClicks("LeftButtonUp")
+    button:RegisterForDrag("LeftButton")
+
+    local icon = button:CreateTexture(nil, "BACKGROUND")
+    icon:SetSize(20, 20)
+    icon:SetPoint("CENTER")
+    ApplyGear(icon)
+
+    local border = button:CreateTexture(nil, "OVERLAY")
+    border:SetSize(53, 53)
+    border:SetPoint("TOPLEFT")
+    border:SetTexture("Interface\\Minimap\\MiniMap-TrackingBorder")
+    button:SetHighlightTexture("Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight")
+
+    button:SetScript("OnDragStart", function(self)
+        self._moved = true
+        self:SetScript("OnUpdate", function(owner)
+            local angle = CursorDegrees(Minimap)
+            if not angle then return end
+            ns.DB().minimap = angle
+            PlaceMinimap(owner)
+        end)
+    end)
+    button:SetScript("OnDragStop", function(self)
+        self:SetScript("OnUpdate", nil)
+    end)
+    button:SetScript("OnMouseUp", function(self, click)
+        if self._moved then
+            self._moved = false
+            return
+        end
+        if click == "LeftButton" then
+            ns.ShowSetup()
+        end
+    end)
+    button:SetScript("OnEnter", function(self)
+        if not GameTooltip then return end
+        GameTooltip:SetOwner(self, "ANCHOR_LEFT")
+        GameTooltip:SetText("QuietUI", 1, 1, 1)
+        GameTooltip:AddLine("Left click: open setup", 0.85, 0.85, 0.85)
+        GameTooltip:AddLine("Drag: move", 0.6, 0.6, 0.6)
+        GameTooltip:Show()
+    end)
+    button:SetScript("OnLeave", function()
+        if GameTooltip then GameTooltip:Hide() end
+    end)
+    return button
+end
+
+function ns.EnsureMinimap()
+    if not Minimap then return end
+    if not minimapHooked and Minimap.HookScript then
+        minimapHooked = true
+        Minimap:HookScript("OnSizeChanged", function()
+            if minimapButton then PlaceMinimap(minimapButton) end
+        end)
+    end
+    if minimapButton then
+        PlaceMinimap(minimapButton)
+        minimapButton:Show()
+        return
+    end
+    minimapButton = CreateMinimap()
+    PlaceMinimap(minimapButton)
 end

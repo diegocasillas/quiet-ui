@@ -89,7 +89,7 @@ you log in, and again if that layout changes, a small prompt asks once:
 
 ## The setup window
 
-`/quiet setup` is the only window. The same choices sit on five tabs: General, Visible, Bars, Player, and Chat.
+`/quiet setup` is the only window. The same choices sit on five tabs: General, Visible, Bars, Player, and Chat. The window keeps the size of the tallest tab, so switching tabs does not resize it. A button on the minimap opens it: left click opens the window, drag moves the button.
 
 ![Setup window](docs/images/img007.png)
 
