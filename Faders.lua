@@ -133,8 +133,8 @@ local function XPShouldShow()
     return false
 end
 
-local function MeterShouldShow(showAll)
-    if showAll then return true end
+local function MeterShouldShow()
+    if ns.InCombat() or ns.InForcedInstance() or ns.InGroup() or ns.InEditMode() then return true end
     if lastCombat and type(GetTime) == "function" then
         return GetTime() - lastCombat < METER_AFTER_COMBAT
     end
@@ -201,7 +201,6 @@ local HEALTH_FORCED = {
 }
 
 local curveCache = {}
-local liveCurve = {}
 local playerWeight = 0
 local playerCurved = false
 local auraWeight = 0
@@ -312,7 +311,6 @@ local function BlendedCurve(rest, forced, t, name)
     else
         curve = MakeCurve(BlendPoints(rest, forced, t))
     end
-    liveCurve[name] = curve
     return curve
 end
 
@@ -804,7 +802,6 @@ function ns.HideRangeMark()
     rangeMark:SetAlpha(0)
     rangeMark._quietApplying = false
     rangeMark:Hide()
-    rangeMark._quietBar = nil
     local parentOk, parent = pcall(rangeMark.GetParent, rangeMark)
     if not parentOk or parent ~= UIParent then
         pcall(rangeMark.SetParent, rangeMark, UIParent)
@@ -900,7 +897,6 @@ local function PlaceRangeMark(mark)
         ns.Report("range nameplate", "could not anchor to the nameplate")
         return false
     end
-    mark._quietBar = bar
     local levelOk, level = pcall(bar.GetFrameLevel, bar)
     if not levelOk or not PlainNumber(level) then level = 1 end
     pcall(mark.SetFrameLevel, mark, level + 20)
@@ -913,18 +909,17 @@ function ns.UpdateRange(elapsed)
     if state ~= "show" then
         if not rangeMark or not rangeMark:IsShown() then return end
         local placed = PlaceRangeMark(rangeMark)
-        if placed == nil then return end
         if not placed then
             ns.HideRangeMark()
             return
         end
         ns.EaseAlpha(rangeMark, false, elapsed)
+        if rangeMark._quietAlpha == 0 then ns.HideRangeMark() end
         return
     end
     local mark = EnsureRangeMark()
     if not mark then return end
     local placed = PlaceRangeMark(mark)
-    if placed == nil then return end
     if not placed then
         ns.HideRangeMark()
         return
@@ -939,11 +934,11 @@ function ns.UpdateRange(elapsed)
     ns.EaseAlpha(mark, true, elapsed)
 end
 
-function ns.UpdateFaders(showAll, elapsed)
+function ns.UpdateFaders(elapsed)
     local glance = ns.Glancing()
     Run("xp bar", UpdateGroup, statusFrames, XPShouldShow() or ns.Pinned("xp") or glance, elapsed)
     Run("cooldown manager", UpdateGroup, cooldownFrames, CooldownsShouldShow() or ns.Pinned("cooldowns") or glance, elapsed, true)
-    Run("damage meter", UpdateGroup, meterFrames, MeterShouldShow(showAll) or ns.Pinned("meter") or glance, elapsed)
+    Run("damage meter", UpdateGroup, meterFrames, MeterShouldShow() or ns.Pinned("meter") or glance, elapsed, true)
     Run("quest catcher", PlaceQuestCatcher)
     local questHot = questCatcher and ns.Hit(questCatcher)
     Run("quest tracker", UpdateGroup, questFrames, ns.InEditMode() or ns.Pinned("quests") or glance or questHot, elapsed)

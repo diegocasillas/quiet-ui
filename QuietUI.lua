@@ -23,7 +23,7 @@ local function UpdateFades(elapsed, rescan)
     ns.BeginTick(rescan)
     local showAll = ns.ShowAll()
     ns.UpdateBars(showAll, elapsed, rescan)
-    ns.UpdateFaders(showAll, elapsed)
+    ns.UpdateFaders(elapsed)
     ns.UpdateMenuButton(elapsed)
 end
 
@@ -249,6 +249,12 @@ function handlers.PLAYER_TARGET_CHANGED()
     ns.RefreshWorld()
 end
 
+function handlers.UNIT_FLAGS(unit)
+    if unit == "target" then ns.RefreshWorld() end
+end
+
+handlers.UNIT_FACTION = handlers.UNIT_FLAGS
+
 function handlers.UNIT_ENTERED_VEHICLE()
     ns.RefreshWorld()
 end
@@ -267,7 +273,7 @@ local lastPointerX, lastPointerY
 local lastFlyout = false
 local lastGlance = false
 local wasHot = false
-local lastBusy = false
+local lastShowAll = false
 local slowAcc = 0
 local fallbackAcc = 0
 -- No focus API: a full button walk stays near 20 Hz instead of every pixel.
@@ -304,7 +310,11 @@ events:SetScript("OnUpdate", function(_, elapsed)
     local hud = ns.ConsumeHud()
     slowAcc = slowAcc + elapsed
     local slow = slowAcc >= 0.1
-    if slow then slowAcc = 0 end
+    if slow then
+        slowAcc = 0
+        ns.ForgetCursor()
+    end
+    local showAll = ns.ShowAll()
     local focusChanged = false
     if moved or slow then
         local changed = ns.FocusChanged()
@@ -322,26 +332,18 @@ events:SetScript("OnUpdate", function(_, elapsed)
         end
     end
     local rescan = focusChanged or hud or flyout ~= lastFlyout or glance ~= lastGlance
+        or showAll ~= lastShowAll
     lastFlyout = flyout
     lastGlance = glance
+    lastShowAll = showAll
     if rescan or wasHot then
         Run("bars", UpdateFades, elapsed, rescan)
         wasHot = ns.FrameHot()
     end
     if slow then
-        ns.ForgetCursor()
-        local busy = ns.CursorBusy()
-        if busy ~= lastBusy then
-            lastBusy = busy
-            if not rescan and not wasHot then
-                Run("bars", UpdateFades, elapsed, true)
-                wasHot = ns.FrameHot()
-                rescan = true
-            end
-        end
         if not rescan and not wasHot then
             ns.NextFadeTick()
-            Run("faders", ns.UpdateFaders, ns.ShowAll(), elapsed)
+            Run("faders", ns.UpdateFaders, elapsed)
             Run("menu", ns.UpdateMenuButton, elapsed)
             if ns.FrameHot() then wasHot = true end
         end
@@ -386,7 +388,7 @@ BINDING_CATEGORY_QUIETUI = "QuietUI"
 BINDING_NAME_QUIETUI_GLANCE = "Glance"
 
 function QuietUIGlance(keystate)
-    if keystate ~= "down" then return end
+    if keystate ~= "down" or not ns.DB().enabled then return end
     glancing = not glancing
 end
 

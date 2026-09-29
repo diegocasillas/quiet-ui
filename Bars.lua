@@ -97,7 +97,28 @@ local BAR_ART = {
 -- Returns fn()'s result, or false when the API is missing or throws.
 local function Safe(fn, ...)
     local ok, result = pcall(fn, ...)
-    return ok and result and true or false
+    return ok and not ns.IsSecret(result) and result and true or false
+end
+
+-- A corpse still counts as attackable. Enemy needs a living target.
+local function TargetAlive()
+    if type(UnitIsDeadOrGhost) == "function" then
+        return not Safe(UnitIsDeadOrGhost, "target")
+    end
+    if type(UnitIsDead) == "function" then
+        return not Safe(UnitIsDead, "target")
+    end
+    return true
+end
+
+local function HostileTarget()
+    if type(UnitCanAttack) ~= "function" then return false end
+    return Safe(UnitCanAttack, "player", "target") and TargetAlive()
+end
+
+local function FriendlyTarget()
+    if type(UnitIsFriend) ~= "function" then return false end
+    return Safe(UnitIsFriend, "player", "target") and TargetAlive()
 end
 
 local world = {
@@ -106,6 +127,8 @@ local world = {
     group = false,
     vehicle = false,
     target = false,
+    hostile = false,
+    friendly = false,
 }
 
 function ns.InEditMode()
@@ -122,6 +145,8 @@ function ns.RefreshWorld()
     local group = type(IsInGroup) == "function" and Safe(IsInGroup) or false
     local vehicle = type(UnitHasVehicleUI) == "function" and Safe(UnitHasVehicleUI, "player") or false
     local target = type(UnitExists) == "function" and Safe(UnitExists, "target") or false
+    local hostile = target and HostileTarget()
+    local friendly = target and FriendlyTarget()
     local instance = false
     if type(IsInInstance) == "function" then
         instance = Safe(function()
@@ -132,9 +157,11 @@ function ns.RefreshWorld()
         end)
     end
     if combat ~= world.combat or group ~= world.group or vehicle ~= world.vehicle
-        or target ~= world.target or instance ~= world.instance then
+        or target ~= world.target or instance ~= world.instance
+        or hostile ~= world.hostile or friendly ~= world.friendly then
         world.combat, world.group, world.vehicle = combat, group, vehicle
         world.target, world.instance = target, instance
+        world.hostile, world.friendly = hostile, friendly
         ns.TouchHud()
     end
 end
@@ -214,34 +241,13 @@ local function FlyoutOpen()
     return SpellFlyout and SpellFlyout.IsShown and SpellFlyout:IsShown() and true or false
 end
 
--- A corpse still counts as attackable. Enemy needs a living target.
-local function TargetAlive()
-    if type(UnitIsDeadOrGhost) == "function" then
-        return not Safe(UnitIsDeadOrGhost, "target")
-    end
-    if type(UnitIsDead) == "function" then
-        return not Safe(UnitIsDead, "target")
-    end
-    return true
-end
-
-local function HostileTarget()
-    if type(UnitCanAttack) ~= "function" then return false end
-    return Safe(UnitCanAttack, "player", "target") and TargetAlive()
-end
-
-local function FriendlyTarget()
-    if type(UnitIsFriend) ~= "function" then return false end
-    return Safe(UnitIsFriend, "player", "target")
-end
-
 -- Combat, a vehicle and an instance do not count. Hover, a quest turn-in and
 -- a pinned row are decided in the fader.
 function ns.XPForced()
     return ns.InEditMode() or FlyoutOpen() or ns.CursorBusy()
 end
 
--- Action bars and the damage meter are fully visible while this is true.
+-- Action bars are fully visible while this is true.
 function ns.ShowAll()
     return world.combat or ns.InEditMode() or world.vehicle or world.instance
         or FlyoutOpen() or ns.CursorBusy()
@@ -781,8 +787,8 @@ function ns.UpdateBars(showAll, elapsed, rescan)
         end
         local hostile, friendly
         if not showAllForced then
-            hostile = HostileTarget()
-            friendly = FriendlyTarget()
+            hostile = world.hostile
+            friendly = world.friendly
             for _, entry in ipairs(resolved) do
                 local group = ns.BarGroup(entry.id)
                 for _, bar in ipairs(entry.frames) do

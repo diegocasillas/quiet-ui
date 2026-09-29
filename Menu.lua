@@ -191,9 +191,9 @@ local function OnEnter(self)
 end
 
 local function CreateButton()
-    local ok, created = pcall(CreateFrame, "Button", "QuietUIMenuButton", UIParent, "BackdropTemplate")
+    local ok, created = pcall(CreateFrame, "Button", nil, UIParent, "BackdropTemplate")
     if not ok or not created then
-        created = CreateFrame("Button", "QuietUIMenuButton", UIParent)
+        created = CreateFrame("Button", nil, UIParent)
     end
     created:SetSize(28, 28)
     created:SetFrameStrata("MEDIUM")

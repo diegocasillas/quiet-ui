@@ -45,7 +45,6 @@ local SPARE_SET = {
     TargetFrame = true,
     Minimap = true,
     MinimapCluster = true,
-    QuietUIMenuButton = true,
 }
 
 local BAR_SET = {}

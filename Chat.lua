@@ -546,7 +546,7 @@ local function ChannelNotice(text)
     return false
 end
 
-local function PushLine(frame, text, r, g, b, animate, addToStart)
+local function PushLine(frame, text, r, g, b, animate)
     -- A boss yell can be a secret string. Comparing or editing it throws.
     if type(text) ~= "string" then return end
     local secret = ns.IsSecret(text)
@@ -638,20 +638,23 @@ local function RepairTinyFont(frame)
 end
 
 local function HideNativeText(frame)
+    if not ns.DB().enabled or not ns.ModernChat() then return end
     local function walk(obj, depth)
         if not obj or depth > 5 or Forbidden(obj) then return end
         if obj.GetNumRegions then
-            for i = 1, obj:GetNumRegions() do
-                local region = select(i, obj:GetRegions())
+            local regions = { obj:GetRegions() }
+            for i = 1, #regions do
+                local region = regions[i]
                 if region and region.GetObjectType and region:GetObjectType() == "FontString" then
                     HoldFont(frame, region)
                 end
             end
         end
         if not obj.GetNumChildren then return end
-        for i = 1, obj:GetNumChildren() do
-            local child = select(i, obj:GetChildren())
-            if child and not SkipChild(child) then
+        local children = { obj:GetChildren() }
+        for i = 1, #children do
+            local child = children[i]
+            if ns.Usable(child) and not SkipChild(child) then
                 walk(child, depth + 1)
             end
         end
@@ -659,21 +662,11 @@ local function HideNativeText(frame)
     pcall(walk, frame, 0)
 end
 
-local function RestoreObjectFont(obj)
-    local saved = obj and obj._quietSavedFont
-    if not saved or not obj.SetFont then return end
-    obj._quietApplying = true
-    pcall(obj.SetFont, obj, saved[1], saved[2], saved[3])
-    obj._quietApplying = false
-    obj._quietSavedFont = nil
-end
-
 local function RestoreFonts(frame)
     local saved = frame._quietFontAlpha
     if saved then
         for fs, alpha in pairs(saved) do
             if fs then
-                RestoreObjectFont(fs)
                 if fs.SetAlpha then
                     fs._quietApplying = true
                     fs:SetAlpha(alpha or 1)
@@ -683,17 +676,6 @@ local function RestoreFonts(frame)
         end
     end
     frame._quietFontAlpha = nil
-    RestoreObjectFont(frame)
-    local color = frame._quietSavedColor
-    if color and frame.SetTextColor then
-        pcall(frame.SetTextColor, frame, color[1] or 1, color[2] or 1, color[3] or 1, color[4] or 1)
-    end
-    frame._quietSavedColor = nil
-    local shadow = frame._quietSavedShadow
-    if shadow and frame.SetShadowColor then
-        pcall(frame.SetShadowColor, frame, shadow[1] or 0, shadow[2] or 0, shadow[3] or 0, shadow[4] or 1)
-    end
-    frame._quietSavedShadow = nil
 end
 
 local function Wheel(frame, delta)
@@ -845,10 +827,6 @@ local function UnboundedWidth(fs, text)
         end
     end
     return wide
-end
-
-local function MeasureWidth(fs, text)
-    return UnboundedWidth(fs, text)
 end
 
 local function OpenLink(chat, link, text, button)
@@ -1045,7 +1023,7 @@ local function PlaceLinks(bubble, msg, inner)
         if seg.br then
             x, y = 0, y + lineH
         else
-            local w = seg.width or MeasureWidth(bubble.text, seg.text or "")
+            local w = seg.width or UnboundedWidth(bubble.text, seg.text or "")
             local token = seg.text or ""
             if x > 0 and x + w > inner and token:match("%S") then
                 x, y = 0, y + lineH
@@ -1077,11 +1055,8 @@ end
 
 local function ApplyFont(bubble, chat)
     pcall(function()
-        local saved = chat._quietSavedFont
         local font, size, flags
-        if saved and type(saved[2]) == "number" and saved[2] > 2 then
-            font, size, flags = saved[1], saved[2], saved[3]
-        elseif chat.GetFont then
+        if chat.GetFont then
             font, size, flags = chat:GetFont()
         end
         if type(size) ~= "number" or size <= 2 then
@@ -1097,10 +1072,7 @@ local function ApplyFont(bubble, chat)
                 bubble.text:SetShadowOffset(x, y)
             end
         end
-        local shadow = chat._quietSavedShadow
-        if shadow and bubble.text.SetShadowColor then
-            bubble.text:SetShadowColor(shadow[1] or 0, shadow[2] or 0, shadow[3] or 0, shadow[4] or 1)
-        elseif chat.GetShadowColor and bubble.text.SetShadowColor then
+        if chat.GetShadowColor and bubble.text.SetShadowColor then
             local r, g, b, a = chat:GetShadowColor()
             if type(r) == "number" then
                 bubble.text:SetShadowColor(r, g, b, a or 1)
@@ -1493,11 +1465,8 @@ local function HideActive(frame)
 end
 
 local function FontStamp(frame)
-    local saved = frame._quietSavedFont
     local font, size, flags
-    if saved and type(saved[2]) == "number" and saved[2] > 2 then
-        font, size, flags = saved[1], saved[2], saved[3]
-    elseif frame.GetFont then
+    if frame.GetFont then
         local ok, f, s, fl = pcall(frame.GetFont, frame)
         if ok then font, size, flags = f, s, fl end
     end
@@ -1701,7 +1670,7 @@ local function SeedFromRegions(frame)
     end)
     for i = 1, #found do
         local line = found[i]
-        PushLine(frame, line.text, line.r, line.g, line.b, false, false)
+        PushLine(frame, line.text, line.r, line.g, line.b, false)
     end
 end
 
@@ -1718,7 +1687,7 @@ local function BindBubbles(frame)
             for i = 1, n do
                 local okLine, text, r, g, b = pcall(frame.GetMessageInfo, frame, i)
                 if not okLine then break end
-                PushLine(frame, text, r, g, b, false, false)
+                PushLine(frame, text, r, g, b, false)
             end
         end
     end
@@ -1731,7 +1700,7 @@ local function BindBubbles(frame)
         if self._quietScrollHook and not bottom then
             self._quietScroll = (self._quietScroll or 0) + 1
         end
-        PushLine(self, text, r, g, b, ns.DB().enabled and bottom, false)
+        PushLine(self, text, r, g, b, ns.DB().enabled and ns.ModernChat() and bottom)
         HideNativeText(self)
         if self._quietScrollHook then
             self._quietScroll = ClampScroll(self, self._quietScroll or 0)
@@ -1750,6 +1719,7 @@ local function BindBubbles(frame)
     if frame.HookScript and not frame._quietWheel then
         frame._quietWheel = true
         frame:HookScript("OnMouseWheel", function(self, delta)
+            if not ns.DB().enabled or not ns.ModernChat() then return end
             Wheel(self, delta)
         end)
     end

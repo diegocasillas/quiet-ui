@@ -91,7 +91,7 @@ local function WalkFoci(foci)
         for i = 1, #foci do
             local frame = foci[i]
             local depth = 0
-            while frame and depth < 12 do
+            while ns.Usable(frame) and depth < 12 do
                 n = n + 1
                 nextChain[n] = frame
                 if type(frame.GetParent) ~= "function" then break end
@@ -386,8 +386,9 @@ end
 
 function ns.HideTextures(frame)
     if not frame or not frame.GetNumRegions then return end
-    for i = 1, frame:GetNumRegions() do
-        ns.ForceTextureHidden(select(i, frame:GetRegions()))
+    local regions = { frame:GetRegions() }
+    for i = 1, #regions do
+        ns.ForceTextureHidden(regions[i])
     end
 end
 
