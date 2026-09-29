@@ -634,6 +634,26 @@ local function CachedSlot(helpful)
     return slot
 end
 
+-- "in", "out", "no", or "hold". A named spell does not have to sit on bar 1.
+local function ReadSpellRange(name)
+    local fn = C_Spell and C_Spell.IsSpellInRange
+    if type(fn) ~= "function" then fn = IsSpellInRange end
+    if type(fn) ~= "function" then
+        ns.Report("range check", "IsSpellInRange missing")
+        return "no"
+    end
+    local ok, result = pcall(fn, name, "target")
+    if not ok then
+        ns.Report("range check", result)
+        return "no"
+    end
+    if result == nil then return "no" end
+    if ns.IsSecret(result) then return "hold" end
+    if result == 1 or result == true then return "in" end
+    if result == 0 or result == false then return "out" end
+    return "no"
+end
+
 -- "in", "out", "no", or "hold". 0 and 1 both mean the spell can be used on this target.
 local function ReadActionRange(slot)
     if type(IsActionInRange) ~= "function" then
@@ -684,7 +704,7 @@ end
 -- "show", "hide", or "hold". Bars that are already up draw their own range, so this stays quiet.
 local function RangeDecision()
     if type(ns.Range) ~= "function" then return "hide" end
-    local yards, kind = ns.Range()
+    local yards, kind, spellName = ns.Range()
     if not yards then return "hide" end
     if ns.ShowAll() or ns.Glancing() or ns.Pinned("bars") then return "hide" end
     local life = TargetLife()
@@ -693,9 +713,14 @@ local function RangeDecision()
         local who = FriendlyReaction()
         if who ~= "ok" then return who end
     end
-    local slot = CachedSlot(kind == "friendly")
-    if not slot then return "hide" end
-    local reach = ReadActionRange(slot)
+    local reach
+    if spellName then
+        reach = ReadSpellRange(spellName)
+    else
+        local slot = CachedSlot(kind == "friendly")
+        if not slot then return "hide" end
+        reach = ReadActionRange(slot)
+    end
     if reach == "hold" or reach == "no" then return reach == "hold" and "hold" or "hide" end
     if yards == "spell" then return reach == "in" and "show" or "hide" end
     if type(CheckInteractDistance) ~= "function" then

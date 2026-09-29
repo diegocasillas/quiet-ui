@@ -81,13 +81,18 @@ function ns.ChatFade()
 end
 
 -- Missing means off. yards is 10, 28, or "spell". kind is "hostile" or "friendly".
+-- spell is an optional name. Missing means the longest matching spell on bar 1.
 function ns.Range()
     local range = ns.CharDB().range
     if type(range) ~= "table" then return nil end
     local yards = range.yards
     if yards ~= 10 and yards ~= 28 and yards ~= "spell" then return nil end
     local kind = range.kind == "friendly" and "friendly" or "hostile"
-    return yards, kind
+    local spell = range.spell
+    if type(spell) ~= "string" or ns.IsSecret(spell) then return yards, kind end
+    spell = spell:match("^%s*(.-)%s*$")
+    if not spell or spell == "" then return yards, kind end
+    return yards, kind, spell
 end
 
 local function FadeText(seconds)
@@ -194,6 +199,22 @@ local function Paint()
     if frame.rangeKind then
         frame.rangeKind.value:SetText(RangeKindText(draft.rangeKind))
     end
+    if frame.rangeSpell then
+        if draft.rangeYards == "spell" then
+            frame.rangeSpell:Show()
+        else
+            if frame.rangeSpell.edit and frame.rangeSpell.edit:HasFocus() then
+                frame.rangeSpell.edit:ClearFocus()
+            end
+            frame.rangeSpell:Hide()
+        end
+        if frame.rangeSpell.edit and not frame.rangeSpell.edit:HasFocus() then
+            local text = draft.rangeSpell or ""
+            if frame.rangeSpell.edit:GetText() ~= text then
+                frame.rangeSpell.edit:SetText(text)
+            end
+        end
+    end
     if frame.groupRows then
         for _, row in ipairs(frame.groupRows) do
             row.value:SetText(tostring(draft.groups[row.id]))
@@ -239,10 +260,11 @@ local function ReadDraft()
     draft.groupAuras = ns.GroupAuras()
     draft.chat = ns.ModernChat()
     draft.chatFade = ns.ChatFade()
-    local yards, kind = ns.Range()
+    local yards, kind, spell = ns.Range()
     draft.range = yards ~= nil
     draft.rangeYards = yards or "spell"
     draft.rangeKind = kind or "hostile"
+    draft.rangeSpell = spell or ""
     draft.groups = {}
     draft.hostile = {}
     draft.friendly = {}
@@ -301,10 +323,12 @@ local function Write()
         db.chatFade = draft.chatFade
     end
     if draft.range then
+        local spell = type(draft.rangeSpell) == "string" and draft.rangeSpell:match("^%s*(.-)%s*$") or ""
         db.range = {
             yards = draft.rangeYards or "spell",
             kind = draft.rangeKind == "friendly" and "friendly" or "hostile",
         }
+        if spell ~= "" then db.range.spell = spell end
     else
         db.range = nil
     end
@@ -460,6 +484,60 @@ local function Stepper(parent, label, onDelta)
     return row
 end
 
+-- Empty means bar 1. Escape only leaves the field, so the window stays open.
+local function SpellField(parent)
+    local row = CreateFrame("Frame", nil, parent)
+    row:SetSize(CONTENT_W, 22)
+    row.label = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    row.label:SetPoint("LEFT", 2, 0)
+    row.label:SetText("Spell")
+    local box = Backdropped("EditBox", nil, row)
+    box:SetSize(144, 22)
+    box:SetPoint("RIGHT", 0, 0)
+    box:SetFontObject("GameFontHighlightSmall")
+    box:SetAutoFocus(false)
+    box:SetMaxLetters(48)
+    box:SetTextInsets(6, 6, 0, 0)
+    box:SetJustifyH("LEFT")
+    if box.SetTextColor then box:SetTextColor(1, 0.95, 0.8, 1) end
+    local gold = GoldEdge(box)
+    if not gold then Flat(box, 0.9) end
+    box._quietGold = gold and true or false
+    local hint = box:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+    hint:SetPoint("LEFT", 6, 0)
+    hint:SetText("Bar 1")
+    box.hint = hint
+    local function ShowHint(self)
+        local text = self:GetText() or ""
+        if text == "" and not self:HasFocus() then
+            hint:Show()
+        else
+            hint:Hide()
+        end
+    end
+    box:SetScript("OnTextChanged", function(self)
+        draft.rangeSpell = self:GetText() or ""
+        ShowHint(self)
+    end)
+    box:SetScript("OnEditFocusGained", function(self)
+        ShowHint(self)
+        if self._quietGold and self.SetBackdropBorderColor then
+            self:SetBackdropBorderColor(1, 0.86, 0.4, 1)
+        end
+    end)
+    box:SetScript("OnEditFocusLost", function(self)
+        ShowHint(self)
+        if self._quietGold and self.SetBackdropBorderColor then
+            self:SetBackdropBorderColor(0.75, 0.6, 0.28, 0.95)
+        end
+    end)
+    box:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
+    box:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
+    ShowHint(box)
+    row.edit = box
+    return row
+end
+
 local function Section(parent, text)
     -- Gold title only. The old group-indicator bar is the classic paperdoll and collides with the column titles.
     local row = CreateFrame("Frame", nil, parent)
@@ -489,7 +567,7 @@ local TABS = {
     { id = "general", label = "General", height = 48 },
     { id = "visible", label = "Visible", height = 262 },
     { id = "bars", label = "Bars", height = 308 },
-    { id = "player", label = "Player", height = 172 },
+    { id = "player", label = "Player", height = 196 },
     { id = "chat", label = "Chat", height = 72 },
     { id = "info", label = "Info", height = 148 },
 }
@@ -767,6 +845,8 @@ local function CreateSetup()
     end)
     widget.rangeKind:SetPoint("TOPLEFT", player, "TOPLEFT", 0, -144)
     widget.rangeKind.value:SetWidth(92)
+    widget.rangeSpell = SpellField(player)
+    widget.rangeSpell:SetPoint("TOPLEFT", player, "TOPLEFT", 0, -168)
 
     local chat = widget.pages[5]
     widget.chatHeader = Section(chat, "Chat")
