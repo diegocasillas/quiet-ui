@@ -76,6 +76,7 @@ end
 local function RestoreAll()
     glancing = false
     ns.HideQuestCatcher()
+    ns.HideRangeMark()
     ns.HideBarCatchers()
     ns.ResetMenu()
     ns.RestoreChat()
@@ -352,6 +353,8 @@ events:SetScript("OnUpdate", function(_, elapsed)
     if ns.ModernChat() then
         Run("bubbles", ns.UpdateChat, elapsed)
     end
+    -- Range changes while you walk, with no focus or cursor change, so it cannot wait for a rescan.
+    Run("range", ns.UpdateRange, elapsed)
     Run("smooth", ns.UpdateSmooth, elapsed)
     chromeAcc = chromeAcc + elapsed
     if chromeAcc < 1 then return end

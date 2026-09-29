@@ -1,7 +1,8 @@
 local _, ns = ...
 
 -- Non-bar frames that fade: XP bar, cooldown manager, personal resource bar,
--- damage meter, the player frame, the pet frame, the quest tracker, and buffs.
+-- damage meter, the player frame, the pet frame, the quest tracker, buffs,
+-- and the range gradient on the target nameplate.
 
 local STATUS_NAMES = {
     "StatusTrackingBarManager",
@@ -529,6 +530,364 @@ function ns.UpdateSmooth(elapsed)
     Run("resource bar", UpdateResource, elapsed)
     Run("player frame", UpdatePlayer, elapsed)
     Run("buffs", UpdateAuras, elapsed)
+end
+
+-- A green gradient over the target nameplate health bar. A flat tint turns the red bar grey. Secret results are left as they were.
+-- Strong on the left, fading out to the right, so the health bar still reads.
+local rangeMark
+local rangeSlot = { at = -1, helpful = nil, slot = nil }
+
+local function PlainNumber(value)
+    return type(value) == "number" and not ns.IsSecret(value)
+end
+
+local function ActionSpell(slot)
+    local ok, kind, id = pcall(GetActionInfo, slot)
+    if not ok or ns.IsSecret(kind) or ns.IsSecret(id) then return nil end
+    if kind == "spell" and type(id) == "number" then return id end
+    if kind ~= "macro" or type(GetMacroSpell) ~= "function" then return nil end
+    local spellOk, spell = pcall(GetMacroSpell, id)
+    if not spellOk or ns.IsSecret(spell) then return nil end
+    if type(spell) == "number" then return spell end
+    if type(spell) == "string" and spell ~= "" then return spell end
+end
+
+local function SpellFacts(spellID)
+    local name, maxRange
+    if C_Spell and type(C_Spell.GetSpellInfo) == "function" then
+        local ok, info = pcall(C_Spell.GetSpellInfo, spellID)
+        if ok and type(info) == "table" then
+            if type(info.name) == "string" and not ns.IsSecret(info.name) then name = info.name end
+            if PlainNumber(info.maxRange) then maxRange = info.maxRange end
+        end
+    end
+    if type(GetSpellInfo) == "function" and (not name or not maxRange) then
+        local ok, spellName, _, _, _, _, range = pcall(GetSpellInfo, spellID)
+        if ok then
+            if not name and type(spellName) == "string" and not ns.IsSecret(spellName) then
+                name = spellName
+            end
+            if not maxRange and PlainNumber(range) then maxRange = range end
+        end
+    end
+    if not name and not maxRange and not (C_Spell and type(C_Spell.GetSpellInfo) == "function")
+        and type(GetSpellInfo) ~= "function" then
+        ns.Report("range spell", "spell info missing")
+    end
+    return name, maxRange
+end
+
+-- nil means the harm flag could not be read, so the slot is skipped.
+local function SpellKind(spellID, name, helpful)
+    local modern
+    if C_Spell then
+        if helpful then modern = C_Spell.IsSpellHelpful else modern = C_Spell.IsSpellHarmful end
+    end
+    if type(modern) == "function" then
+        local ok, result = pcall(modern, spellID)
+        if ok and not ns.IsSecret(result) then return result and true or false end
+        if ok and ns.IsSecret(result) then return nil end
+    end
+    local classic = IsHarmfulSpell
+    if helpful then classic = IsHelpfulSpell end
+    if type(classic) == "function" and type(name) == "string" then
+        local ok, result = pcall(classic, name)
+        if ok and not ns.IsSecret(result) then return result and true or false end
+        if ok and ns.IsSecret(result) then return nil end
+    end
+    if type(modern) ~= "function" and type(classic) ~= "function" then
+        ns.Report("range spell", "spell harm check missing")
+    end
+end
+
+-- Longest matching spell on bar 1. A tie keeps the left slot.
+local function BestSlot(helpful)
+    if type(GetActionInfo) ~= "function" then
+        ns.Report("range spell", "GetActionInfo missing")
+        return nil
+    end
+    local bestSlot, bestRange
+    for slot = 1, 12 do
+        local spellID = ActionSpell(slot)
+        if spellID then
+            local name, maxRange = SpellFacts(spellID)
+            local matches = maxRange and maxRange > 0 and SpellKind(spellID, name, helpful)
+            if matches and (not bestRange or maxRange > bestRange) then
+                bestRange = maxRange
+                bestSlot = slot
+            end
+        end
+    end
+    return bestSlot
+end
+
+-- Bar 1 changes rarely, so the chosen spell is cached. Distance is read every frame.
+local function CachedSlot(helpful)
+    local now = type(GetTime) == "function" and GetTime() or 0
+    if rangeSlot.helpful == helpful and now - rangeSlot.at < 0.25 then
+        return rangeSlot.slot
+    end
+    local slot = BestSlot(helpful)
+    rangeSlot.helpful = helpful
+    rangeSlot.at = now
+    rangeSlot.slot = slot
+    return slot
+end
+
+-- "in", "out", "no", or "hold". 0 and 1 both mean the spell can be used on this target.
+local function ReadActionRange(slot)
+    if type(IsActionInRange) ~= "function" then
+        ns.Report("range check", "IsActionInRange missing")
+        return "no"
+    end
+    local ok, result = pcall(IsActionInRange, slot)
+    if not ok then
+        ns.Report("range check", result)
+        return "no"
+    end
+    if result == nil then return "no" end
+    if ns.IsSecret(result) then return "hold" end
+    if result == 1 or result == true then return "in" end
+    if result == 0 or result == false then return "out" end
+    return "no"
+end
+
+-- "alive", "hide", or "hold".
+local function TargetLife()
+    if type(UnitExists) ~= "function" then return "hide" end
+    local ok, exists = pcall(UnitExists, "target")
+    if not ok or ns.IsSecret(exists) then return ok and "hold" or "hide" end
+    if not exists then return "hide" end
+    local deadFn = type(UnitIsDeadOrGhost) == "function" and UnitIsDeadOrGhost
+        or (type(UnitIsDead) == "function" and UnitIsDead)
+    if not deadFn then return "alive" end
+    local deadOk, dead = pcall(deadFn, "target")
+    if not deadOk then return "hide" end
+    if ns.IsSecret(dead) then return "hold" end
+    if dead then return "hide" end
+    return "alive"
+end
+
+-- "ok", "hide", or "hold". Friendly is reaction 5 and above.
+local function FriendlyReaction()
+    if type(UnitReaction) ~= "function" then
+        ns.Report("range check", "UnitReaction missing")
+        return "hide"
+    end
+    local ok, reaction = pcall(UnitReaction, "player", "target")
+    if not ok then return "hide" end
+    if ns.IsSecret(reaction) then return "hold" end
+    if type(reaction) ~= "number" or reaction < 5 then return "hide" end
+    return "ok"
+end
+
+-- "show", "hide", or "hold". Bars that are already up draw their own range, so this stays quiet.
+local function RangeDecision()
+    if type(ns.Range) ~= "function" then return "hide" end
+    local yards, kind = ns.Range()
+    if not yards then return "hide" end
+    if ns.ShowAll() or ns.Glancing() or ns.Pinned("bars") then return "hide" end
+    local life = TargetLife()
+    if life ~= "alive" then return life end
+    if kind == "friendly" then
+        local who = FriendlyReaction()
+        if who ~= "ok" then return who end
+    end
+    local slot = CachedSlot(kind == "friendly")
+    if not slot then return "hide" end
+    local reach = ReadActionRange(slot)
+    if reach == "hold" or reach == "no" then return reach == "hold" and "hold" or "hide" end
+    if yards == "spell" then return reach == "in" and "show" or "hide" end
+    if type(CheckInteractDistance) ~= "function" then
+        ns.Report("range distance", "CheckInteractDistance missing")
+        return "hide"
+    end
+    local index = yards == 10 and 2 or 1
+    local ok, near = pcall(CheckInteractDistance, "target", index)
+    if not ok then
+        ns.Report("range distance", near)
+        return "hide"
+    end
+    if ns.IsSecret(near) then return "hold" end
+    if near == 1 or near == true then return "show" end
+    return "hide"
+end
+
+local function EnsureRangeMark()
+    if rangeMark then return rangeMark end
+    local ok, created = pcall(CreateFrame, "Frame", nil, UIParent)
+    if not ok or not created then return end
+    local tex = created:CreateTexture(nil, "OVERLAY")
+    tex:SetAllPoints()
+    tex:SetColorTexture(1, 1, 1, 1)
+    local painted = false
+    if type(CreateColor) == "function" and type(tex.SetGradient) == "function" then
+        local gradientOk = pcall(tex.SetGradient, tex, "HORIZONTAL",
+            CreateColor(0.15, 0.82, 0.22, 0.9),
+            CreateColor(0.55, 0.95, 0.4, 0.15))
+        painted = gradientOk
+    end
+    if not painted and type(tex.SetGradientAlpha) == "function" then
+        painted = pcall(tex.SetGradientAlpha, tex, "HORIZONTAL", 0.15, 0.82, 0.22, 0.9, 0.55, 0.95, 0.4, 0.15)
+    end
+    if not painted then
+        tex:SetColorTexture(0.2, 0.78, 0.28, 0.75)
+    end
+    created:EnableMouse(false)
+    if type(created.SetMouseClickEnabled) == "function" then
+        pcall(created.SetMouseClickEnabled, created, false)
+    end
+    if type(created.SetMouseMotionEnabled) == "function" then
+        pcall(created.SetMouseMotionEnabled, created, false)
+    end
+    created:SetAlpha(0)
+    created._quietAlpha = 0
+    created:Hide()
+    rangeMark = created
+    return created
+end
+
+function ns.HideRangeMark()
+    if not rangeMark then return end
+    rangeMark._quietAlpha = 0
+    rangeMark._quietSecret = nil
+    rangeMark._quietApplying = true
+    rangeMark:SetAlpha(0)
+    rangeMark._quietApplying = false
+    rangeMark:Hide()
+    rangeMark._quietBar = nil
+    local parentOk, parent = pcall(rangeMark.GetParent, rangeMark)
+    if not parentOk or parent ~= UIParent then
+        pcall(rangeMark.SetParent, rangeMark, UIParent)
+    end
+end
+
+-- The visible bar, when the nameplate root is only the click area.
+-- Nameplate GetRect is empty or in world scale, so the gradient is a child of the
+-- health bar and is moved back to UIParent when it hides. The plate's alpha is left alone.
+local function ShownBox(frame)
+    if not ns.Usable(frame) or not frame.IsShown then return nil end
+    local shownOk, shown = pcall(frame.IsShown, frame)
+    if not shownOk or not shown then return nil end
+    return frame
+end
+
+-- A health bar is wide and short. The nameplate click area is tall, and that box is what irritates.
+local function BarArea(frame)
+    if not ShownBox(frame) or not frame.GetWidth or not frame.GetHeight then return nil end
+    local widthOk, width = pcall(frame.GetWidth, frame)
+    local heightOk, height = pcall(frame.GetHeight, frame)
+    if not widthOk or not heightOk then return nil end
+    if not PlainNumber(width) or not PlainNumber(height) then return nil end
+    if width < 40 or width > 320 or height < 4 or height > 20 then return nil end
+    return width * height
+end
+
+local function ChildrenOf(frame)
+    if not ns.Usable(frame) or not frame.GetChildren then return nil end
+    local ok, list = pcall(function() return { frame:GetChildren() } end)
+    if ok then return list end
+end
+
+local function TightestBar(root)
+    local best, bestArea
+    local function visit(frame, depth)
+        if not frame or depth > 5 then return end
+        local area = BarArea(frame)
+        if area and (not bestArea or area < bestArea) then
+            best, bestArea = frame, area
+        end
+        local list = ChildrenOf(frame)
+        if not list then return end
+        for i = 1, #list do
+            visit(list[i], depth + 1)
+        end
+    end
+    visit(root, 0)
+    return best
+end
+
+local function TargetPlate()
+    local finder = C_NamePlate and C_NamePlate.GetNamePlateForUnit
+    if type(finder) ~= "function" then finder = GetNamePlateForUnit end
+    if type(finder) ~= "function" then
+        ns.Report("range nameplate", "GetNamePlateForUnit missing")
+        return nil
+    end
+    local ok, plate = pcall(finder, "target")
+    if not ok or not ns.Usable(plate) then return nil end
+    local unitOk, unit = pcall(function() return plate.UnitFrame or plate.unitFrame or plate end)
+    if not unitOk or not ShownBox(unit) then return nil end
+    local namedOk, named = pcall(function()
+        return unit.healthBar or unit.HealthBar or unit.HealthBarsContainer
+    end)
+    local bar
+    if namedOk and named then
+        if BarArea(named) then
+            bar = named
+        else
+            bar = TightestBar(named)
+        end
+    end
+    bar = bar or TightestBar(unit)
+    if not bar then return nil end
+    return bar, plate
+end
+
+-- true when placed, false when the nameplate is gone.
+-- The gradient fills the health bar. Parenting to the plate would cover the name too.
+local function PlaceRangeMark(mark)
+    local bar = TargetPlate()
+    if not bar then return false end
+    local parentOk, parent = pcall(mark.GetParent, mark)
+    if parentOk and parent == bar then return true end
+    local moved = pcall(function()
+        mark:SetParent(bar)
+        mark:ClearAllPoints()
+        mark:SetAllPoints(bar)
+        if mark.SetIgnoreParentAlpha then mark:SetIgnoreParentAlpha(true) end
+    end)
+    if not moved then
+        ns.Report("range nameplate", "could not anchor to the nameplate")
+        return false
+    end
+    mark._quietBar = bar
+    local levelOk, level = pcall(bar.GetFrameLevel, bar)
+    if not levelOk or not PlainNumber(level) then level = 1 end
+    pcall(mark.SetFrameLevel, mark, level + 20)
+    return true
+end
+
+function ns.UpdateRange(elapsed)
+    local state = RangeDecision()
+    if state == "hold" then return end
+    if state ~= "show" then
+        if not rangeMark or not rangeMark:IsShown() then return end
+        local placed = PlaceRangeMark(rangeMark)
+        if placed == nil then return end
+        if not placed then
+            ns.HideRangeMark()
+            return
+        end
+        ns.EaseAlpha(rangeMark, false, elapsed)
+        return
+    end
+    local mark = EnsureRangeMark()
+    if not mark then return end
+    local placed = PlaceRangeMark(mark)
+    if placed == nil then return end
+    if not placed then
+        ns.HideRangeMark()
+        return
+    end
+    if not mark:IsShown() then
+        mark._quietApplying = true
+        mark:SetAlpha(0)
+        mark._quietApplying = false
+        mark._quietAlpha = 0
+        mark:Show()
+    end
+    ns.EaseAlpha(mark, true, elapsed)
 end
 
 function ns.UpdateFaders(showAll, elapsed)

@@ -80,9 +80,32 @@ function ns.ChatFade()
     return math.floor(n / 5) * 5
 end
 
+-- Missing means off. yards is 10, 28, or "spell". kind is "hostile" or "friendly".
+function ns.Range()
+    local range = ns.CharDB().range
+    if type(range) ~= "table" then return nil end
+    local yards = range.yards
+    if yards ~= 10 and yards ~= 28 and yards ~= "spell" then return nil end
+    local kind = range.kind == "friendly" and "friendly" or "hostile"
+    return yards, kind
+end
+
 local function FadeText(seconds)
     if not seconds or seconds <= 0 then return "Stay" end
     return seconds .. " s"
+end
+
+local RANGE_YARDS = { 10, 28, "spell" }
+
+local function RangeYardsText(yards)
+    if yards == 10 then return "10" end
+    if yards == 28 then return "28" end
+    return "Spell"
+end
+
+local function RangeKindText(kind)
+    if kind == "friendly" then return "Friendly" end
+    return "Unfriendly"
 end
 
 local function Flat(widget, alpha)
@@ -162,6 +185,15 @@ local function Paint()
     if frame.fade then
         frame.fade.value:SetText(FadeText(draft.chatFade))
     end
+    if frame.range then
+        PaintBox(frame.range.box, draft.range)
+    end
+    if frame.rangeYards then
+        frame.rangeYards.value:SetText(RangeYardsText(draft.rangeYards))
+    end
+    if frame.rangeKind then
+        frame.rangeKind.value:SetText(RangeKindText(draft.rangeKind))
+    end
     if frame.groupRows then
         for _, row in ipairs(frame.groupRows) do
             row.value:SetText(tostring(draft.groups[row.id]))
@@ -207,6 +239,10 @@ local function ReadDraft()
     draft.groupAuras = ns.GroupAuras()
     draft.chat = ns.ModernChat()
     draft.chatFade = ns.ChatFade()
+    local yards, kind = ns.Range()
+    draft.range = yards ~= nil
+    draft.rangeYards = yards or "spell"
+    draft.rangeKind = kind or "hostile"
     draft.groups = {}
     draft.hostile = {}
     draft.friendly = {}
@@ -263,6 +299,14 @@ local function Write()
         db.chatFade = nil
     else
         db.chatFade = draft.chatFade
+    end
+    if draft.range then
+        db.range = {
+            yards = draft.rangeYards or "spell",
+            kind = draft.rangeKind == "friendly" and "friendly" or "hostile",
+        }
+    else
+        db.range = nil
     end
     local groups
     for _, row in ipairs(ns.BAR_ROWS) do
@@ -347,6 +391,26 @@ local function NudgeFade(delta)
     Paint()
 end
 
+local function NudgeRangeYards(sign)
+    local index = 3
+    for i, yards in ipairs(RANGE_YARDS) do
+        if yards == draft.rangeYards then
+            index = i
+            break
+        end
+    end
+    index = index + sign
+    if index < 1 then index = #RANGE_YARDS end
+    if index > #RANGE_YARDS then index = 1 end
+    draft.rangeYards = RANGE_YARDS[index]
+    Paint()
+end
+
+local function NudgeRangeKind()
+    draft.rangeKind = draft.rangeKind == "friendly" and "hostile" or "friendly"
+    Paint()
+end
+
 local function NudgeGroup(id, delta)
     local n = (draft.groups[id] or 1) + delta
     local max = #ns.BAR_ROWS
@@ -425,7 +489,7 @@ local TABS = {
     { id = "general", label = "General", height = 48 },
     { id = "visible", label = "Visible", height = 262 },
     { id = "bars", label = "Bars", height = 308 },
-    { id = "player", label = "Player", height = 72 },
+    { id = "player", label = "Player", height = 172 },
     { id = "chat", label = "Chat", height = 72 },
     { id = "info", label = "Info", height = 148 },
 }
@@ -686,6 +750,23 @@ local function CreateSetup()
         Paint()
     end)
     widget.groupAuras:SetPoint("TOPLEFT", player, "TOPLEFT", 0, -44)
+    widget.rangeHeader = Section(player, "Range")
+    widget.rangeHeader:SetPoint("TOPLEFT", player, "TOPLEFT", 0, -76)
+    widget.range = Choice(player, "In range", function()
+        draft.range = not draft.range
+        Paint()
+    end)
+    widget.range:SetPoint("TOPLEFT", player, "TOPLEFT", 0, -96)
+    widget.rangeYards = Stepper(player, "Within", function(sign)
+        NudgeRangeYards(sign)
+    end)
+    widget.rangeYards:SetPoint("TOPLEFT", player, "TOPLEFT", 0, -120)
+    widget.rangeYards.value:SetWidth(48)
+    widget.rangeKind = Stepper(player, "Who", function()
+        NudgeRangeKind()
+    end)
+    widget.rangeKind:SetPoint("TOPLEFT", player, "TOPLEFT", 0, -144)
+    widget.rangeKind.value:SetWidth(92)
 
     local chat = widget.pages[5]
     widget.chatHeader = Section(chat, "Chat")
@@ -721,6 +802,7 @@ local function CreateSetup()
         db.groups = nil
         db.hostile = nil
         db.friendly = nil
+        db.range = nil
         ReadDraft()
         Paint()
         if ns.ApplyAll then ns.ApplyAll() end
