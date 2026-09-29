@@ -1,132 +1,112 @@
-<div align="center">
-
 # QuietUI
 
-**A quiet interface for WoW Forever.**
-Few frames. Few buttons. The world stays on screen.
+**Less UI. More world.** A quiet interface for the **WoW Forever beta** (Interface 16001).
 
-![QuietUI out of combat](docs/images/img001.png)
+QuietUI fades the Blizzard HUD while you explore and brings back the parts you
+need through hover, combat, and your current situation. One setup window chooses
+what stays visible, with separate settings for each character.
 
-</div>
+![QuietUI while exploring](docs/images/img001.png)
 
----
+## What you get
 
-## Why
-
-The default UI shows everything all the time: bars you do not press, a menu you
-open twice a week, chat tabs, bag icons, XP. QuietUI hides what you do not
-need right now and brings it back the moment you do.
-
-It is either **on** or **off**. One window, `/quiet setup`, chooses what stays
-on screen. That choice is saved per character.
-
-## What fades
-
-Checked rows in `/quiet setup` stay visible. Everything else follows this:
-
-| Element | Shows when |
-| --- | --- |
-| Action bars | hover on that fade group, combat, a vehicle, a dungeon, raid, battleground or arena, Edit Mode. A bar checked Enemy or Friend also shows while you can attack a living target, or while the target is friendly |
-| XP bar | hover, Edit Mode, a few seconds after a quest gives XP, an open spell flyout, or an item on the cursor |
-| Cooldown manager | combat, a group, an instance, Edit Mode |
-| Damage meter | the same as the action bars, and it stays a moment after combat |
-| Personal resource | combat, an instance, Edit Mode, or when mana, focus or energy is low. The health part also shows while you are hurt |
-| Quest tracker | hover anywhere on it, Edit Mode |
-| Buffs and debuffs | hover, combat, a group, an instance, Edit Mode. With Group buffs and debuffs with player frame checked, also while the player frame is visible |
-| Bag button | hover, while the bag slots are open, or while an item is on the cursor |
-
-Press `` ` `` to show every row above at once. Press again and the same rules apply, including a checked row. The portrait stays hidden unless the player frame is on, and chat stays as it is. Change the key under QuietUI in Key Bindings; `` ` `` is the default when that key is free.
-
-Hover brings back a whole group, not one bar. Bars 1–3, the stance bar, the pet bar and the totem bar fade together, bars 4–5 fade together, and each later bar fades on its own. The swing timer is group 10. `/quiet setup` changes the number. The same number fades together. Combat, a vehicle, a dungeon, raid, battleground, arena and Edit Mode still show every bar. Enemy and Friend on a bar keep that one bar up for a living attackable target, or a friendly target, including out of combat. The rest of its fade group stays down until hover or one of the rules above.
-
-![Action bars fade in on hover](docs/images/img002.png)
+- **Bars when you need them.** Hover reveals a group of action bars; combat and
+  instances bring every bar back. Choose bars to keep visible for an enemy or a
+  friendly target.
+- **A quieter HUD.** Quests appear on hover. Cooldowns and the damage meter appear
+  when fighting or grouped. Health and resources appear when they need attention.
+- **Chat without the chrome.** Messages appear in dark bubbles and fade after
+  10 seconds by default. Hover to see faded lines, scroll through history, or copy
+  a message. Enter works as usual.
+- **One bag button.** Left click opens bags, right click reveals bag slots, and
+  dragging moves the button.
+- **Glance.** Press `` ` `` to reveal the faded HUD at once. Press again to return
+  to your usual visibility rules. Chat stays unchanged.
 
 ![QuietUI in combat](docs/images/img003.png)
-
-### Player frame
-
-A checkbox in `/quiet setup`, on by default. The personal resource bar keeps its own rules.
-
-Off, the portrait stays hidden. On, the portrait and your pet show with a target, in combat, in a group, in an instance, in a vehicle, on hover, in Edit Mode, and while `` ` `` is on. They also show while mana, focus, or energy is below 70%. A pet on its own does not keep them up.
-
-**Group buffs and debuffs with player frame** is off unless you check it. Checked, buffs and debuffs show whenever the portrait does, including while mana, focus, or energy is low. Their own rules still apply, and the Always visible row still keeps them up. With the player frame off, this check does not pull them up.
-
-### One button for the bags
-
-The bag buttons collapse into a single small button. The micro menu stays on its own row.
-
-- **Left click** opens your bags.
-- **Right click** shows the bag slots, so you can swap bags.
-- **Drag** moves it. The position is remembered.
-
-Hover the micro menu and the row comes back, including the gaps between buttons. It also shows in Edit Mode and while `` ` `` is on, then fades out over 0.3 seconds. Check **Micro menu** under Always visible and it stays.
-
-![The bag button](docs/images/img004.png)
-
-### Modern chat
-
-A toggle in `/quiet setup`, on by default. Uncheck it and the original chat comes back.
-
-Each message is its own rounded bubble. A new line slides in from the left. At the bottom a line fades away after 10 seconds. Hover the chat and the lines that fit in the window come back; the wheel scrolls from anywhere on that block. Hover a line to copy it. Channel tags stay short, and the input appears only while you type. Money and experience follow the chat tab filters. Loot stays. **Enter** works as always.
-
-![Modern chat](docs/images/img005.png)
-
-### A layout that fits
-
-QuietUI ships its own Edit Mode layout, also called QuietUI. The first time
-you log in, and again if that layout changes, a small prompt asks once:
-
-- **Add** or **Update** puts the layout in place.
-- **Not now** leaves your layouts alone.
-
-**Import layout** in `/quiet setup` does the same later, including after Not now.
-**Force QuietUI layout** on the General tab, off unless you check it and Save, is what switches to that layout when QuietUI turns on and back when it turns off. Unchecked, your Edit Mode layout stays as it is.
-
-![Layout prompt](docs/images/img006.png)
-
-## Commands
-
-```text
-/quiet          turn QuietUI on or off
-/quiet setup    open the window
-```
-
-## The setup window
-
-`/quiet setup` is the only window. The same choices sit on six tabs: General, Visible, Bars, Player, Chat, and Info. The window keeps the size of the tallest tab, so switching tabs does not resize it. A button on the minimap opens it: left click opens the window, drag moves the button.
-
-![Setup window](docs/images/img007.png)
-
-**General.** Force QuietUI layout is off unless you check it. Checked and saved, turning QuietUI on selects the QuietUI Edit Mode layout, and turning it off selects the one you had before. Unchecked, the addon leaves your layout alone.
-
-**Always visible.** Check a row and that piece stays on screen: action bars,
-swing timer, XP bar, cooldown manager, damage meter, personal resource, quest tracker,
-buffs and debuffs, bag button, micro menu. The Action bars check keeps every action bar visible and leaves the swing timer down. The Swing timer check keeps that bar up on its own.
-
-**Fade together.** Each bar has a number: Bar 1 through Bar 8, the stance bar, the pet bar, the totem bar and the swing timer. The same number fades in together on hover. The default is 1 for bars 1–3, the stance bar, the pet bar and the totem bar, 2 for bars 4–5, then a number of its own for the rest. The swing timer is 10.
-
-**Enemy** and **Friend.** Each bar also has two checks. Enemy keeps that bar up while you can attack your target and that target is alive. Friend keeps it up while the target is friendly. Both can be on. Neither is on by default, and a check does not show the other bars that share its number.
-
-**Player frame.** A checkbox, on by default. On, the portrait and your pet show beside the personal resource bar, as above. **Group buffs and debuffs with player frame** is off unless you check it. Checked, buffs and debuffs stay up while that frame is visible.
-
-**In range** is off unless you check it. Checked, a green gradient fills the health bar on the target's nameplate while that target is alive and close enough, and only while the action bars are down. It is strong on the left and fades to the right, so the bar still shows through. In combat, in an instance, in a vehicle, in Edit Mode, and while Glance is on, it stays down. The target frame and the bars stay as they are. With nameplates off, or when that plate is not on screen, the gradient stays down. It follows the bar as you move. Within is 10 yards, 28 yards, or Spell. Spell uses the name in the Spell field. Leave that field empty and it uses the longest matching spell on bar 1. Unfriendly follows a harmful spell, including a neutral you can cast it on. Friendly follows a helpful spell on a friendly target. A dead target does not count.
-
-**Chat.** Modern chat is a toggle, on by default. Uncheck it and Save to use the original chat. Fade after sets how long a line stays at the bottom: steps of 5 seconds, up to 60. Stay keeps the line. The default is 10 seconds.
-
-**Info.** A short description of QuietUI, and how Glance works: press ` to show what has faded, press it again and the choices on the other tabs apply. Change the key under QuietUI in Key Bindings.
-
-- **Save** keeps the choices and leaves the window open.
-- **Reset default** clears the checks, turns Force QuietUI layout off, turns the player frame on, turns grouping buffs off, turns In range off, puts Modern chat and a 10 second fade back, restores the fade groups, clears Enemy and Friend, and applies that at once.
-- **Import layout** writes the QuietUI Edit Mode layout.
-- **X** and **Escape** close the window and drop anything you have not saved.
 
 ## Install
 
 1. Download the zip from the [latest release](https://github.com/rdurica/quiet-ui/releases/latest).
 2. Extract it into `World of Warcraft/_classic_beta_/Interface/AddOns/`.
-   The zip already contains the `QuietUI` folder. The folder name has to stay `QuietUI`.
-3. Start the game, or type `/reload`, and answer the layout prompt.
+   The addon file should end up at `AddOns/QuietUI/QuietUI.toc`.
+3. Start the game or type `/reload`. Accept the optional QuietUI layout, or choose
+   **Not now** to keep your current layout.
 
-## Compatibility
+## Controls
 
-Built for the **WoW Forever** beta.
+```text
+/quiet          Toggle QuietUI
+/quiet on       Enable QuietUI
+/quiet off      Disable QuietUI
+/quiet setup    Open settings
+```
+
+The minimap button also opens settings, even while QuietUI is off. Drag it around
+the minimap to move it.
+
+Glance defaults to `` ` `` if the key is free. Change it under **QuietUI** in
+**Key Bindings**.
+
+## Make it yours
+
+Open `/quiet setup`, change your choices, then click **Save**. The window stays
+open. **X** or **Escape** closes it without saving pending changes.
+
+![QuietUI setup](docs/images/img007.png)
+
+- **General:** Enable **Force QuietUI layout** to switch to the bundled layout
+  when QuietUI turns on and restore your previous layout when it turns off.
+  This is off by default.
+- **Visible:** Check the HUD elements you want to keep on screen. Action bars and
+  the swing timer have separate checks.
+- **Bars:** Give bars the same number to reveal them together on hover. **Enemy**
+  and **Friend** keep just that bar visible for the matching target.
+- **Player:** Toggle the portrait and pet, group buffs with the player frame, or
+  require a living target. Optional **In range** adds a green gradient to your
+  target's nameplate while in range and the action bars are down. Choose 10 yards,
+  28 yards, or Spell; leave the spell name empty to use the longest matching spell
+  on bar 1. Choose Unfriendly or Friendly for the target type.
+- **Chat:** Toggle modern chat and choose the fade delay. **Stay** keeps messages
+  visible at the bottom.
+- **Info:** A short guide to QuietUI and Glance.
+
+**Reset default** applies and saves the defaults immediately: no Always visible
+checks, default bar groups, player frame and grouped buffs on, modern chat with a
+10-second fade, and Force layout, living-target requirement, and In range off.
+
+**Import layout** adds or updates the bundled Edit Mode layout immediately,
+including after choosing Not now. Each bundled layout version is offered once;
+updates require your agreement. With Force layout off, enabling or disabling
+QuietUI leaves your active layout alone.
+
+<details>
+<summary><strong>Visibility rules in detail</strong></summary>
+
+All of these follow your Always visible choices and Glance, except that the player
+and pet require the player frame to be enabled. Edit Mode reveals the HUD for
+arranging it. Elements appear immediately and fade out over 0.3 seconds.
+
+- **Action bars:** Hover, combat, a vehicle, an instance, an open spell flyout, or
+  an item on the cursor. By default, bars 1–3, stance, pet, and totem fade together;
+  bars 4–5 share another group, later bars each have their own, and swing uses 10.
+- **XP:** Hover, five seconds after a quest awards XP, a spell flyout, or an item
+  on the cursor. Combat alone does not reveal it.
+- **Cooldowns and damage meter:** Combat, an instance, or a group. The meter stays
+  for 10 seconds after combat. Hover does not reveal either.
+- **Personal resource:** Combat, an instance, or mana, focus, or energy below 70%.
+  Its health bar also appears when health is not full.
+- **Player and pet:** A target, combat, an instance, a group, a vehicle, hover, or
+  low mana, focus, or energy. Having a pet out alone does not reveal them.
+  **Require a living target** overrides these rules and Glance for a dead target,
+  fading player, pet, and target frames; Edit Mode still reveals them.
+- **Buffs and debuffs:** Combat, an instance, a group, or hover. Grouping is on by
+  default and also reveals them with the enabled player frame.
+- **Quest tracker and micro menu:** Hover across their whole area, including gaps.
+- **Bag button:** Hover, open bag slots, an item on the cursor, or dragging.
+
+In range needs a visible target nameplate and a living target. It stays off during
+combat, in vehicles and instances, in Edit Mode, with a spell flyout or item on the
+cursor, during Glance, and with Action bars checked under Always visible.
+
+</details>
