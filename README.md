@@ -51,15 +51,17 @@ Off, the portrait stays hidden. On, the portrait and your pet show with a target
 
 **Group buffs and debuffs with player frame** is off unless you check it. Checked, buffs and debuffs show whenever the portrait does, including while mana, focus, or energy is low. Their own rules still apply, and the Always visible row still keeps them up. With the player frame off, this check does not pull them up.
 
-### One button instead of two rows
+### One button for the bags
 
-The micro menu and all bag buttons collapse into a single small button.
+The bag buttons collapse into a single small button. The micro menu stays on its own row.
 
 - **Left click** opens your bags.
 - **Right click** shows the bag slots, so you can swap bags.
 - **Drag** moves it. The position is remembered.
 
-![The bag and menu button](docs/images/img004.png)
+Hover the micro menu and the row comes back, including the gaps between buttons. It also shows in Edit Mode and while `` ` `` is on, then fades out over 0.3 seconds. Check **Micro menu** under Always visible and it stays.
+
+![The bag button](docs/images/img004.png)
 
 ### Modern chat
 
@@ -99,7 +101,7 @@ you log in, and again if that layout changes, a small prompt asks once:
 
 **Always visible.** Check a row and that piece stays on screen: action bars,
 swing timer, XP bar, cooldown manager, damage meter, personal resource, quest tracker,
-buffs and debuffs, bag button. The Action bars check keeps every action bar visible and leaves the swing timer down. The Swing timer check keeps that bar up on its own.
+buffs and debuffs, bag button, micro menu. The Action bars check keeps every action bar visible and leaves the swing timer down. The Swing timer check keeps that bar up on its own.
 
 **Fade together.** Each bar has a number: Bar 1 through Bar 8, the stance bar, the pet bar, the totem bar and the swing timer. The same number fades in together on hover. The default is 1 for bars 1–3, the stance bar, the pet bar and the totem bar, 2 for bars 4–5, then a number of its own for the rest. The swing timer is 10.
 

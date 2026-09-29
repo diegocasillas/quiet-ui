@@ -341,6 +341,7 @@ events:SetScript("OnUpdate", function(_, elapsed)
         if not rescan and not wasHot then
             ns.NextFadeTick()
             Run("faders", ns.UpdateFaders, ns.ShowAll(), elapsed)
+            Run("menu", ns.UpdateMenuButton, elapsed)
             if ns.FrameHot() then wasHot = true end
         end
         Run("bags", ns.UpdateBagSlots)

@@ -14,6 +14,7 @@ local ROWS = {
     { key = "quests", label = "Quest tracker" },
     { key = "auras", label = "Buffs and debuffs" },
     { key = "menu", label = "Bag button" },
+    { key = "micro", label = "Micro menu" },
 }
 
 local CONTENT_W = 348
@@ -413,7 +414,7 @@ end
 
 local TABS = {
     { id = "general", label = "General", height = 48 },
-    { id = "visible", label = "Visible", height = 238 },
+    { id = "visible", label = "Visible", height = 262 },
     { id = "bars", label = "Bars", height = 308 },
     { id = "player", label = "Player", height = 72 },
     { id = "chat", label = "Chat", height = 72 },
