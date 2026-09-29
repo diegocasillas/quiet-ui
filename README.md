@@ -93,7 +93,7 @@ you log in, and again if that layout changes, a small prompt asks once:
 
 ## The setup window
 
-`/quiet setup` is the only window. The same choices sit on five tabs: General, Visible, Bars, Player, and Chat. The window keeps the size of the tallest tab, so switching tabs does not resize it. A button on the minimap opens it: left click opens the window, drag moves the button.
+`/quiet setup` is the only window. The same choices sit on six tabs: General, Visible, Bars, Player, Chat, and Info. The window keeps the size of the tallest tab, so switching tabs does not resize it. A button on the minimap opens it: left click opens the window, drag moves the button.
 
 ![Setup window](docs/images/img007.png)
 
@@ -110,6 +110,8 @@ buffs and debuffs, bag button, micro menu. The Action bars check keeps every act
 **Player frame.** A checkbox, on by default. On, the portrait and your pet show beside the personal resource bar, as above. **Group buffs and debuffs with player frame** is off unless you check it. Checked, buffs and debuffs stay up while that frame is visible.
 
 **Chat.** Modern chat is a toggle, on by default. Uncheck it and Save to use the original chat. Fade after sets how long a line stays at the bottom: steps of 5 seconds, up to 60. Stay keeps the line. The default is 10 seconds.
+
+**Info.** A short description of QuietUI, and how Glance works: press ` to show what has faded, press it again and the choices on the other tabs apply. Change the key under QuietUI in Key Bindings.
 
 - **Save** keeps the choices and leaves the window open.
 - **Reset default** clears the checks, turns Force QuietUI layout off, turns the player frame on, turns grouping buffs off, puts Modern chat and a 10 second fade back, restores the fade groups, clears Enemy and Friend, and applies that at once.

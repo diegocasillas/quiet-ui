@@ -1,6 +1,6 @@
 local _, ns = ...
 
--- One window, five tabs: the layout, what stays visible, which bars fade together and for which target, the player frame, and chat.
+-- One window, six tabs: the layout, what stays visible, which bars fade together and for which target, the player frame, chat, and a short description with Glance.
 -- The frame is named so UISpecialFrames can close it on Escape.
 -- The window keeps the tallest page, so switching tabs does not resize it.
 
@@ -17,7 +17,7 @@ local ROWS = {
     { key = "micro", label = "Micro menu" },
 }
 
-local CONTENT_W = 348
+local CONTENT_W = 428
 -- Bottom-left of the minimap, clear of the tracking button.
 local MINIMAP_ANGLE = 225
 
@@ -406,6 +406,15 @@ local function Section(parent, text)
     return row
 end
 
+local function Body(parent, text)
+    local label = parent:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    label:SetWidth(CONTENT_W)
+    label:SetJustifyH("LEFT")
+    label:SetJustifyV("TOP")
+    label:SetText(text)
+    return label
+end
+
 local function ColumnLabel(parent, text)
     local label = parent:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     label:SetText(text)
@@ -418,13 +427,14 @@ local TABS = {
     { id = "bars", label = "Bars", height = 308 },
     { id = "player", label = "Player", height = 72 },
     { id = "chat", label = "Chat", height = 72 },
+    { id = "info", label = "Info", height = 148 },
 }
 
 -- Portrait frame needs room under the portrait. Gold dialog needs room inside the thick edge.
 local CHROME = {
-    portrait = { width = 400, side = 26, tabY = -74, pageY = -102, footer = 88, buttonY = 16, glanceY = 46 },
-    gold = { width = 424, side = 38, tabY = -56, pageY = -88, footer = 100, buttonY = 28, glanceY = 58, titleY = -30, closeX = -18, closeY = -16 },
-    flat = { width = 380, side = 16, tabY = -40, pageY = -76, footer = 88, buttonY = 16, glanceY = 46, titleY = -14, closeX = -10, closeY = -10 },
+    portrait = { width = 480, side = 26, tabY = -74, pageY = -102, footer = 52, buttonY = 16 },
+    gold = { width = 504, side = 38, tabY = -56, pageY = -88, footer = 64, buttonY = 28, titleY = -30, closeX = -18, closeY = -16 },
+    flat = { width = 460, side = 16, tabY = -40, pageY = -76, footer = 52, buttonY = 16, titleY = -14, closeX = -10, closeY = -10 },
 }
 
 local function MaxPage()
@@ -583,7 +593,7 @@ local function CreateSetup()
 
     widget.tabs = {}
     widget.pages = {}
-    -- Five labels on one row. Centered, so a wider gold frame still holds them.
+    -- Six labels on one row. Centered, so a wider gold frame still holds them.
     local tabW, gap = 68, 4
     local total = #TABS * tabW + (#TABS - 1) * gap
     local x = -total / 2
@@ -690,6 +700,16 @@ local function CreateSetup()
     end)
     widget.fade:SetPoint("TOPLEFT", chat, "TOPLEFT", 0, -44)
 
+    local info = widget.pages[6]
+    widget.about = Section(info, "About")
+    widget.about:SetPoint("TOPLEFT", info, "TOPLEFT", 0, 0)
+    widget.aboutBody = Body(info, "While you explore, fewer frames stay on screen. They come back when you need them: talking to someone, a quest, a dungeon, or PvP.")
+    widget.aboutBody:SetPoint("TOPLEFT", widget.about, "BOTTOMLEFT", 0, -4)
+    widget.glanceHeader = Section(info, "Glance")
+    widget.glanceHeader:SetPoint("TOPLEFT", widget.aboutBody, "BOTTOMLEFT", 0, -12)
+    widget.glanceBody = Body(info, "Press ` to show what has faded. Press it again and the choices on the other tabs apply. Change the key under QuietUI in Key Bindings.")
+    widget.glanceBody:SetPoint("TOPLEFT", widget.glanceHeader, "BOTTOMLEFT", 0, -4)
+
     widget.reset = ActionButton(widget, "Reset default", function()
         local db = ns.CharDB()
         db.visible = nil
@@ -716,11 +736,6 @@ local function CreateSetup()
     widget.import:SetFrameLevel(widget:GetFrameLevel() + 20)
     widget.save:SetFrameLevel(widget:GetFrameLevel() + 20)
 
-    widget.glance = widget:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
-    widget.glance:SetWidth(CONTENT_W)
-    widget.glance:SetJustifyH("CENTER")
-    widget.glance:SetText("Press ` to show everything. Press again to follow these rules. Change the key in Key Bindings.")
-    widget.glance:SetPoint("BOTTOM", 0, metrics.glanceY)
     widget.reset:SetPoint("BOTTOMLEFT", metrics.side, metrics.buttonY)
     widget.import:SetPoint("BOTTOM", 0, metrics.buttonY)
     widget.save:SetPoint("BOTTOMRIGHT", -metrics.side, metrics.buttonY)
