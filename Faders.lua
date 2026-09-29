@@ -208,10 +208,25 @@ local auraWeight = 0
 local aurasCurved = false
 local resourceWeight = 0
 
+local function DeadTargetBlocked()
+    if not ns.RequireLivingTarget() or ns.InEditMode() then return false end
+    local fn = type(UnitIsDeadOrGhost) == "function" and UnitIsDeadOrGhost
+        or (type(UnitIsDead) == "function" and UnitIsDead)
+    if not fn then return false end
+    local ok, dead = pcall(fn, "target")
+    if not ok then
+        ns.Report("target life", dead)
+        return false
+    end
+    if ns.IsSecret(dead) then return false end
+    return dead and true or false
+end
+
 -- Boolean show for the portrait. Low power stays on the curve below.
 -- Edit mode shows it even when the player frame is off.
 local function PlayerShouldShow()
     if ns.InEditMode() then return true end
+    if DeadTargetBlocked() then return false end
     if ns.PlayerStyle() ~= "classic" then return false end
     return ns.Glancing()
         or ns.Hit(PlayerFrame)
@@ -406,11 +421,20 @@ end
 
 local function UpdatePlayer(elapsed)
     local show = PlayerShouldShow() and true or false
-    local useCurve = ns.PlayerStyle() == "classic" and RestingPower() ~= nil
+    local blocked = DeadTargetBlocked()
+    local useCurve = not blocked and ns.PlayerStyle() == "classic" and RestingPower() ~= nil
     playerCurved, playerWeight = TakeWeight(playerCurved, playerWeight, show, elapsed, useCurve)
     local alpha = useCurve and EvalPower(playerWeight) or nil
     local player = PlayerFrame
     local pet = PetFrame
+    local target = TargetFrame
+    if IsFadeable(target) then
+        if blocked then
+            ns.EaseAlpha(target, false, elapsed)
+        elseif target._quietAlpha ~= nil or target._quietSecret ~= nil then
+            ns.ReleaseAlpha(target)
+        end
+    end
     if alpha ~= nil then
         PaintSecret(player, alpha)
         if not Under(pet, player) then PaintSecret(pet, alpha) end

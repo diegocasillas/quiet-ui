@@ -55,6 +55,10 @@ function ns.PlayerStyle()
     return "classic"
 end
 
+function ns.RequireLivingTarget()
+    return ns.CharDB().requireLivingTarget == true
+end
+
 -- Missing means on. Only an explicit false leaves buffs on their own.
 function ns.GroupAuras()
     return ns.CharDB().groupAuras ~= false
@@ -181,6 +185,9 @@ local function Paint()
     if frame.playerRow then
         PaintBox(frame.playerRow.box, draft.player)
     end
+    if frame.requireLivingTarget then
+        PaintBox(frame.requireLivingTarget.box, draft.requireLivingTarget)
+    end
     if frame.groupAuras then
         PaintBox(frame.groupAuras.box, draft.groupAuras)
     end
@@ -257,6 +264,7 @@ local function ReadDraft()
     end
     draft.forceLayout = ns.ForceQuietLayout()
     draft.player = ns.PlayerStyle() == "classic"
+    draft.requireLivingTarget = ns.RequireLivingTarget()
     draft.groupAuras = ns.GroupAuras()
     draft.chat = ns.ModernChat()
     draft.chatFade = ns.ChatFade()
@@ -307,6 +315,7 @@ local function Write()
     else
         db.player = "resource"
     end
+    db.requireLivingTarget = draft.requireLivingTarget and true or nil
     if draft.groupAuras then
         db.groupAuras = nil
     else
@@ -567,7 +576,7 @@ local TABS = {
     { id = "general", label = "General", height = 48 },
     { id = "visible", label = "Visible", height = 262 },
     { id = "bars", label = "Bars", height = 308 },
-    { id = "player", label = "Player", height = 196 },
+    { id = "player", label = "Player", height = 220 },
     { id = "chat", label = "Chat", height = 72 },
     { id = "info", label = "Info", height = 148 },
 }
@@ -828,25 +837,30 @@ local function CreateSetup()
         Paint()
     end)
     widget.groupAuras:SetPoint("TOPLEFT", player, "TOPLEFT", 0, -44)
+    widget.requireLivingTarget = Choice(player, "Require a living target for player and target frames", function()
+        draft.requireLivingTarget = not draft.requireLivingTarget
+        Paint()
+    end)
+    widget.requireLivingTarget:SetPoint("TOPLEFT", player, "TOPLEFT", 0, -68)
     widget.rangeHeader = Section(player, "Range")
-    widget.rangeHeader:SetPoint("TOPLEFT", player, "TOPLEFT", 0, -76)
+    widget.rangeHeader:SetPoint("TOPLEFT", player, "TOPLEFT", 0, -100)
     widget.range = Choice(player, "In range", function()
         draft.range = not draft.range
         Paint()
     end)
-    widget.range:SetPoint("TOPLEFT", player, "TOPLEFT", 0, -96)
+    widget.range:SetPoint("TOPLEFT", player, "TOPLEFT", 0, -120)
     widget.rangeYards = Stepper(player, "Within", function(sign)
         NudgeRangeYards(sign)
     end)
-    widget.rangeYards:SetPoint("TOPLEFT", player, "TOPLEFT", 0, -120)
+    widget.rangeYards:SetPoint("TOPLEFT", player, "TOPLEFT", 0, -144)
     widget.rangeYards.value:SetWidth(48)
     widget.rangeKind = Stepper(player, "Who", function()
         NudgeRangeKind()
     end)
-    widget.rangeKind:SetPoint("TOPLEFT", player, "TOPLEFT", 0, -144)
+    widget.rangeKind:SetPoint("TOPLEFT", player, "TOPLEFT", 0, -168)
     widget.rangeKind.value:SetWidth(92)
     widget.rangeSpell = SpellField(player)
-    widget.rangeSpell:SetPoint("TOPLEFT", player, "TOPLEFT", 0, -168)
+    widget.rangeSpell:SetPoint("TOPLEFT", player, "TOPLEFT", 0, -192)
 
     local chat = widget.pages[5]
     widget.chatHeader = Section(chat, "Chat")
@@ -876,6 +890,7 @@ local function CreateSetup()
         db.visible = nil
         db.forceLayout = nil
         db.player = nil
+        db.requireLivingTarget = nil
         db.groupAuras = nil
         db.chat = nil
         db.chatFade = nil
