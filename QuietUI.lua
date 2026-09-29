@@ -351,6 +351,7 @@ events:SetScript("OnUpdate", function(_, elapsed)
     if ns.ModernChat() then
         Run("bubbles", ns.UpdateChat, elapsed)
     end
+    Run("smooth", ns.UpdateSmooth, elapsed)
     chromeAcc = chromeAcc + elapsed
     if chromeAcc < 1 then return end
     chromeAcc = 0

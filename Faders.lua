@@ -102,7 +102,6 @@ function ns.FindFaders(deep)
     FindNamed(auraFrames, AURA_NAMES)
     for i = 1, #resourceFrames do
         resourceFrames[i]._quietKids = nil
-        resourceFrames[i]._quietResourceHeld = nil
     end
     for i = 1, #auraFrames do
         auraFrames[i]._quietKids = nil
@@ -172,22 +171,43 @@ local function Under(frame, ancestor)
     return false
 end
 
-local HoldVitalAlpha
+-- Same length as the bar fade. Showing snaps to 1. Hiding eases.
+local SMOOTH = 0.3
+local POWER_FROM = LOW_POWER - 0.001
+local HEALTH_FROM = 0.999
 
--- Off, the portrait stays for edit mode. On, it shows beside the resource bar
--- with a target, in combat, in an instance, in a group, in a vehicle, on hover,
--- and while Glance is on. It also shows while mana, focus, or energy is
--- below 70%. A pet out does not keep it up. The pet frame uses the same alpha.
-local function PaintPlayer(frame, show, elapsed)
-    if not (IsFadeable(frame) and frame:IsShown()) then return end
-    if show or ns.PlayerStyle() ~= "classic" then
-        ns.UpdateFaded(frame, show, elapsed)
-    else
-        HoldVitalAlpha(frame)
-    end
-end
+local POWER_REST = {
+    { 0, 1 },
+    { POWER_FROM, 1 },
+    { LOW_POWER, 0 },
+    { 1, 0 },
+}
+local POWER_FORCED = {
+    { 0, 1 },
+    { POWER_FROM, 1 },
+    { LOW_POWER, 1 },
+    { 1, 1 },
+}
+local HEALTH_REST = {
+    { 0, 1 },
+    { HEALTH_FROM, 1 },
+    { 1, 0 },
+}
+local HEALTH_FORCED = {
+    { 0, 1 },
+    { HEALTH_FROM, 1 },
+    { 1, 1 },
+}
 
--- Boolean show for the portrait. Low power stays a secret alpha in PaintPlayer.
+local curveCache = {}
+local liveCurve = {}
+local playerWeight = 0
+local playerCurved = false
+local auraWeight = 0
+local aurasCurved = false
+local resourceWeight = 0
+
+-- Boolean show for the portrait. Low power stays on the curve below.
 -- Edit mode shows it even when the player frame is off.
 local function PlayerShouldShow()
     if ns.InEditMode() then return true end
@@ -202,47 +222,9 @@ local function PlayerShouldShow()
         or ns.HasTarget()
 end
 
-local function UpdatePlayer(elapsed)
-    local player = PlayerFrame
-    local pet = PetFrame
-    local show = PlayerShouldShow()
-    PaintPlayer(player, show, elapsed)
-    if not Under(pet, player) then
-        PaintPlayer(pet, show, elapsed)
-    end
-end
-
 local function ResourceForced()
     return ns.InCombat() or ns.InForcedInstance() or ns.InEditMode() or ns.Pinned("resource")
         or ns.Glancing()
-end
-
--- Health and power are secret on this client, so Lua cannot compare them. A
--- curve maps the secret share straight to an alpha: 1 below the limit, 0 at it.
-local curves = {}
-
-local function ThresholdCurve(limit)
-    local cached = curves[limit]
-    if cached ~= nil then return cached or nil end
-    curves[limit] = false
-    if not C_CurveUtil or type(C_CurveUtil.CreateCurve) ~= "function" then
-        ns.Report("resource bar", "C_CurveUtil.CreateCurve missing")
-        return nil
-    end
-    local ok, curve = pcall(function()
-        local c = C_CurveUtil.CreateCurve()
-        c:AddPoint(0, 1)
-        c:AddPoint(limit - 0.001, 1)
-        c:AddPoint(limit, 0)
-        if limit < 1 then c:AddPoint(1, 0) end
-        return c
-    end)
-    if ok then
-        curves[limit] = curve
-    else
-        ns.Report("resource bar", curve)
-    end
-    return curves[limit] or nil
 end
 
 -- Mana, focus and energy. Rage and the rest stay out even when the type number
@@ -261,31 +243,106 @@ local function RestingPower()
     return kind
 end
 
-local function LowPowerAlpha()
+-- Secret values cannot be lerped, so the curve points move and the widget fades.
+local function MakeCurve(points)
+    if not C_CurveUtil or type(C_CurveUtil.CreateCurve) ~= "function" then
+        ns.Report("resource bar", "C_CurveUtil.CreateCurve missing")
+        return nil
+    end
+    local ok, curve = pcall(function()
+        local c = C_CurveUtil.CreateCurve()
+        for i = 1, #points do
+            c:AddPoint(points[i][1], points[i][2])
+        end
+        return c
+    end)
+    if not ok then
+        ns.Report("resource bar", curve)
+        return nil
+    end
+    return curve
+end
+
+local function CurveFor(points, key)
+    if key then
+        local cached = curveCache[key]
+        if cached ~= nil then return cached or nil end
+        curveCache[key] = false
+    end
+    local curve = MakeCurve(points)
+    if key then
+        curveCache[key] = curve or false
+    end
+    return curve
+end
+
+local function BlendPoints(rest, forced, t)
+    if t <= 0 then return rest end
+    if t >= 1 then return forced end
+    local out = {}
+    for i = 1, #rest do
+        local y0, y1 = rest[i][2], forced[i][2]
+        out[i] = { rest[i][1], y0 + (y1 - y0) * t }
+    end
+    return out
+end
+
+local function BlendedCurve(rest, forced, t, name)
+    local curve
+    if t <= 0 then
+        curve = CurveFor(rest, name .. ":0")
+    elseif t >= 1 then
+        curve = CurveFor(forced, name .. ":1")
+    else
+        curve = MakeCurve(BlendPoints(rest, forced, t))
+    end
+    liveCurve[name] = curve
+    return curve
+end
+
+local function NextWeight(current, show, elapsed)
+    if show or current <= 0 then return show and 1 or 0 end
+    local step = (elapsed or 0) / SMOOTH
+    if current <= step then return 0 end
+    return current - step
+end
+
+local function TakeWeight(curved, weight, show, elapsed, useCurve)
+    if not useCurve then return false, weight end
+    if not curved then
+        weight = show and 1 or 0
+    end
+    return true, NextWeight(weight, show, elapsed)
+end
+
+local function EvalPower(weight)
     local kind = RestingPower()
-    if kind == nil then return 0 end
-    local curve = ThresholdCurve(LOW_POWER)
+    if kind == nil then return nil end
+    local curve = BlendedCurve(POWER_REST, POWER_FORCED, weight, "power")
     if not curve or type(UnitPowerPercent) ~= "function" then return 0 end
     local ok, alpha = pcall(UnitPowerPercent, "player", kind, false, curve)
     if ok and alpha ~= nil then return alpha end
+    if not ok then ns.Report("player power", alpha) end
     return 0
 end
 
-local function MissingHealthAlpha()
-    local curve = ThresholdCurve(1)
+local function EvalHealth(weight)
+    local curve = BlendedCurve(HEALTH_REST, HEALTH_FORCED, weight, "health")
     if not curve or type(UnitHealthPercent) ~= "function" then return 0 end
-    return UnitHealthPercent("player", false, curve)
-end
-
-local function SafeAlpha(label, fn)
-    local ok, alpha = pcall(fn)
-    if ok then return alpha end
-    ns.Report(label, alpha)
+    local ok, alpha = pcall(UnitHealthPercent, "player", false, curve)
+    if ok and alpha ~= nil then return alpha end
+    if not ok then ns.Report("player health", alpha) end
     return 0
 end
 
-function HoldVitalAlpha(frame)
-    ns.HoldSecretAlpha(frame, SafeAlpha("player power", LowPowerAlpha))
+local function PaintNumeric(frame, show, elapsed)
+    if not (IsFadeable(frame) and frame:IsShown()) then return end
+    ns.EaseAlpha(frame, show, elapsed)
+end
+
+local function PaintSecret(frame, alpha)
+    if not (IsFadeable(frame) and frame:IsShown()) or alpha == nil then return end
+    ns.HoldSecretAlpha(frame, alpha)
 end
 
 local function HealthPart(frame)
@@ -306,67 +363,59 @@ local function KidsOf(frame)
 end
 
 -- Two secret alphas cannot be merged, so the health part follows missing
--- health and every other child follows low power; the frame itself stays at 1.
-local function HoldResourceParts(frame, forced)
+-- health and every other child follows low power. The frame itself stays at 1.
+local function PaintResource(frame, show, elapsed, powerAlpha, healthAlpha)
+    if not (IsFadeable(frame) and frame:IsShown()) then return end
     local health = HealthPart(frame)
     local kids = KidsOf(frame)
     if not health or #kids == 0 then
-        if forced then return false end
-        ns.HoldSecretAlpha(frame, SafeAlpha("player power", LowPowerAlpha))
-        return true
-    end
-    if forced then
-        if frame._quietResourceHeld ~= "forced" then
-            for i = 1, #kids do
-                local child = kids[i]
-                if ns.Usable(child) and child.SetAlpha then ns.HoldAlpha(child, 1) end
-            end
-            frame._quietResourceHeld = "forced"
+        if powerAlpha ~= nil then
+            PaintSecret(frame, powerAlpha)
+        else
+            PaintNumeric(frame, show, elapsed)
         end
-        return false
+        return
     end
-    frame._quietResourceHeld = nil
-    if frame._quietAlpha ~= 1 then
+    if frame._quietAlpha ~= 1 or frame._quietSecret ~= nil then
         ns.HoldAlpha(frame, 1)
     end
-    local healthAlpha = SafeAlpha("player health", MissingHealthAlpha)
-    local powerAlpha = SafeAlpha("player power", LowPowerAlpha)
     for i = 1, #kids do
         local child = kids[i]
-        if child == health then
-            ns.HoldSecretAlpha(child, healthAlpha)
-        elseif ns.Usable(child) and child.SetAlpha then
-            ns.HoldSecretAlpha(child, powerAlpha)
+        if ns.Usable(child) and child.SetAlpha then
+            if child == health then
+                ns.HoldSecretAlpha(child, healthAlpha)
+            elseif powerAlpha ~= nil then
+                ns.HoldSecretAlpha(child, powerAlpha)
+            else
+                ns.EaseAlpha(child, show, elapsed)
+            end
         end
     end
-    return true
 end
 
--- Secret alpha cannot be compared, so a settled bar is held at 10 Hz.
--- A change of combat, instance, edit mode, pin, or Glance applies at once.
-local nextResource = 0
-local lastResource
-local resourceForced
-
 local function UpdateResource(elapsed)
-    local forced = ResourceForced() and true or false
-    local now = type(GetTime) == "function" and GetTime() or nil
-    if now and forced == resourceForced and now < nextResource then return end
-    local step = elapsed
-    if now and (elapsed or 0) > 0 then
-        if forced == resourceForced and lastResource then
-            step = now - lastResource
-        end
-        lastResource = now
-        nextResource = now + 0.1
-    elseif now and forced ~= resourceForced then
-        nextResource = now
-    end
-    resourceForced = forced
+    local show = ResourceForced() and true or false
+    resourceWeight = NextWeight(resourceWeight, show, elapsed)
+    local powerAlpha = EvalPower(resourceWeight)
+    local healthAlpha = EvalHealth(resourceWeight)
     for _, frame in ipairs(resourceFrames) do
-        if frame:IsShown() and not HoldResourceParts(frame, forced) then
-            ns.UpdateFaded(frame, true, step)
-        end
+        PaintResource(frame, show, elapsed, powerAlpha, healthAlpha)
+    end
+end
+
+local function UpdatePlayer(elapsed)
+    local show = PlayerShouldShow() and true or false
+    local useCurve = ns.PlayerStyle() == "classic" and RestingPower() ~= nil
+    playerCurved, playerWeight = TakeWeight(playerCurved, playerWeight, show, elapsed, useCurve)
+    local alpha = useCurve and EvalPower(playerWeight) or nil
+    local player = PlayerFrame
+    local pet = PetFrame
+    if alpha ~= nil then
+        PaintSecret(player, alpha)
+        if not Under(pet, player) then PaintSecret(pet, alpha) end
+    else
+        PaintNumeric(player, show, elapsed)
+        if not Under(pet, player) then PaintNumeric(pet, show, elapsed) end
     end
 end
 
@@ -385,7 +434,7 @@ local function MouseOverAny(frame)
     return false
 end
 
-local function UpdateAuras(elapsed)
+local function AurasShouldShow()
     local show = ns.InCombat() or ns.InForcedInstance() or ns.InGroup() or ns.InEditMode()
         or ns.Pinned("auras") or ns.Glancing()
     if not show then
@@ -399,19 +448,19 @@ local function UpdateAuras(elapsed)
     if not show and ns.GroupAuras() and PlayerShouldShow() then
         show = true
     end
-    -- Same secret alpha as the portrait. It cannot be faded or merged with a boolean.
-    if not show and ns.GroupAuras() and ns.PlayerStyle() == "classic" then
-        local alpha = SafeAlpha("player power", LowPowerAlpha)
-        for _, frame in ipairs(auraFrames) do
-            if frame:IsShown() then
-                ns.HoldSecretAlpha(frame, alpha)
-            end
-        end
-        return
-    end
+    return show
+end
+
+local function UpdateAuras(elapsed)
+    local show = AurasShouldShow() and true or false
+    local useCurve = ns.GroupAuras() and ns.PlayerStyle() == "classic" and RestingPower() ~= nil
+    aurasCurved, auraWeight = TakeWeight(aurasCurved, auraWeight, show, elapsed, useCurve)
+    local alpha = useCurve and EvalPower(auraWeight) or nil
     for _, frame in ipairs(auraFrames) do
-        if frame:IsShown() then
-            ns.UpdateFaded(frame, show, elapsed)
+        if alpha ~= nil then
+            PaintSecret(frame, alpha)
+        else
+            PaintNumeric(frame, show, elapsed)
         end
     end
 end
@@ -476,15 +525,18 @@ function ns.HideQuestCatcher()
     questCatcherTarget = nil
 end
 
+function ns.UpdateSmooth(elapsed)
+    Run("resource bar", UpdateResource, elapsed)
+    Run("player frame", UpdatePlayer, elapsed)
+    Run("buffs", UpdateAuras, elapsed)
+end
+
 function ns.UpdateFaders(showAll, elapsed)
     local glance = ns.Glancing()
     Run("xp bar", UpdateGroup, statusFrames, XPShouldShow() or ns.Pinned("xp") or glance, elapsed)
     Run("cooldown manager", UpdateGroup, cooldownFrames, CooldownsShouldShow() or ns.Pinned("cooldowns") or glance, elapsed, true)
     Run("damage meter", UpdateGroup, meterFrames, MeterShouldShow(showAll) or ns.Pinned("meter") or glance, elapsed)
-    Run("resource bar", UpdateResource, elapsed)
-    Run("player frame", UpdatePlayer, elapsed)
     Run("quest catcher", PlaceQuestCatcher)
     local questHot = questCatcher and ns.Hit(questCatcher)
     Run("quest tracker", UpdateGroup, questFrames, ns.InEditMode() or ns.Pinned("quests") or glance or questHot, elapsed)
-    Run("buffs", UpdateAuras, elapsed)
 end

@@ -332,6 +332,29 @@ function ns.UpdateFaded(frame, show, elapsed)
     ns.PushAlpha(frame, nextAlpha)
 end
 
+-- Appears at once and fades out. Same rule as UpdateFaded, without the tick guard.
+function ns.EaseAlpha(frame, show, elapsed)
+    if not frame or not frame.SetAlpha then return end
+    local target = show and 1 or 0
+    if frame._quietSecret == nil and frame._quietAlpha == target then return end
+    ns.Remember(frame)
+    ns.EnsureAlphaHook(frame)
+    local current = frame._quietAlpha
+    if type(current) ~= "number" or frame._quietSecret ~= nil then
+        current = CurrentAlpha(frame)
+        if type(current) ~= "number" then current = target end
+    end
+    local nextAlpha = target
+    if target < current then
+        local step = (elapsed or 0) / FADE_OUT
+        if current - target > step then
+            nextAlpha = current - step
+        end
+    end
+    if nextAlpha ~= target then frameHot = true end
+    ns.PushAlpha(frame, nextAlpha)
+end
+
 ------------------------------------------------------------------------------
 -- Textures
 ------------------------------------------------------------------------------

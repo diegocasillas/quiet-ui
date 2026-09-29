@@ -54,6 +54,7 @@ local GAP = 3
 local SLIDE_X = 18
 local SLIDE_TIME = 0.2
 local FADE_OUT = 0.5
+local FADE_UI = 0.3
 local MAX_LINKS = 12
 
 local stripping = false
@@ -299,18 +300,14 @@ local function SyncEdit(edit)
         return
     end
     local focused = edit._quietFocus or (edit.HasFocus and edit:HasFocus())
-    local alpha = focused and 1 or 0
-    ns.PushAlpha(edit, alpha)
-    if edit._quietHeader then
-        ns.PushAlpha(edit._quietHeader, alpha)
-    end
+    edit._quietWant = focused and 1 or 0
     PadEdit(edit)
     HideEditChrome(edit)
     EnsurePlate(edit)
     PlacePlate(edit)
     StackPlate(edit, focused)
     if edit._quietPlate then
-        ns.PushAlpha(edit._quietPlate, alpha)
+        edit._quietPlate._quietWant = edit._quietWant
     end
 end
 
@@ -349,15 +346,14 @@ function ns.SyncVisibleEdits()
         local edit = _G["ChatFrame" .. i .. "EditBox"]
         if edit and edit._quietEdit and edit:IsShown() then
             local focused = edit.HasFocus and edit:HasFocus() and true or false
-            local alpha = edit:GetAlpha() or 0
             if focused then
-                edit._quietFocus = true
-                StackPlate(edit, true)
-                PlacePlate(edit)
-                if alpha < 0.99 or not edit._quietPlate or (edit._quietPlate:GetAlpha() or 0) < 0.99 then
+                if not edit._quietFocus or edit._quietWant ~= 1 then
+                    edit._quietFocus = true
                     SyncEdit(edit)
                 end
-            elseif edit._quietFocus or alpha > 0.01 then
+                StackPlate(edit, true)
+                PlacePlate(edit)
+            elseif edit._quietFocus or edit._quietWant ~= 0 then
                 SetFocus(edit, false)
             else
                 StackPlate(edit, false)
@@ -1308,6 +1304,13 @@ local function LineAlpha(msg)
     return left / FADE_OUT
 end
 
+local function Approach(current, goal, elapsed, duration)
+    local step = (elapsed or 0) / duration
+    if math.abs(goal - current) <= step then return goal end
+    if goal > current then return current + step end
+    return current - step
+end
+
 -- Keeps this line up, including the copy box.
 local function BubbleHeld(bubble)
     if not bubble then return false end
@@ -1570,16 +1573,28 @@ local function LayoutFrame(frame, elapsed)
         guard = guard + 1
         local msg = lines[index]
         local known = byMsg[msg]
-        local alpha = 1
+        local held = known and BubbleHeld(known)
+        local natural = 1
+        if fading and not held then
+            natural = LineAlpha(msg)
+        end
+        local goal = (reveal or held) and 1 or natural
+        local current = nil
+        if known and type(known._quietPA) == "number" then
+            current = known._quietPA
+        end
+        if current == nil or goal >= current then
+            current = goal
+        elseif current > goal + 0.02 then
+            current = Approach(current, goal, elapsed, FADE_UI)
+        else
+            current = goal
+        end
         local place = true
-        if fading and not reveal then
-            alpha = LineAlpha(msg)
-            if known and BubbleHeld(known) then
-                alpha = 1
-            elseif alpha <= 0 then
-                place = false
-                if not known then break end
-            end
+        local sliding = msg.slide and now - msg.slide < SLIDE_TIME
+        if current <= 0.01 and goal <= 0 and not sliding then
+            place = false
+            if not known then break end
         end
         if place then
             local bubble = known or AcquireBubble(frame)
@@ -1616,12 +1631,12 @@ local function LayoutFrame(frame, elapsed)
                 bubble:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", x, bubble._y)
                 bubble._quietPX, bubble._quietPY = x, bubble._y
             end
-            if bubble._quietPA ~= alpha then
-                bubble:SetAlpha(alpha)
-                bubble._quietPA = alpha
+            if bubble._quietPA ~= current then
+                bubble:SetAlpha(current)
+                bubble._quietPA = current
             end
             if not bubble:IsShown() then bubble:Show() end
-            if msg.slide and now - msg.slide < SLIDE_TIME then sooner(0) end
+            if sliding or math.abs(current - goal) > 0.01 then sooner(0) end
             if bubble._y ~= target then sooner(0) end
             if not reveal and fading and life > 0 and msg.born and not BubbleHeld(bubble) then
                 local fadeAt = msg.born + life - FADE_OUT
@@ -1740,10 +1755,23 @@ local function BindBubbles(frame)
     end
 end
 
+local function EaseEdit(edit, elapsed)
+    if not edit or not edit._quietEdit or edit._quietWant == nil then return end
+    local show = edit._quietWant == 1
+    ns.EaseAlpha(edit, show, elapsed)
+    if edit._quietHeader then
+        ns.EaseAlpha(edit._quietHeader, show, elapsed)
+    end
+    if edit._quietPlate then
+        ns.EaseAlpha(edit._quietPlate, show, elapsed)
+    end
+end
+
 function ns.UpdateChat(elapsed)
     if not ns.DB().enabled or not ns.ModernChat() then return end
     local now = GetTime()
     for i = 1, ChatCount() do
+        EaseEdit(_G["ChatFrame" .. i .. "EditBox"], elapsed)
         local frame = _G["ChatFrame" .. i]
         if frame and frame._quietBubbles then
             PlaceCatcher(frame)
