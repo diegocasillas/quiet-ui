@@ -245,6 +245,88 @@ test('Chat uses rendered hyperlinks without covering wrapped text with buttons',
     GameTooltip, SetItemRef = oldTooltip, oldRef
 end)
 
+test('Always show debuffs defaults on and survives saves, presets and reset', function()
+    local ns = namespace()
+    ns.BAR_ROWS = {}
+    loadAddon('Presets.lua', ns)
+    loadAddon('Setup.lua', ns)
+    local read = upvalue(upvalue(ns.ShowSetup, 'LoadSavedDraft'), 'ReadDraft')
+    local saved = upvalue(upvalue(upvalue(ns.ShowSetup, 'CreateSetup'), 'Write'), 'DraftSettings')
+    local draft = upvalue(read, 'draft')
+    assert(ns.AlwaysShowDebuffs(), 'Missing setting must default on')
+    read()
+    assert(draft.alwaysShowDebuffs)
+    draft.alwaysShowDebuffs = false
+    ns.ActivatePreset(nil, saved())
+    assert(QuietUICharDB.alwaysShowDebuffs == false and not ns.AlwaysShowDebuffs())
+    local id = assert(ns.SavePreset(nil, 'Debuffs fade', {}, saved()))
+    ns.ActivatePreset(id)
+    assert(not ns.AlwaysShowDebuffs(), 'Preset did not retain opt-out')
+    ns.DeletePreset(id)
+    assert(not ns.AlwaysShowDebuffs(), 'Deleting preset lost personal snapshot')
+    read({})
+    ns.ActivatePreset(nil, saved())
+    assert(ns.AlwaysShowDebuffs() and QuietUICharDB.alwaysShowDebuffs == nil,
+        'Reset must restore default without storing an explicit true')
+    read({ alwaysShowDebuffs = false })
+    draft.alwaysShowDebuffs = true
+    ns.ActivatePreset(nil, saved())
+    assert(ns.AlwaysShowDebuffs(), 'Re-enabling did not clear opt-out')
+end)
+
+test('Debuffs stay visible alone and opt-out restores aura fading and alpha', function()
+    local ns = namespace()
+    loadAddon('Setup.lua', ns)
+    loadAddon('Faders.lua', ns)
+    local update = upvalue(ns.UpdateSmooth, 'UpdateAuras')
+    BuffFrame, DebuffFrame, TemporaryEnchantFrame = frame(UIParent), frame(UIParent), frame(UIParent)
+    DebuffFrame.alpha = 0.8
+    ns.PlayerStyle = function() return 'resource' end
+    ns.GroupAuras = function() return false end
+    ns.FindFaders(false)
+    update(1)
+    assert(DebuffFrame.alpha == 1, 'Default did not show debuffs with player frame off')
+    assert(BuffFrame.alpha == 0 and TemporaryEnchantFrame.alpha == 0, 'Debuffs revealed buffs')
+    DebuffFrame:SetAlpha(0)
+    assert(DebuffFrame.alpha == 1, 'Blizzard alpha overwrite was not held')
+    QuietUICharDB.alwaysShowDebuffs = false
+    update(0.15)
+    assert(DebuffFrame.alpha > 0 and DebuffFrame.alpha < 1, 'Opt-out did not fade smoothly')
+    update(1)
+    assert(DebuffFrame.alpha == 0)
+    ns.InCombat = function() return true end
+    update(1)
+    assert(DebuffFrame.alpha == 1 and BuffFrame.alpha == 1, 'Opt-out broke normal combat visibility')
+    QuietUICharDB.alwaysShowDebuffs = nil
+    ns.RestoreAlpha()
+    QuietUIDB.enabled = false
+    assert(DebuffFrame.alpha == 0.8, 'Disable did not restore original alpha')
+    DebuffFrame:SetAlpha(0.4)
+    assert(DebuffFrame.alpha == 0.4, 'Disabled addon still held debuff alpha')
+    BuffFrame, DebuffFrame, TemporaryEnchantFrame = nil, nil, nil
+end)
+
+test('Always visible debuffs override the shared power alpha curve', function()
+    local ns = namespace()
+    loadAddon('Setup.lua', ns)
+    loadAddon('Faders.lua', ns)
+    local update = upvalue(ns.UpdateSmooth, 'UpdateAuras')
+    for i = 1, 100 do
+        local name = debug.getupvalue(update, i)
+        if name == 'RestingPower' then debug.setupvalue(update, i, function() return 0 end) end
+        if name == 'EvalPower' then debug.setupvalue(update, i, function() return 0.25 end) end
+        if not name then break end
+    end
+    BuffFrame, DebuffFrame = frame(UIParent), frame(UIParent)
+    ns.FindFaders(false)
+    update(1)
+    assert(BuffFrame.alpha == 0.25 and DebuffFrame.alpha == 1)
+    QuietUICharDB.alwaysShowDebuffs = false
+    update(1)
+    assert(DebuffFrame.alpha == 0.25, 'Opt-out did not rejoin the power curve')
+    BuffFrame, DebuffFrame = nil, nil
+end)
+
 test('Damage meter follows combat, instance, group, edit mode and grace only', function()
     local ns = namespace()
     loadAddon('Faders.lua', ns)

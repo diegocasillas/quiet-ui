@@ -2,7 +2,7 @@ local _, ns = ...
 
 local snapshotChar, snapshotPreset
 
-local KEYS = { "visible", "forceLayout", "player", "requireLivingTarget", "groupAuras",
+local KEYS = { "visible", "forceLayout", "player", "requireLivingTarget", "groupAuras", "alwaysShowDebuffs",
     "chat", "chatFade", "groups", "hostile", "friendly", "range" }
 
 function ns.Copy(value)

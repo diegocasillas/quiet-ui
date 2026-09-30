@@ -64,7 +64,9 @@ open. **X** or **Escape** closes it without saving pending changes.
 - **Bars:** Give bars the same number to reveal them together on hover. **Enemy**
   and **Friend** keep just that bar visible for the matching target.
 - **Player:** Toggle the portrait and pet, group buffs with the player frame, or
-  require a living target. Optional **In range** adds a green gradient to your
+  require a living target. **Always show debuffs** is on by default and keeps
+  debuffs visible independently of the player frame and aura grouping. Optional
+  **In range** adds a green gradient to your
   target's nameplate while in range and the action bars are down. Choose 10 yards,
   28 yards, or Spell; leave the spell name empty to use the longest matching spell
   on bar 1. Choose Unfriendly or Friendly for the target type.
@@ -89,8 +91,9 @@ ends. Presets can also be managed while QuietUI is off.
 
 **Reset default** disconnects this character from its preset without changing the
 shared preset, then applies and saves the defaults immediately: no Always visible
-checks, default bar groups, player frame and grouped buffs on, modern chat with a
-10-second fade, and Force layout, living-target requirement, and In range off.
+checks, default bar groups, player frame, grouped buffs, and Always show debuffs on,
+modern chat with a 10-second fade, and Force layout, living-target requirement, and
+In range off.
 
 **Import layout** adds or updates the bundled Edit Mode layout immediately,
 including after choosing Not now. Each bundled layout version is offered once;
@@ -118,7 +121,8 @@ arranging it. Elements appear immediately and fade out over 0.3 seconds.
   **Require a living target** overrides these rules and Glance for a dead target,
   fading player, pet, and target frames; Edit Mode still reveals them.
 - **Buffs and debuffs:** Combat, an instance, a group, or hover. Grouping is on by
-  default and also reveals them with the enabled player frame.
+  default and also reveals them with the enabled player frame. **Always show debuffs**
+  keeps debuffs visible by default; turn it off to apply these fade rules to them.
 - **Quest tracker and micro menu:** Hover across their whole area, including gaps.
 - **Bag button:** Hover, open bag slots, an item on the cursor, or dragging.
 

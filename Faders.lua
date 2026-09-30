@@ -511,8 +511,11 @@ local function UpdateAuras(elapsed)
     local useCurve = ns.GroupAuras() and ns.PlayerStyle() == "classic" and RestingPower() ~= nil
     aurasCurved, auraWeight = TakeWeight(aurasCurved, auraWeight, show, elapsed, useCurve)
     local alpha = useCurve and EvalPower(auraWeight) or nil
+    local keepDebuffs = ns.AlwaysShowDebuffs()
     for _, frame in ipairs(auraFrames) do
-        if alpha ~= nil then
+        if keepDebuffs and frame == _G.DebuffFrame then
+            PaintNumeric(frame, true, elapsed)
+        elseif alpha ~= nil then
             PaintSecret(frame, alpha)
         else
             PaintNumeric(frame, show, elapsed)

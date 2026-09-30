@@ -66,6 +66,11 @@ function ns.GroupAuras()
     return (ns.Settings and ns.Settings() or ns.CharDB()).groupAuras ~= false
 end
 
+-- Missing means on. Only an explicit false lets debuffs fade.
+function ns.AlwaysShowDebuffs()
+    return (ns.Settings and ns.Settings() or ns.CharDB()).alwaysShowDebuffs ~= false
+end
+
 -- Missing means on. Only an explicit false turns the modern chat off.
 function ns.ModernChat()
     return (ns.Settings and ns.Settings() or ns.CharDB()).chat ~= false
@@ -214,6 +219,9 @@ local function Paint()
     if frame.groupAuras then
         PaintBox(frame.groupAuras.box, draft.groupAuras)
     end
+    if frame.alwaysShowDebuffs then
+        PaintBox(frame.alwaysShowDebuffs.box, draft.alwaysShowDebuffs)
+    end
     if frame.chat then
         PaintBox(frame.chat.box, draft.chat)
     end
@@ -291,6 +299,7 @@ local function ReadDraft(source)
     draft.player = source.player ~= "resource"
     draft.requireLivingTarget = source.requireLivingTarget == true
     draft.groupAuras = source.groupAuras ~= false
+    draft.alwaysShowDebuffs = source.alwaysShowDebuffs ~= false
     draft.chat = source.chat ~= false
     local fade = source.chatFade
     draft.chatFade = type(fade) == "number" and fade == fade and math.floor(math.max(0, math.min(60, fade)) / 5) * 5 or 10
@@ -354,6 +363,7 @@ local function DraftSettings()
     else
         db.groupAuras = false
     end
+    if not draft.alwaysShowDebuffs then db.alwaysShowDebuffs = false end
     if draft.chat then
         db.chat = nil
     else
@@ -629,7 +639,7 @@ local TABS = {
     { id = "general", label = "General", height = 224 },
     { id = "visible", label = "Visible", height = 262 },
     { id = "bars", label = "Bars", height = 308 },
-    { id = "player", label = "Player", height = 220 },
+    { id = "player", label = "Player", height = 244 },
     { id = "chat", label = "Chat", height = 72 },
     { id = "info", label = "Info", height = 148 },
 }
@@ -1084,25 +1094,30 @@ local function CreateSetup()
         Paint()
     end)
     widget.requireLivingTarget:SetPoint("TOPLEFT", player, "TOPLEFT", 0, -68)
+    widget.alwaysShowDebuffs = Choice(player, "Always show debuffs", function()
+        draft.alwaysShowDebuffs = not draft.alwaysShowDebuffs
+        Paint()
+    end)
+    widget.alwaysShowDebuffs:SetPoint("TOPLEFT", player, "TOPLEFT", 0, -92)
     widget.rangeHeader = Section(player, "Range")
-    widget.rangeHeader:SetPoint("TOPLEFT", player, "TOPLEFT", 0, -100)
+    widget.rangeHeader:SetPoint("TOPLEFT", player, "TOPLEFT", 0, -124)
     widget.range = Choice(player, "In range", function()
         draft.range = not draft.range
         Paint()
     end)
-    widget.range:SetPoint("TOPLEFT", player, "TOPLEFT", 0, -120)
+    widget.range:SetPoint("TOPLEFT", player, "TOPLEFT", 0, -144)
     widget.rangeYards = Stepper(player, "Within", function(sign)
         NudgeRangeYards(sign)
     end)
-    widget.rangeYards:SetPoint("TOPLEFT", player, "TOPLEFT", 0, -144)
+    widget.rangeYards:SetPoint("TOPLEFT", player, "TOPLEFT", 0, -168)
     widget.rangeYards.value:SetWidth(48)
     widget.rangeKind = Stepper(player, "Who", function()
         NudgeRangeKind()
     end)
-    widget.rangeKind:SetPoint("TOPLEFT", player, "TOPLEFT", 0, -168)
+    widget.rangeKind:SetPoint("TOPLEFT", player, "TOPLEFT", 0, -192)
     widget.rangeKind.value:SetWidth(92)
     widget.rangeSpell = SpellField(player)
-    widget.rangeSpell:SetPoint("TOPLEFT", player, "TOPLEFT", 0, -192)
+    widget.rangeSpell:SetPoint("TOPLEFT", player, "TOPLEFT", 0, -216)
 
     local chat = widget.pages[5]
     widget.chatHeader = Section(chat, "Chat")
