@@ -206,6 +206,10 @@ local playerCurved = false
 local auraWeight = 0
 local aurasCurved = false
 local resourceWeight = 0
+local samplingPower = false
+local sampledKind
+local powerWeights, powerAlphas = {}, {}
+local powerSampleCount = 0
 
 local function DeadTargetBlocked()
     if not ns.RequireLivingTarget() or ns.InEditMode() then return false end
@@ -244,7 +248,7 @@ end
 
 -- Mana, focus and energy. Rage and the rest stay out even when the type number
 -- is hidden, as long as the token is still a plain string.
-local function RestingPower()
+local function ReadRestingPower()
     if type(UnitPowerType) ~= "function" then return nil end
     local kind, token = UnitPowerType("player")
     if type(token) == "string" and not ns.IsSecret(token) then
@@ -256,6 +260,11 @@ local function RestingPower()
         return nil
     end
     return kind
+end
+
+local function RestingPower()
+    if samplingPower then return sampledKind end
+    return ReadRestingPower()
 end
 
 -- Secret values cannot be lerped, so the curve points move and the widget fades.
@@ -332,15 +341,30 @@ end
 local function EvalPower(weight)
     local kind = RestingPower()
     if kind == nil then return nil end
+    if weight >= 1 then return 1 end
+    -- Weights are plain numbers; the cached result may be secret and is never compared.
+    if samplingPower then
+        for i = 1, powerSampleCount do
+            if powerWeights[i] == weight then return powerAlphas[i] end
+        end
+    end
     local curve = BlendedCurve(POWER_REST, POWER_FORCED, weight, "power")
     if not curve or type(UnitPowerPercent) ~= "function" then return 0 end
     local ok, alpha = pcall(UnitPowerPercent, "player", kind, false, curve)
-    if ok and alpha ~= nil then return alpha end
+    if ok and alpha ~= nil then
+        if samplingPower then
+            powerSampleCount = powerSampleCount + 1
+            powerWeights[powerSampleCount] = weight
+            powerAlphas[powerSampleCount] = alpha
+        end
+        return alpha
+    end
     if not ok then ns.Report("player power", alpha) end
     return 0
 end
 
 local function EvalHealth(weight)
+    if weight >= 1 then return 1 end
     local curve = BlendedCurve(HEALTH_REST, HEALTH_FORCED, weight, "health")
     if not curve or type(UnitHealthPercent) ~= "function" then return 0 end
     local ok, alpha = pcall(UnitHealthPercent, "player", false, curve)
@@ -354,9 +378,17 @@ local function PaintNumeric(frame, show, elapsed)
     ns.EaseAlpha(frame, show, elapsed)
 end
 
+local function HoldResult(frame, alpha)
+    if type(alpha) == "number" and not ns.IsSecret(alpha) then
+        ns.HoldAlpha(frame, alpha)
+    else
+        ns.HoldSecretAlpha(frame, alpha)
+    end
+end
+
 local function PaintSecret(frame, alpha)
     if not (IsFadeable(frame) and frame:IsShown()) or alpha == nil then return end
-    ns.HoldSecretAlpha(frame, alpha)
+    HoldResult(frame, alpha)
 end
 
 local function HealthPart(frame)
@@ -397,9 +429,9 @@ local function PaintResource(frame, show, elapsed, powerAlpha, healthAlpha)
         local child = kids[i]
         if ns.Usable(child) and child.SetAlpha then
             if child == health then
-                ns.HoldSecretAlpha(child, healthAlpha)
+                HoldResult(child, healthAlpha)
             elseif powerAlpha ~= nil then
-                ns.HoldSecretAlpha(child, powerAlpha)
+                HoldResult(child, powerAlpha)
             else
                 ns.EaseAlpha(child, show, elapsed)
             end
@@ -549,9 +581,17 @@ function ns.HideQuestCatcher()
 end
 
 function ns.UpdateSmooth(elapsed)
+    samplingPower = false
+    local ok, kind = pcall(ReadRestingPower)
+    sampledKind = ok and kind or nil
+    if not ok then ns.Report("player power", kind) end
+    for i = 1, powerSampleCount do powerAlphas[i] = nil end
+    powerSampleCount = 0
+    samplingPower = true
     Run("resource bar", UpdateResource, elapsed)
     Run("player frame", UpdatePlayer, elapsed)
     Run("buffs", UpdateAuras, elapsed)
+    samplingPower = false
 end
 
 -- A green gradient over the target nameplate health bar. A flat tint turns the red bar grey. Secret results are left as they were.
