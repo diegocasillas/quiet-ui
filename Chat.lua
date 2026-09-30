@@ -839,11 +839,18 @@ local function OpenLink(chat, link, text, button)
     end
 end
 
+-- Trade links can open the profession window even through GameTooltip.
+local TOOLTIP_LINKS = {
+    item = true, spell = true, enchant = true, quest = true,
+    achievement = true, currency = true,
+}
+
 local function ShowLinkTip(button)
     if not GameTooltip or not GameTooltip.SetOwner then return end
     GameTooltip:SetOwner(button, "ANCHOR_CURSOR")
     local shown = false
-    if GameTooltip.SetHyperlink and button.link then
+    local kind = type(button.link) == "string" and button.link:match("^([^:]+):")
+    if GameTooltip.SetHyperlink and TOOLTIP_LINKS[kind] then
         shown = pcall(GameTooltip.SetHyperlink, GameTooltip, button.link)
     end
     if not shown and GameTooltip.SetText then
