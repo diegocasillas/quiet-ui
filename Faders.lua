@@ -126,7 +126,7 @@ function ns.MarkQuestXP(xp)
 end
 
 local function XPShouldShow()
-    if ns.XPForced() then return true end
+    if ns.ShowAll() then return true end
     if lastQuestXP and type(GetTime) == "function" then
         return GetTime() - lastQuestXP < XP_AFTER_QUEST
     end
@@ -139,6 +139,51 @@ local function MeterShouldShow()
         return GetTime() - lastCombat < METER_AFTER_COMBAT
     end
     return false
+end
+
+-- Catch hover even when Blizzard's container is not mouse-enabled.
+local hoverCatchers = {}
+local function HoverFrames(name, frames)
+    local catchers = hoverCatchers[name]
+    if not catchers then catchers = {}; hoverCatchers[name] = catchers end
+    local hovered = false
+    for i, target in ipairs(frames) do
+        local box = catchers[i]
+        if ns.OnlyOnHover(name) and ns.DB().enabled and not ns.InEditMode()
+            and ns.Usable(target) and target:IsShown() then
+            if not box then
+                local ok, created = pcall(CreateFrame, "Frame", nil, UIParent)
+                if ok and created then
+                    box = created
+                    catchers[i] = box
+                    ns.ArmCatcher(box)
+                end
+            end
+            if box then
+                if box._quietHoverTarget ~= target then
+                    box:ClearAllPoints()
+                    box:SetAllPoints(target)
+                    box._quietHoverTarget = target
+                end
+                local strata = target.GetFrameStrata and target:GetFrameStrata()
+                if type(strata) == "string" and not ns.IsSecret(strata) then box:SetFrameStrata(strata) end
+                local level = target:GetFrameLevel()
+                if type(level) ~= "number" or ns.IsSecret(level) then level = 1 end
+                box:SetFrameLevel(math.max(0, level - 1))
+                if not box:IsShown() then box:Show() end
+                if ns.Hit(box) then hovered = true end
+            end
+            if ns.Hit(target) then hovered = true end
+        elseif box then box:Hide() end
+    end
+    for i = #frames + 1, #catchers do catchers[i]:Hide() end
+    return hovered
+end
+
+function ns.HideHoverCatchers()
+    for _, catchers in pairs(hoverCatchers) do
+        for _, box in ipairs(catchers) do box:Hide() end
+    end
 end
 
 -- A group shows together when any shown member is hovered.
@@ -440,6 +485,29 @@ local function PaintResource(frame, show, elapsed, powerAlpha, healthAlpha)
 end
 
 local function UpdateResource(elapsed)
+    if ns.OnlyOnHover("resource") then
+        local hovered = HoverFrames("resource", resourceFrames)
+        for _, frame in ipairs(resourceFrames) do
+            if ns.Hit(frame) then hovered = true; break end
+            for _, child in ipairs(KidsOf(frame)) do
+                if ns.Usable(child) and ns.Hit(child) then hovered = true; break end
+            end
+        end
+        local show = ns.VisibilityShow("resource", false, hovered)
+        resourceWeight = show and 1 or 0
+        for _, frame in ipairs(resourceFrames) do
+            if IsFadeable(frame) and frame:IsShown() then
+                local kids = KidsOf(frame)
+                if #kids == 0 then PaintNumeric(frame, show, elapsed)
+                else ns.HoldAlpha(frame, 1) end
+                for _, child in ipairs(kids) do
+                    if IsFadeable(child) then ns.EaseAlpha(child, show, elapsed) end
+                end
+            end
+        end
+        return
+    end
+    HoverFrames("resource", resourceFrames)
     local show = ResourceForced() and true or false
     resourceWeight = NextWeight(resourceWeight, show, elapsed)
     local powerAlpha = EvalPower(resourceWeight)
@@ -490,6 +558,13 @@ local function MouseOverAny(frame)
 end
 
 local function AurasShouldShow()
+    if ns.OnlyOnHover("auras") then
+        local hovered = false
+        for _, frame in ipairs(auraFrames) do
+            if MouseOverAny(frame) then hovered = true; break end
+        end
+        return ns.VisibilityShow("auras", false, hovered)
+    end
     local show = ns.InCombat() or ns.InForcedInstance() or ns.InGroup() or ns.InEditMode()
         or ns.Pinned("auras") or ns.Glancing()
     if not show then
@@ -508,10 +583,10 @@ end
 
 local function UpdateAuras(elapsed)
     local show = AurasShouldShow() and true or false
-    local useCurve = ns.GroupAuras() and ns.PlayerStyle() == "classic" and RestingPower() ~= nil
+    local useCurve = not ns.OnlyOnHover("auras") and ns.GroupAuras() and ns.PlayerStyle() == "classic" and RestingPower() ~= nil
     aurasCurved, auraWeight = TakeWeight(aurasCurved, auraWeight, show, elapsed, useCurve)
     local alpha = useCurve and EvalPower(auraWeight) or nil
-    local keepDebuffs = ns.AlwaysShowDebuffs()
+    local keepDebuffs = not ns.OnlyOnHover("auras") and ns.AlwaysShowDebuffs()
     for _, frame in ipairs(auraFrames) do
         if keepDebuffs and frame == _G.DebuffFrame then
             PaintNumeric(frame, true, elapsed)
@@ -771,7 +846,7 @@ local function RangeDecision()
     if type(ns.Range) ~= "function" then return "hide" end
     local yards, kind, spellName = ns.Range()
     if not yards then return "hide" end
-    if ns.ShowAll() or ns.Glancing() or ns.Pinned("bars") then return "hide" end
+    if ns.ShowAll() or ns.Glancing() or (ns.AnyBarsAlwaysVisible and ns.AnyBarsAlwaysVisible()) then return "hide" end
     local life = TargetLife()
     if life ~= "alive" then return life end
     if kind == "friendly" then
@@ -979,10 +1054,18 @@ end
 
 function ns.UpdateFaders(elapsed)
     local glance = ns.Glancing()
-    Run("xp bar", UpdateGroup, statusFrames, XPShouldShow() or ns.Pinned("xp") or glance, elapsed)
-    Run("cooldown manager", UpdateGroup, cooldownFrames, CooldownsShouldShow() or ns.Pinned("cooldowns") or glance, elapsed, true)
-    Run("damage meter", UpdateGroup, meterFrames, MeterShouldShow() or ns.Pinned("meter") or glance, elapsed, true)
+    local function UpdateVisible(name, frames, usual, noHover, exception)
+        local hovered = HoverFrames(name, frames)
+        if ns.OnlyOnHover(name) then
+            UpdateGroup(frames, ns.InEditMode() or glance or exception or hovered, elapsed)
+        else
+            UpdateGroup(frames, usual or ns.Pinned(name) or glance, elapsed, noHover)
+        end
+    end
+    Run("xp bar", UpdateVisible, "xp", statusFrames, XPShouldShow(), false, ns.XPForced())
+    Run("cooldown manager", UpdateVisible, "cooldowns", cooldownFrames, CooldownsShouldShow(), true)
+    Run("damage meter", UpdateVisible, "meter", meterFrames, MeterShouldShow(), true)
     Run("quest catcher", PlaceQuestCatcher)
     local questHot = questCatcher and ns.Hit(questCatcher)
-    Run("quest tracker", UpdateGroup, questFrames, ns.InEditMode() or ns.Pinned("quests") or glance or questHot, elapsed)
+    Run("quest tracker", UpdateGroup, questFrames, ns.VisibilityShow("quests", false, questHot), elapsed)
 end

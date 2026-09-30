@@ -1,12 +1,10 @@
 local _, ns = ...
 
--- One window, six tabs: the layout, what stays visible, which bars fade together and for which target, the player frame, chat, and a short description with Glance.
+-- One window: layout, HUD visibility, bars, group visibility, player, chat and Glance.
 -- The frame is named so UISpecialFrames can close it on Escape.
 -- The window keeps the tallest page, so switching tabs does not resize it.
 
 local ROWS = {
-    { key = "bars", label = "Action bars" },
-    { key = "swing", label = "Swing timer" },
     { key = "xp", label = "XP bar" },
     { key = "cooldowns", label = "Cooldown manager" },
     { key = "meter", label = "Damage meter" },
@@ -17,7 +15,8 @@ local ROWS = {
     { key = "micro", label = "Micro menu" },
 }
 
-local CONTENT_W = 428
+local CONTENT_W = 560
+local GROUP_VIEW_H = 264
 -- Bottom-left of the minimap, clear of the tracking button.
 local MINIMAP_ANGLE = 225
 
@@ -43,7 +42,27 @@ function ns.CharDB()
         account.visible = nil
         account.player = nil
     end
+    if ns.MigrateVisibility then ns.MigrateVisibility(QuietUICharDB) end
     return QuietUICharDB
+end
+
+function ns.HoverSetting(settings, name)
+    local hover = settings.hoverOnly
+    local value
+    if type(hover) == "table" then value = hover[name] end
+    if type(value) == "boolean" then return value end
+    -- XP defaults to hover unless an existing Always visible choice keeps it up.
+    return name == "xp" and not (type(settings.visible) == "table" and settings.visible.xp == true)
+end
+
+function ns.OnlyOnHover(name)
+    return ns.HoverSetting(ns.Settings and ns.Settings() or ns.CharDB(), name)
+end
+
+function ns.VisibilityShow(name, usual, hovered)
+    if ns.InEditMode() or ns.Glancing() then return true end
+    if ns.OnlyOnHover(name) then return hovered and true or false end
+    return ns.Pinned(name) or usual or hovered or false
 end
 
 function ns.Pinned(name)
@@ -205,7 +224,8 @@ local function Paint()
         end
     end
     for _, row in ipairs(frame.rows) do
-        PaintBox(row.box, draft[row.key])
+        PaintBox(row.always.box, draft[row.key])
+        PaintBox(row.hover.box, draft.hoverOnly[row.key])
     end
     if frame.forceLayout then
         PaintBox(frame.forceLayout.box, draft.forceLayout)
@@ -258,7 +278,37 @@ local function Paint()
             row.value:SetText(tostring(draft.groups[row.id]))
             PaintBox(row.hostile.box, draft.hostile[row.id])
             PaintBox(row.friendly.box, draft.friendly[row.id])
+            local mode = draft.groupVisibility[draft.groups[row.id]]
+            for _, button in ipairs({ row.hostile, row.friendly }) do
+                if mode then button:Disable() else button:Enable() end
+                button:SetAlpha(mode and 0.4 or 1)
+                button.mode = mode
+                button.group = draft.groups[row.id]
+            end
         end
+    end
+    if frame.visibilityRows then
+        local members = {}
+        for _, bar in ipairs(ns.BAR_ROWS) do
+            local group = draft.groups[bar.id]
+            members[group] = members[group] or {}
+            members[group][#members[group] + 1] = bar.label
+        end
+        local count = 0
+        for group, row in ipairs(frame.visibilityRows) do
+            if members[group] then
+                row:ClearAllPoints()
+                row:SetPoint("TOPLEFT", frame.groupContent, "TOPLEFT", 0, -count * 44)
+                row.members:SetText(table.concat(members[group], ", "))
+                PaintBox(row.always.box, draft.groupVisibility[group] == "always")
+                PaintBox(row.hover.box, draft.groupVisibility[group] == "hover")
+                row:Show()
+                count = count + 1
+            else row:Hide() end
+        end
+        frame.groupContent:SetHeight(math.max(1, count * 44))
+        local max = math.max(0, count * 44 - GROUP_VIEW_H)
+        frame.groupScroll:SetVerticalScroll(math.min(frame.groupScroll:GetVerticalScroll(), max))
     end
     if frame.tabs then
         for _, tab in ipairs(frame.tabs) do
@@ -292,8 +342,11 @@ end
 local function ReadDraft(source)
     if frame and frame.rangeSpell and frame.rangeSpell.edit:HasFocus() then frame.rangeSpell.edit:ClearFocus() end
     source = source or (ns.Settings and ns.Settings() or ns.CharDB())
+    if ns.MigrateVisibility then ns.MigrateVisibility(source) end
+    draft.hoverOnly = {}
     for _, row in ipairs(ROWS) do
-        draft[row.key] = type(source.visible) == "table" and source.visible[row.key] == true
+        draft.hoverOnly[row.key] = ns.HoverSetting(source, row.key)
+        draft[row.key] = type(source.visible) == "table" and source.visible[row.key] == true and not draft.hoverOnly[row.key]
     end
     draft.forceLayout = source.forceLayout == true
     draft.player = source.player ~= "resource"
@@ -308,6 +361,11 @@ local function ReadDraft(source)
     draft.rangeYards = draft.range and range.yards or "spell"
     draft.rangeKind = range.kind == "friendly" and "friendly" or "hostile"
     draft.rangeSpell = type(range.spell) == "string" and not ns.IsSecret(range.spell) and range.spell or ""
+    draft.groupVisibility = {}
+    for group = 1, #ns.BAR_ROWS do
+        local mode = type(source.groupVisibility) == "table" and source.groupVisibility[group]
+        if mode == "always" or mode == "hover" then draft.groupVisibility[group] = mode end
+    end
     draft.groups, draft.hostile, draft.friendly = {}, {}, {}
     for _, row in ipairs(ns.BAR_ROWS) do
         local n = type(source.groups) == "table" and source.groups[row.id]
@@ -347,6 +405,19 @@ local function DraftSettings()
         end
     end
     db.visible = visible
+    for _, row in ipairs(ROWS) do
+        if draft.hoverOnly[row.key] or (row.key == "xp" and not draft[row.key]) then
+            db.hoverOnly = db.hoverOnly or {}
+            db.hoverOnly[row.key] = draft.hoverOnly[row.key] and true or false
+        end
+    end
+    for _, row in ipairs(ns.BAR_ROWS) do
+        local group = draft.groups[row.id]
+        if draft.groupVisibility[group] then
+            db.groupVisibility = db.groupVisibility or {}
+            db.groupVisibility[group] = draft.groupVisibility[group]
+        end
+    end
     if draft.forceLayout then
         db.forceLayout = true
     else
@@ -536,6 +607,16 @@ local function TargetBox(parent, onClick)
     button.box = CheckMark(button)
     button.box:SetPoint("CENTER")
     button:SetScript("OnClick", onClick)
+    button:SetScript("OnEnter", function(self)
+        if self.mode and GameTooltip then
+            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+            GameTooltip:SetText("Controlled by Group " .. self.group .. ": "
+                .. (self.mode == "hover" and "Only on hover" or "Always visible"))
+            GameTooltip:Show()
+        end
+    end)
+    button:SetScript("OnLeave", function() if GameTooltip then GameTooltip:Hide() end end)
+    if button.SetMotionScriptsWhileDisabled then button:SetMotionScriptsWhileDisabled(true) end
     return button
 end
 
@@ -639,6 +720,7 @@ local TABS = {
     { id = "general", label = "General", height = 224 },
     { id = "visible", label = "Visible", height = 262 },
     { id = "bars", label = "Bars", height = 308 },
+    { id = "groups", label = "Groups", height = 320 },
     { id = "player", label = "Player", height = 244 },
     { id = "chat", label = "Chat", height = 72 },
     { id = "info", label = "Info", height = 148 },
@@ -646,9 +728,9 @@ local TABS = {
 
 -- Portrait frame needs room under the portrait. Gold dialog needs room inside the thick edge.
 local CHROME = {
-    portrait = { width = 480, side = 26, tabY = -74, pageY = -102, footer = 52, buttonY = 16 },
-    gold = { width = 504, side = 38, tabY = -56, pageY = -88, footer = 64, buttonY = 28, titleY = -30, closeX = -18, closeY = -16 },
-    flat = { width = 460, side = 16, tabY = -40, pageY = -76, footer = 52, buttonY = 16, titleY = -14, closeX = -10, closeY = -10 },
+    portrait = { width = 612, side = 26, tabY = -74, pageY = -102, footer = 52, buttonY = 16 },
+    gold = { width = 636, side = 38, tabY = -56, pageY = -88, footer = 64, buttonY = 28, titleY = -30, closeX = -18, closeY = -16 },
+    flat = { width = 592, side = 16, tabY = -40, pageY = -76, footer = 52, buttonY = 16, titleY = -14, closeX = -10, closeY = -10 },
 }
 
 local function MaxPage()
@@ -951,7 +1033,7 @@ local function CreateSetup()
 
     widget.tabs = {}
     widget.pages = {}
-    -- Six labels on one row. Centered, so a wider gold frame still holds them.
+    -- Keep every tab on one centered row.
     local tabW, gap = 68, 4
     local total = #TABS * tabW + (#TABS - 1) * gap
     local x = -total / 2
@@ -991,7 +1073,7 @@ local function CreateSetup()
         end
         SelectMenu(widget, "presetMenu", widget.presetSelector, entries)
     end)
-    widget.presetSelector:SetSize(300, 24)
+    widget.presetSelector:SetSize(CONTENT_W, 24)
     widget.presetSelector:SetPoint("TOPLEFT", general, "TOPLEFT", 0, -24)
     widget.newPreset = ActionButton(general, "New preset", function()
         PresetDialog(widget, "Name the new shared preset.", "", function(name)
@@ -1011,7 +1093,7 @@ local function CreateSetup()
             return true
         end)
     end)
-    widget.renamePreset:SetPoint("TOPLEFT", general, "TOPLEFT", 120, -58)
+    widget.renamePreset:SetPoint("TOPLEFT", general, "TOPLEFT", (CONTENT_W - 112) / 2, -58)
     widget.deletePreset = ActionButton(general, "Delete", function()
         local id = selectedPresetId
         if not id then return end
@@ -1024,7 +1106,7 @@ local function CreateSetup()
             return true
         end)
     end)
-    widget.deletePreset:SetPoint("TOPLEFT", general, "TOPLEFT", 240, -58)
+    widget.deletePreset:SetPoint("TOPRIGHT", general, "TOPRIGHT", 0, -58)
     widget.layoutHeader = Section(general, "Layout")
     widget.layoutHeader:SetPoint("TOPLEFT", general, "TOPLEFT", 0, -104)
     widget.layoutSelector = ActionButton(general, "Choose layout", function()
@@ -1044,7 +1126,7 @@ local function CreateSetup()
         if #entries == 0 then ns.Print("Edit Mode layouts are not available yet."); return end
         SelectMenu(widget, "layoutMenu", widget.layoutSelector, entries)
     end)
-    widget.layoutSelector:SetSize(300, 24)
+    widget.layoutSelector:SetSize(CONTENT_W, 24)
     widget.layoutSelector:SetPoint("TOPLEFT", general, "TOPLEFT", 0, -128)
     widget.forceLayout = Choice(general, "Force QuietUI layout", function()
         draft.forceLayout = not draft.forceLayout
@@ -1052,20 +1134,38 @@ local function CreateSetup()
     end)
     widget.forceLayout:SetPoint("TOPLEFT", general, "TOPLEFT", 0, -128)
     widget.presetHelp = Body(general, "Save updates the selected preset for every character. Without a preset, settings belong to this character.")
-    widget.presetHelp:SetWidth(400)
+    widget.presetHelp:SetWidth(CONTENT_W)
     widget.presetHelp:SetPoint("TOPLEFT", general, "TOPLEFT", 0, -174)
 
     local visible = widget.pages[2]
-    widget.always = Section(visible, "Always visible")
+    widget.always = Section(visible, "Visibility")
     widget.always:SetPoint("TOPLEFT", visible, "TOPLEFT", 0, 0)
+    local alwaysHeader = ColumnLabel(visible, "Always visible")
+    alwaysHeader:SetPoint("TOP", visible, "TOPLEFT", 380, 0)
+    local hoverHeader = ColumnLabel(visible, "Only on hover")
+    hoverHeader:SetPoint("TOP", visible, "TOPLEFT", 484, 0)
     widget.rows = {}
     local y = -20
     for _, info in ipairs(ROWS) do
-        local row = Choice(visible, info.label, function()
-            draft[info.key] = not draft[info.key]
+        local key = info.key
+        local row = CreateFrame("Frame", nil, visible)
+        row:SetSize(CONTENT_W, 22)
+        row.label = Body(row, info.label)
+        row.label:SetWidth(308)
+        row.label:SetPoint("LEFT", 2, 0)
+        row.always = TargetBox(row, function()
+            draft[key] = not draft[key]
+            if draft[key] then draft.hoverOnly[key] = false end
             Paint()
         end)
-        row.key = info.key
+        row.hover = TargetBox(row, function()
+            draft.hoverOnly[key] = not draft.hoverOnly[key]
+            if draft.hoverOnly[key] then draft[key] = false end
+            Paint()
+        end)
+        row.always:SetPoint("CENTER", row, "LEFT", 380, 0)
+        row.hover:SetPoint("CENTER", row, "LEFT", 484, 0)
+        row.key = key
         row:SetPoint("TOPLEFT", visible, "TOPLEFT", 0, y)
         y = y - 24
         widget.rows[#widget.rows + 1] = row
@@ -1109,7 +1209,56 @@ local function CreateSetup()
     widget.friendHeader:SetPoint("TOP", first.friendly, "TOP", 0, 20)
     widget.groupColumn:SetPoint("TOP", first.step, "TOP", 0, 20)
 
-    local player = widget.pages[4]
+    local groups = widget.pages[4]
+    widget.visibilityHeader = Section(groups, "Group visibility")
+    widget.visibilityHeader:SetPoint("TOPLEFT", groups, "TOPLEFT", 0, 0)
+    local groupAlwaysHeader = ColumnLabel(groups, "Always visible")
+    groupAlwaysHeader:SetPoint("TOP", groups, "TOPLEFT", 380, 0)
+    local groupHoverHeader = ColumnLabel(groups, "Only on hover")
+    groupHoverHeader:SetPoint("TOP", groups, "TOPLEFT", 484, 0)
+    widget.groupScroll = CreateFrame("ScrollFrame", nil, groups)
+    widget.groupScroll:SetSize(CONTENT_W - 28, GROUP_VIEW_H)
+    widget.groupScroll:SetPoint("TOPLEFT", groups, "TOPLEFT", 0, -24)
+    widget.groupContent = CreateFrame("Frame", nil, widget.groupScroll)
+    widget.groupContent:SetSize(CONTENT_W - 28, 1)
+    widget.groupScroll:SetScrollChild(widget.groupContent)
+    local function ScrollGroups(delta)
+        local max = math.max(0, widget.groupContent:GetHeight() - GROUP_VIEW_H)
+        widget.groupScroll:SetVerticalScroll(math.max(0, math.min(max,
+            widget.groupScroll:GetVerticalScroll() + delta)))
+    end
+    widget.groupScroll:EnableMouseWheel(true)
+    widget.groupScroll:SetScript("OnMouseWheel", function(_, delta) ScrollGroups(-delta * 44) end)
+    widget.groupUp = Mini(groups, "^", function() ScrollGroups(-44) end)
+    widget.groupUp:SetPoint("TOPRIGHT", groups, "TOPRIGHT", 0, -24)
+    widget.groupDown = Mini(groups, "v", function() ScrollGroups(44) end)
+    widget.groupDown:SetPoint("TOPRIGHT", groups, "TOPRIGHT", 0, -24 - GROUP_VIEW_H + 22)
+    widget.visibilityRows = {}
+    for group = 1, #ns.BAR_ROWS do
+        local id = group
+        local row = CreateFrame("Frame", nil, widget.groupContent)
+        row:SetSize(CONTENT_W - 28, 44)
+        row.label = Section(row, "Group " .. id)
+        row.label:SetPoint("TOPLEFT", 2, -2)
+        row.members = Body(row, "")
+        row.members:SetWidth(308)
+        row.members:SetPoint("TOPLEFT", 2, -18)
+        row.always = TargetBox(row, function()
+            draft.groupVisibility[id] = draft.groupVisibility[id] ~= "always" and "always" or nil
+            Paint()
+        end)
+        row.hover = TargetBox(row, function()
+            draft.groupVisibility[id] = draft.groupVisibility[id] ~= "hover" and "hover" or nil
+            Paint()
+        end)
+        row.always:SetPoint("CENTER", row, "TOPLEFT", 380, -16)
+        row.hover:SetPoint("CENTER", row, "TOPLEFT", 484, -16)
+        widget.visibilityRows[group] = row
+    end
+    local help = Body(groups, "Both unchecked: usual rules. Glance and Edit Mode still show hover-only frames.")
+    help:SetPoint("TOPLEFT", groups, "TOPLEFT", 0, -24 - GROUP_VIEW_H - 10)
+
+    local player = widget.pages[5]
     widget.player = Section(player, "Player frame")
     widget.player:SetPoint("TOPLEFT", player, "TOPLEFT", 0, 0)
     widget.playerRow = Choice(player, "Player frame", function()
@@ -1133,26 +1282,26 @@ local function CreateSetup()
     end)
     widget.alwaysShowDebuffs:SetPoint("TOPLEFT", player, "TOPLEFT", 0, -92)
     widget.rangeHeader = Section(player, "Range")
-    widget.rangeHeader:SetPoint("TOPLEFT", player, "TOPLEFT", 0, -124)
+    widget.rangeHeader:SetPoint("TOPLEFT", player, "TOPLEFT", 0, -118)
     widget.range = Choice(player, "In range", function()
         draft.range = not draft.range
         Paint()
     end)
-    widget.range:SetPoint("TOPLEFT", player, "TOPLEFT", 0, -144)
+    widget.range:SetPoint("TOPLEFT", player, "TOPLEFT", 0, -138)
     widget.rangeYards = Stepper(player, "Within", function(sign)
         NudgeRangeYards(sign)
     end)
-    widget.rangeYards:SetPoint("TOPLEFT", player, "TOPLEFT", 0, -168)
-    widget.rangeYards.value:SetWidth(48)
+    widget.rangeYards:SetPoint("TOPLEFT", player, "TOPLEFT", 0, -162)
+    widget.rangeYards.value:SetWidth(92)
     widget.rangeKind = Stepper(player, "Who", function()
         NudgeRangeKind()
     end)
-    widget.rangeKind:SetPoint("TOPLEFT", player, "TOPLEFT", 0, -192)
+    widget.rangeKind:SetPoint("TOPLEFT", player, "TOPLEFT", 0, -186)
     widget.rangeKind.value:SetWidth(92)
     widget.rangeSpell = SpellField(player)
-    widget.rangeSpell:SetPoint("TOPLEFT", player, "TOPLEFT", 0, -216)
+    widget.rangeSpell:SetPoint("TOPLEFT", player, "TOPLEFT", 0, -210)
 
-    local chat = widget.pages[5]
+    local chat = widget.pages[6]
     widget.chatHeader = Section(chat, "Chat")
     widget.chatHeader:SetPoint("TOPLEFT", chat, "TOPLEFT", 0, 0)
     widget.chat = Choice(chat, "Modern chat", function()
@@ -1165,7 +1314,7 @@ local function CreateSetup()
     end)
     widget.fade:SetPoint("TOPLEFT", chat, "TOPLEFT", 0, -44)
 
-    local info = widget.pages[6]
+    local info = widget.pages[7]
     widget.about = Section(info, "About")
     widget.about:SetPoint("TOPLEFT", info, "TOPLEFT", 0, 0)
     widget.aboutBody = Body(info, "While you explore, fewer frames stay on screen. They come back when you need them: talking to someone, a quest, a dungeon, or PvP.")

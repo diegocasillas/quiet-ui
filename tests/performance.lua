@@ -32,7 +32,7 @@ local ns = {}
 loadAddon('Core.lua', ns)
 local combat = false
 for _, key in ipairs({ 'InEditMode', 'InForcedInstance', 'InGroup', 'InVehicle',
-    'HasTarget', 'Glancing', 'Pinned', 'RequireLivingTarget', 'Hit' }) do
+    'HasTarget', 'Glancing', 'Pinned', 'OnlyOnHover', 'RequireLivingTarget', 'Hit' }) do
     ns[key] = function() return false end
 end
 ns.InCombat = function() return combat end

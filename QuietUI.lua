@@ -125,6 +125,7 @@ local function ArmLayoutSettle()
 end
 
 local function RestoreAll()
+    if ns.HideHoverCatchers then ns.HideHoverCatchers() end
     if ns.CancelLayoutPreview then ns.CancelLayoutPreview() end
     glancing = false
     ns.HideQuestCatcher()

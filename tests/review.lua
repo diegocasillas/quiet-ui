@@ -66,8 +66,11 @@ local function namespace()
     local ns = {}
     loadAddon('Core.lua', ns)
     for _, name in ipairs({ 'InEditMode', 'InCombat', 'InGroup', 'InForcedInstance', 'InVehicle',
-        'HasTarget', 'Glancing', 'Pinned', 'RequireLivingTarget', 'ShowAll', 'XPForced' }) do
+        'HasTarget', 'Glancing', 'Pinned', 'OnlyOnHover', 'RequireLivingTarget', 'ShowAll', 'XPForced' }) do
         ns[name] = function() return false end
+    end
+    ns.VisibilityShow = function(name, usual, hovered)
+        return ns.InEditMode() or ns.Glancing() or usual or hovered or false
     end
     ns.CharDB = function() return QuietUICharDB end
     ns.ModernChat = function() return QuietUICharDB.chat ~= false end
@@ -492,6 +495,194 @@ test('Show-all transitions recalculate bars even with a stationary pointer', fun
     SlashCmdList.QUIETUI('off')
     assert(not ns.Glancing(), 'Disabling the addon did not clear command Glance')
     assert(not QuietUIDB.enabled, 'Off command did not disable the addon')
+end)
+
+test('Group visibility overrides automatic triggers and keeps hover exceptions', function()
+    local ns = namespace()
+    loadAddon('Frames.lua', ns)
+    loadAddon('Bars.lua', ns)
+    loadAddon('Setup.lua', ns)
+    MainActionBar, MultiBarBottomLeft, SwingTimer = frame(UIParent), frame(UIParent), frame(UIParent)
+    MainActionBar.name, MultiBarBottomLeft.name, SwingTimer.name = 'MainActionBar', 'MultiBarBottomLeft', 'SwingTimer'
+    CreateFrame = function() return frame(UIParent) end
+    ns.BagsShouldShow = function() return false end
+    ns.Hit = function(obj) return obj.hot == true end
+    ns.Glancing = function() return false end
+    local explicit = false
+    ns.XPForced = function() return explicit end
+    QuietUICharDB.groups = { swing = 1 }
+    QuietUICharDB.groupVisibility = { [1] = 'hover' }
+    QuietUICharDB.friendly = { ['1'] = true }
+    UnitExists = function() return true end
+    UnitIsFriend = function() return true end
+    UnitIsDeadOrGhost = function() return false end
+    ns.RefreshWorld()
+    local function tick(showAll)
+        ns.NextFadeTick(); ns.UpdateBars(showAll, 1, true)
+    end
+    tick(true)
+    assert(MainActionBar.alpha == 0 and MultiBarBottomLeft.alpha == 0 and SwingTimer.alpha == 0,
+        'Combat/instance or target revealed a hover group')
+    MultiBarBottomLeft.hot = true
+    tick(true)
+    assert(MainActionBar.alpha == 1 and MultiBarBottomLeft.alpha == 1 and SwingTimer.alpha == 1,
+        'Hover did not reveal every group member')
+    MultiBarBottomLeft.hot = false
+    tick(true)
+    assert(MainActionBar.alpha == 0)
+    explicit = true; tick(false)
+    assert(MainActionBar.alpha == 1, 'Edit/flyout/cursor exception failed')
+    explicit = false
+    ns.Glancing = function() return true end; tick(false)
+    assert(MainActionBar.alpha == 1, 'Glance exception failed')
+    ns.Glancing = function() return false end
+    QuietUICharDB.groupVisibility[1] = 'always'; tick(false)
+    assert(MainActionBar.alpha == 1 and SwingTimer.alpha == 1)
+    QuietUICharDB.groupVisibility = nil; tick(false)
+    assert(MainActionBar.alpha == 1 and MultiBarBottomLeft.alpha == 0,
+        'Usual Enemy/Friend rule must show one bar only')
+    ns.RestoreAlpha(); QuietUIDB.enabled = false
+    assert(MultiBarBottomLeft.alpha == 1, 'Disable did not restore the bar alpha')
+    MainActionBar, MultiBarBottomLeft, SwingTimer = nil, nil, nil
+end)
+
+test('Legacy pins split mixed groups without changing which bars stay up', function()
+    local ns = namespace()
+    loadAddon('Bars.lua', ns)
+    loadAddon('Presets.lua', ns)
+    loadAddon('Setup.lua', ns)
+    local source = { visible = { bars = true, quests = true }, groups = { swing = 1 } }
+    ns.MigrateVisibility(source)
+    assert(source.visible.quests and not source.visible.bars and not source.visible.swing)
+    QuietUICharDB = source
+    assert(ns.GroupVisibility(ns.BarGroup('1')) == 'always')
+    assert(not ns.GroupVisibility(ns.BarGroup('swing')), 'Migration pinned the unpinned swing timer')
+    local oldGroup = source.groups['1']
+    ns.MigrateVisibility(source)
+    assert(source.groups['1'] == oldGroup, 'Migration must be idempotent')
+    source = { visible = { swing = true }, groups = { swing = 1 } }
+    ns.MigrateVisibility(source); QuietUICharDB = source
+    assert(ns.GroupVisibility(ns.BarGroup('swing')) == 'always')
+    assert(not ns.GroupVisibility(ns.BarGroup('1')), 'Migration pinned unpinned action bars')
+    source.hoverOnly = { meter = true }
+    local id = assert(ns.SavePreset(nil, 'Hover', {}, source))
+    ns.ActivatePreset(id)
+    assert(ns.OnlyOnHover('meter') and ns.GroupVisibility(ns.BarGroup('swing')) == 'always')
+    ns.DeletePreset(id)
+    assert(ns.OnlyOnHover('meter'), 'Deleting preset lost hover snapshot')
+end)
+
+test('Visible hover mode suppresses combat, grace, XP rewards and grouped auras', function()
+    local ns = namespace()
+    loadAddon('Setup.lua', ns)
+    loadAddon('Faders.lua', ns)
+    QuietUICharDB.hoverOnly = { xp = true, cooldowns = true, meter = true, auras = true }
+    MainStatusTrackingBarContainer, EssentialCooldownViewer, DamageMeter = frame(UIParent), frame(UIParent), frame(UIParent)
+    BuffFrame, DebuffFrame = frame(UIParent), frame(UIParent)
+    CreateFrame = function() return frame(UIParent) end
+    ns.InCombat = function() return true end
+    ns.InGroup = function() return true end
+    ns.InForcedInstance = function() return true end
+    ns.Hit = function(obj) return obj.hot == true end
+    ns.FindFaders(false)
+    ns.MarkCombatEnd(); ns.MarkQuestXP(100)
+    local updateAuras = upvalue(ns.UpdateSmooth, 'UpdateAuras')
+    local function tick()
+        ns.NextFadeTick(); ns.UpdateFaders(1); updateAuras(1)
+    end
+    tick()
+    for _, obj in ipairs({ MainStatusTrackingBarContainer, EssentialCooldownViewer, DamageMeter, BuffFrame, DebuffFrame }) do
+        assert(obj.alpha == 0, 'Automatic rule overrode Only on hover')
+        obj.hot = true
+    end
+    tick()
+    assert(DebuffFrame.alpha == 1 and BuffFrame.alpha == 1 and DamageMeter.alpha == 1
+        and EssentialCooldownViewer.alpha == 1 and MainStatusTrackingBarContainer.alpha == 1)
+    for _, obj in ipairs({ MainStatusTrackingBarContainer, EssentialCooldownViewer, DamageMeter, BuffFrame, DebuffFrame }) do obj.hot = false end
+    ns.Glancing = function() return true end
+    tick(); assert(DamageMeter.alpha == 1 and DebuffFrame.alpha == 1)
+    ns.Glancing = function() return false end
+    ns.InEditMode = function() return true end
+    tick(); assert(DamageMeter.alpha == 1 and BuffFrame.alpha == 1)
+    ns.InEditMode = function() return false end
+    tick(); assert(DamageMeter.alpha == 0 and DebuffFrame.alpha == 0)
+    local catchers = upvalue(ns.HideHoverCatchers, 'hoverCatchers')
+    local box = catchers.meter[1]
+    assert(box.parent == UIParent and box.shown, 'Hover catcher followed faded parent')
+    box.hot = true; tick(); assert(DamageMeter.alpha == 1, 'Container gap catcher did not reveal meter')
+    ns.HideHoverCatchers(); assert(not box.shown)
+    ns.RestoreAlpha(); assert(DamageMeter.alpha == 1)
+    MainStatusTrackingBarContainer, EssentialCooldownViewer, DamageMeter, BuffFrame, DebuffFrame = nil, nil, nil, nil, nil
+end)
+
+test('Resource hover bypasses secret curves and restores both child and root alpha', function()
+    local ns = namespace()
+    loadAddon('Setup.lua', ns)
+    loadAddon('Faders.lua', ns)
+    QuietUICharDB.hoverOnly = { resource = true }
+    ns.InCombat = function() return true end
+    ns.Hit = function(obj) return obj.hot == true end
+    PersonalResourceDisplayFrame = frame(UIParent)
+    local root = PersonalResourceDisplayFrame
+    local health, power = frame(root), frame(root)
+    health.alpha, power.alpha = 0.6, 0.8
+    root.HealthBarsContainer = health; root.children = { health, power }
+    UnitPowerPercent = function() error('Hover mode read power') end
+    UnitHealthPercent = function() error('Hover mode read health') end
+    ns.FindFaders(false)
+    local update = upvalue(ns.UpdateSmooth, 'UpdateResource')
+    update(1)
+    assert(root.alpha == 1 and health.alpha == 0 and power.alpha == 0)
+    root.hot = true; update(0.01)
+    assert(health.alpha == 1 and power.alpha == 1)
+    root.hot = false; update(0.15)
+    assert(health.alpha > 0 and health.alpha < 1 and power.alpha > 0 and power.alpha < 1)
+    update(0.15); assert(health.alpha == 0 and power.alpha == 0)
+    ns.Glancing = function() return true end
+    update(0.01); assert(health.alpha == 1 and power.alpha == 1)
+    ns.Glancing = function() return false end
+    root.children = {}; root._quietKids = nil
+    update(0.15); update(0.15)
+    assert(root.alpha == 0, 'Childless resource root never finished fading')
+    ns.RestoreAlpha()
+    assert(root.alpha == 1 and health.alpha == 0.6 and power.alpha == 0.8)
+    PersonalResourceDisplayFrame, UnitPowerPercent, UnitHealthPercent = nil, nil, nil
+end)
+
+test('XP defaults to hover and unchecking persists usual combat visibility', function()
+    local ns = namespace()
+    loadAddon('Bars.lua', ns)
+    loadAddon('Presets.lua', ns)
+    loadAddon('Setup.lua', ns)
+    loadAddon('Faders.lua', ns)
+    local read = upvalue(upvalue(ns.ShowSetup, 'LoadSavedDraft'), 'ReadDraft')
+    local saved = upvalue(upvalue(upvalue(ns.ShowSetup, 'CreateSetup'), 'Write'), 'DraftSettings')
+    local draft = upvalue(read, 'draft')
+    assert(ns.OnlyOnHover('xp') and not ns.OnlyOnHover('meter'))
+    read({}); assert(draft.hoverOnly.xp and not draft.xp)
+    draft.hoverOnly.xp = false
+    ns.ActivatePreset(nil, saved())
+    assert(QuietUICharDB.hoverOnly.xp == false and not ns.OnlyOnHover('xp'), 'Unchecking did not persist')
+    read(); assert(not draft.hoverOnly.xp)
+    local id = assert(ns.SavePreset(nil, 'Normal XP', {}, saved()))
+    ns.ActivatePreset(id); assert(not ns.OnlyOnHover('xp'))
+    MainStatusTrackingBarContainer = frame(UIParent)
+    ns.FindFaders(false)
+    ns.Hit = function() return false end
+    local forced = true
+    ns.ShowAll = function() return forced end
+    ns.XPForced = function() return false end
+    local function tick() ns.NextFadeTick(); ns.UpdateFaders(1) end
+    tick(); assert(MainStatusTrackingBarContainer.alpha == 1, 'Usual rules did not show XP in combat/vehicle/instance')
+    forced = false; tick(); assert(MainStatusTrackingBarContainer.alpha == 0)
+    ns.MarkQuestXP(100); tick(); assert(MainStatusTrackingBarContainer.alpha == 1, 'Usual XP reward rule lost')
+    ns.DeletePreset(id); assert(not ns.OnlyOnHover('xp'), 'Personal snapshot lost explicit false')
+    ns.ActivatePreset(nil, {}); forced = true; tick()
+    assert(ns.OnlyOnHover('xp') and MainStatusTrackingBarContainer.alpha == 0, 'Reset did not restore hover default')
+    read({ visible = { xp = true } })
+    assert(draft.xp and not draft.hoverOnly.xp, 'Existing Always visible XP choice was overwritten')
+    ns.ActivatePreset(nil, saved()); tick(); assert(MainStatusTrackingBarContainer.alpha == 1)
+    MainStatusTrackingBarContainer = nil
 end)
 
 os.exit(failures == 0 and 0 or 1)

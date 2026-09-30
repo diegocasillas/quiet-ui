@@ -44,6 +44,58 @@ ns.BAR_ROWS = {
     } },
 }
 
+-- Move legacy per-bar pins to group modes, splitting mixed groups to keep their visibility.
+function ns.MigrateVisibility(settings)
+    if type(settings) ~= "table" then return end
+    local visible = settings.visible
+    if type(visible) ~= "table" or (visible.bars == nil and visible.swing == nil) then return end
+    local buckets, used = {}, {}
+    local legacy = visible.bars ~= nil or visible.swing ~= nil
+    for _, row in ipairs(ns.BAR_ROWS) do
+        if visible[row.id] ~= nil then legacy = true end
+        local n = type(settings.groups) == "table" and settings.groups[row.id]
+        if type(n) ~= "number" or n ~= n or n < 1 or n > #ns.BAR_ROWS then n = row.group end
+        n = math.floor(n)
+        used[n] = true
+        buckets[n] = buckets[n] or { pinned = {}, normal = {} }
+        local pinned = visible[row.id] or (row.id ~= "swing" and visible.bars)
+        local list = pinned and buckets[n].pinned or buckets[n].normal
+        list[#list + 1] = row.id
+    end
+    if not legacy then return end
+    settings.groupVisibility = type(settings.groupVisibility) == "table" and settings.groupVisibility or {}
+    for n = 1, #ns.BAR_ROWS do
+        local bucket = buckets[n]
+        if bucket and #bucket.pinned > 0 then
+            local pinGroup = n
+            if #bucket.normal > 0 then
+                for candidate = 1, #ns.BAR_ROWS do
+                    if not used[candidate] then pinGroup = candidate; used[candidate] = true; break end
+                end
+                settings.groups = type(settings.groups) == "table" and settings.groups or {}
+                for _, id in ipairs(bucket.pinned) do settings.groups[id] = pinGroup end
+            end
+            settings.groupVisibility[pinGroup] = "always"
+        end
+    end
+    visible.bars = nil
+    for _, row in ipairs(ns.BAR_ROWS) do visible[row.id] = nil end
+end
+
+function ns.GroupVisibility(group)
+    local settings = ns.Settings and ns.Settings() or ns.CharDB()
+    local modes = settings.groupVisibility
+    local mode = type(modes) == "table" and modes[group]
+    if mode == "always" or mode == "hover" then return mode end
+end
+
+function ns.AnyBarsAlwaysVisible()
+    for _, row in ipairs(ns.BAR_ROWS) do
+        if row.id ~= "swing" and ns.GroupVisibility(ns.BarGroup(row.id)) == "always" then return true end
+    end
+    return false
+end
+
 function ns.BarGroup(id)
     local fallback = 1
     for _, row in ipairs(ns.BAR_ROWS) do
@@ -241,8 +293,7 @@ local function FlyoutOpen()
     return SpellFlyout and SpellFlyout.IsShown and SpellFlyout:IsShown() and true or false
 end
 
--- Combat, a vehicle and an instance do not count. Hover, a quest turn-in and
--- a pinned row are decided in the fader.
+-- Explicit HUD/bar-editing exceptions also reveal hover-only bars and XP.
 function ns.XPForced()
     return ns.InEditMode() or FlyoutOpen() or ns.CursorBusy()
 end
@@ -764,17 +815,17 @@ local showGroup = {}
 local barShow = {}
 local haveBarShow = false
 
--- Combat, Glance on, and the other show-all rules cover every row. The Action bars
--- check covers the action bars only; the swing timer has its own check.
-local function RowForced(id, showAllForced, barsPinned)
-    if id == "swing" then return showAllForced end
-    return showAllForced or barsPinned
+-- Hover groups skip automatic triggers; explicit HUD and bar editing still show them.
+local function RowForced(id, showAllForced)
+    local mode = ns.GroupVisibility(ns.BarGroup(id))
+    if mode == "always" then return true end
+    if mode == "hover" then return ns.XPForced() or ns.Glancing() end
+    return showAllForced
 end
 
 function ns.UpdateBars(showAll, elapsed, rescan)
     if rescan == nil then rescan = true end
     local showAllForced = showAll or ns.Glancing()
-    local barsPinned = ns.Pinned("bars")
     if rescan or not haveBarShow then
         Collect()
         if ns.InEditMode() or not ns.DB().enabled then
@@ -786,7 +837,7 @@ function ns.UpdateBars(showAll, elapsed, rescan)
             showGroup[key] = nil
         end
         local hostile, friendly
-        if not showAllForced then
+        do
             hostile = world.hostile
             friendly = world.friendly
             for _, entry in ipairs(resolved) do
@@ -799,17 +850,17 @@ function ns.UpdateBars(showAll, elapsed, rescan)
             end
         end
         for _, entry in ipairs(resolved) do
-            barShow[entry.id] = RowForced(entry.id, showAllForced, barsPinned)
-                or ns.Pinned(entry.id) or showGroup[ns.BarGroup(entry.id)]
-                or (hostile and ns.BarTarget(entry.id, "hostile"))
-                or (friendly and ns.BarTarget(entry.id, "friendly"))
-                or false
+            local group = ns.BarGroup(entry.id)
+            local mode = ns.GroupVisibility(group)
+            barShow[entry.id] = RowForced(entry.id, showAllForced) or showGroup[group]
+                or (not mode and hostile and ns.BarTarget(entry.id, "hostile"))
+                or (not mode and friendly and ns.BarTarget(entry.id, "friendly")) or false
         end
         haveBarShow = true
     end
     local mainAlpha, gamepadAlpha
     for _, entry in ipairs(resolved) do
-        local show = RowForced(entry.id, showAllForced, barsPinned) or barShow[entry.id]
+        local show = RowForced(entry.id, showAllForced) or barShow[entry.id]
         for _, bar in ipairs(entry.frames) do
             if ns.Usable(bar) and bar:IsShown() then
                 local name, alpha = ApplyBar(bar, show, elapsed)

@@ -2,7 +2,7 @@ local _, ns = ...
 
 local snapshotChar, snapshotPreset
 
-local KEYS = { "visible", "forceLayout", "player", "requireLivingTarget", "groupAuras", "alwaysShowDebuffs",
+local KEYS = { "visible", "hoverOnly", "groupVisibility", "forceLayout", "player", "requireLivingTarget", "groupAuras", "alwaysShowDebuffs",
     "chat", "chatFade", "groups", "hostile", "friendly", "range" }
 
 function ns.Copy(value)
@@ -14,6 +14,7 @@ end
 
 function ns.CopySettings(source, target)
     target = target or {}
+    if ns.MigrateVisibility then ns.MigrateVisibility(source) end
     for _, key in ipairs(KEYS) do target[key] = ns.Copy(source[key]) end
     return target
 end
@@ -37,6 +38,7 @@ end
 function ns.Settings()
     local preset = ns.ActivePreset()
     if preset then
+        if ns.MigrateVisibility then ns.MigrateVisibility(preset.settings) end
         local char = ns.CharDB()
         if snapshotChar ~= char or snapshotPreset ~= preset then
             ns.CopySettings(preset.settings, char)

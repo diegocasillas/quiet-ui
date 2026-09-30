@@ -403,7 +403,7 @@ end
 local function UpdateMicro(elapsed)
     if not ns.DB().enabled then return end
     PlaceMicroCatcher()
-    local show = ns.Pinned("micro") or ns.InEditMode() or ns.Glancing() or MicroHot()
+    local show = ns.VisibilityShow("micro", false, MicroHot())
     EachMicroButton(function(button)
         ns.UpdateFaded(button, show, elapsed)
     end)
@@ -413,8 +413,8 @@ end
 function ns.UpdateMenuButton(elapsed)
     UpdateMicro(elapsed)
     if not button or not button:IsShown() then return end
-    local show = ns.Pinned("menu") or ns.Hit(button) or button._moved or ns.BagsShouldShow()
-        or ns.Glancing()
+    local show = ns.VisibilityShow("menu", false, ns.Hit(button))
+        or button._moved or ns.BagsShouldShow()
     ns.UpdateFaded(button, show, elapsed)
 end
 
