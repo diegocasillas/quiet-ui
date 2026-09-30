@@ -8,12 +8,53 @@ local chromeAcc = 0
 local glancing = false
 local layoutPending = nil
 local layoutChosen = false
+local presetCheckPending = false
 local finishingLayout = false
 local settleUntil = 0
 local settleToken = 0
+local cpuProfile
+
+local function StartCPUProfile()
+    if type(debugprofilestop) ~= "function" then
+        ns.Print("CPU timing is not available on this client.")
+        return
+    end
+    cpuProfile = { started = GetTime(), sections = {}, frames = 0 }
+    ns.Print("Measuring QuietUI for 10 seconds. Keep playing in the same situation.")
+end
+
+local function FinishCPUProfile()
+    if not cpuProfile then return end
+    cpuProfile.frames = cpuProfile.frames + 1
+    local duration = GetTime() - cpuProfile.started
+    if duration < 10 then return end
+    local rows = {}
+    for name, section in pairs(cpuProfile.sections) do
+        rows[#rows + 1] = { name = name, ms = section.ms, calls = section.calls }
+    end
+    table.sort(rows, function(a, b) return a.ms > b.ms end)
+    ns.Print(string.format("CPU timing: %.1f seconds, %d frames, preset %s; pending layout: %s.", duration,
+        cpuProfile.frames, ns.ActivePreset and ns.ActivePreset() and ns.ActivePreset().name or "<no preset>",
+        tostring(layoutPending or "none")))
+    if ns.LayoutStatus then ns.Print(ns.LayoutStatus()) end
+    for i = 1, math.min(8, #rows) do
+        local row = rows[i]
+        ns.Print(string.format("%s: %.3f ms/s, %.3f ms/call (%d calls).",
+            row.name, row.ms / duration, row.ms / row.calls, row.calls))
+    end
+    cpuProfile = nil
+end
 
 local function Run(label, fn, ...)
+    local profile = cpuProfile
+    local started = profile and debugprofilestop()
     local ok, err = pcall(fn, ...)
+    if profile then
+        local ms = math.max(0, debugprofilestop() - started)
+        local section = profile.sections[label]
+        if not section then section = { ms = 0, calls = 0 }; profile.sections[label] = section end
+        section.ms, section.calls = section.ms + ms, section.calls + 1
+    end
     if not ok then ns.Report(label, err) end
 end
 
@@ -29,7 +70,15 @@ end
 
 -- Select once per enable, restore on disable. Both wait out combat and login.
 -- With Force QuietUI layout off, the active Edit Mode layout stays as it is.
+local function CheckStartupPreset()
+    if not presetCheckPending then return true end
+    if ns.ValidatePresetInterface and not ns.ValidatePresetInterface() then return false end
+    presetCheckPending = false
+    return true
+end
+
 local function FinishLayout()
+    if not CheckStartupPreset() then return end
     if finishingLayout then return end
     if ns.UpdateLayoutPreview and ns.UpdateLayoutPreview() then return end
     if layoutPending == "select" and not ns.ForceQuietLayout() then
@@ -96,6 +145,7 @@ local function RestoreAll()
 end
 
 local function ApplyAll()
+    if not CheckStartupPreset() then return end
     if not ns.DB().enabled then
         RestoreAll()
         return
@@ -161,6 +211,7 @@ end
 local function Boot()
     local first = not booted
     booted = true
+    if first then presetCheckPending = true end
     ns.CharDB()
     if ns.Settings then ns.Settings() end
     if first then
@@ -316,6 +367,7 @@ local disabledLayoutAcc = 0
 
 events:SetScript("OnUpdate", function(_, elapsed)
     if not booted then return end
+    FinishCPUProfile()
     if not ns.DB().enabled then
         disabledLayoutAcc = disabledLayoutAcc + (elapsed or 0)
         if disabledLayoutAcc >= 0.1 then
@@ -423,12 +475,22 @@ function ns.Glancing()
 end
 
 ------------------------------------------------------------------------------
--- /quiet on | off | setup | glance, no argument toggles.
+-- /quiet on | off | setup | glance | preset, no argument toggles.
 ------------------------------------------------------------------------------
 SLASH_QUIETUI1 = "/quiet"
 SLASH_QUIETUI2 = "/quietui"
 SlashCmdList["QUIETUI"] = function(msg)
-    msg = (msg or ""):lower():match("^%s*(.-)%s*$")
+    msg = (msg or ""):match("^%s*(.-)%s*$")
+    local command, argument = msg:match("^(%S+)%s*(.-)$")
+    if command and command:lower() == "preset" then
+        ns.PresetCommand(argument)
+        return
+    end
+    msg = msg:lower()
+    if msg == "profile" then
+        StartCPUProfile()
+        return
+    end
     if msg == "setup" then
         ns.ShowSetup()
         return

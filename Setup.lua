@@ -190,8 +190,8 @@ local function Paint()
     if not frame then return end
     if frame.presetSelector then
         ButtonText(frame.presetSelector, presetName or "<no preset>")
-        ButtonText(frame.layoutSelector, presetLayout and (presetLayout.layoutName
-            or ({ "Modern", "Classic" })[presetLayout.builtin]) or "Choose layout")
+        ButtonText(frame.layoutSelector, ns.LayoutLabel and ns.LayoutLabel(presetLayout)
+            or (presetLayout and presetLayout.layoutName or "Choose layout"))
         if presetName then
             frame.forceLayout:Hide()
             frame.layoutSelector:Show()
@@ -1171,6 +1171,15 @@ local function CreateSetup()
     end)
     ShowPage(widget, "general")
     return widget
+end
+
+function ns.RefreshSetup()
+    if not frame or not frame:IsShown() then return end
+    for _, key in ipairs({ "presetMenu", "layoutMenu", "presetDialog" }) do
+        if frame[key] then frame[key]:Hide() end
+    end
+    LoadSavedDraft()
+    Paint()
 end
 
 function ns.ShowSetup()

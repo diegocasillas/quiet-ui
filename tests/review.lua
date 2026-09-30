@@ -147,7 +147,7 @@ test('Chat verifies wrapped history and resized bubbles before going idle', func
     -- Three 60px words total 200px with spaces, but need three rows at 100px.
     replace(size, 'UnboundedWidth', function() return 200 end)
     replace(size, 'PlaceLinks', function() end)
-    for _, scenario in ipairs({ 'history', 'scroll', 'hover', 'resize', 'secret' }) do
+    for _, scenario in ipairs({ 'history', 'scroll', 'hover', 'resize', 'secret', 'spacing' }) do
         local msg = { text = 'AAAAAA BBBBBB CCCCCC', born = 100,
             secret = scenario == 'secret' or nil }
         local fs = { reads = 0 }
@@ -162,6 +162,7 @@ test('Chat verifies wrapped history and resized bubbles before going idle', func
         end
         function fs:GetNumLines() return self.width >= 200 and 1 or 3 end
         function fs:GetLineHeight() return 14 end
+        function fs:GetSpacing() return scenario == 'spacing' and 2 or 0 end
         local bubble = frame()
         bubble.text, bubble.msg, bubble._y = fs, msg, 4
         function bubble:SetSize(w, h) self.width, self.height = w, h end
@@ -189,6 +190,12 @@ test('Chat verifies wrapped history and resized bubbles before going idle', func
             layout(chat, 1/60)
         end
         assert(bubble.height >= 52, scenario .. ': last row remains clipped')
+        if scenario == 'spacing' then
+            local reads = fs.reads
+            for _ = 1, 600 do layout(chat, 1/60) end
+            print('Idle wrapped chat, 600 frames: extra height reads=' .. (fs.reads - reads))
+            assert(fs.reads == reads, 'Line spacing kept remeasuring settled chat every frame')
+        end
         assert(bubble._quietSizeKey, scenario .. ': measured size was not cached')
         assert(chat._quietNext == nil, scenario .. ': settled chat keeps waking')
         local reads = fs.reads

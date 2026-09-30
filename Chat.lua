@@ -1220,7 +1220,8 @@ local function SizeBubble(bubble, msg, maxW)
     else
         msg.h = th
     end
-    local trusted = fits or (canRead and measured > 0 and measured + 0.5 >= th)
+    -- Spacing and conservative row estimates can exceed the rendered height.
+    local trusted = fits or (canRead and measured > 0)
     if trusted then
         bubble._quietSizeKey = key
     end

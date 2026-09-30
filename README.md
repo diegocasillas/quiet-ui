@@ -41,6 +41,8 @@ what stays visible, with personal settings or shared presets across characters.
 /quiet off      Disable QuietUI
 /quiet setup    Open settings
 /quiet glance   Toggle the faded HUD while QuietUI is enabled
+/quiet preset   List the current and available presets
+/quiet preset "Healer"   Select a shared preset by name
 ```
 
 The minimap button also opens settings, even while QuietUI is off. Drag it around
@@ -49,6 +51,20 @@ the minimap to move it.
 Glance defaults to `` ` `` if the key is free. Change it under **QuietUI** in
 **Key Bindings**. You can also use `/quiet glance` in a macro and bind that macro
 to a controller button through your controller setup.
+
+Preset names ignore letter case. Use quotes for names with spaces. Selecting a
+preset saves the choice for this character and applies its settings and linked
+layout while QuietUI is enabled; combat delays the layout change. While QuietUI
+is off, the selection is saved for the next enable. If settings are open, the
+command cancels the pending draft and layout preview and shows the selected preset.
+The layout list shows only layouts for your current interface mode, including
+custom layouts: keyboard and mouse layouts normally, Gamepad layouts in Gamepad mode.
+On login or reload, a preset linked to a layout for another mode detaches to
+your personal settings. Its shared settings and layout link stay intact.
+Shared presets are also tagged for keyboard and mouse or Gamepad mode based on
+their linked layout. The preset menu and `/quiet preset` list only presets for
+the current mode; commands cannot select a preset for another mode. Existing
+presets acquire their tag automatically from their layout.
 
 ## Make it yours
 

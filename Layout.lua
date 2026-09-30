@@ -10,7 +10,7 @@ local _, ns = ...
 local LAYOUT_NAME = "QuietUI"
 
 -- Blizzard ships Modern and Classic presets ahead of saved layouts.
-local FALLBACK_PRESETS = 2
+local FALLBACK_PRESETS = { { layoutName = "Modern" }, { layoutName = "Classic" } }
 
 local done = false
 local missingWarned = {}
@@ -23,13 +23,72 @@ local function EditModeReady()
         and type(C_EditMode.SetActiveLayout) == "function"
 end
 
-local function PresetCount()
+local presetManager, presetLayouts
+
+local function PresetLayouts()
     local manager = EditModePresetLayoutManager
-    if manager and type(manager.GetCopyOfPresetLayouts) == "function" then
-        local ok, presets = pcall(manager.GetCopyOfPresetLayouts, manager)
-        if ok and type(presets) == "table" then return #presets end
+    if presetLayouts and presetManager == manager then return presetLayouts end
+    if manager then
+        local presets = manager.presetLayoutInfo
+        if type(presets) ~= "table" and type(manager.GetCopyOfPresetLayouts) == "function" then
+            local ok, result = pcall(manager.GetCopyOfPresetLayouts, manager)
+            if ok then presets = result end
+        end
+        if type(presets) == "table" and #presets > 0 then
+            local list = {}
+            for index, preset in ipairs(presets) do
+                list[index] = type(preset) == "table" and {
+                    layoutName = preset.layoutName, interfaceStyle = preset.interfaceStyle,
+                } or {}
+            end
+            presetManager, presetLayouts = manager, list
+            return list
+        end
     end
     return FALLBACK_PRESETS
+end
+
+local function PresetCount()
+    return #PresetLayouts()
+end
+
+local function KeyboardStyle()
+    return Enum and Enum.InputDeviceInterfaceType and Enum.InputDeviceInterfaceType.Mkb or 0
+end
+
+local function CurrentStyle()
+    if InputUtil and type(InputUtil.GetCurrentInterfaceStyle) == "function" then
+        local ok, style = pcall(InputUtil.GetCurrentInterfaceStyle)
+        if ok and type(style) == "number" then return style end
+    end
+    if InputUtil and type(InputUtil.IsGamepadUIEnabled) == "function" then
+        local ok, enabled = pcall(InputUtil.IsGamepadUIEnabled)
+        if ok and enabled then
+            return Enum and Enum.InputDeviceInterfaceType and Enum.InputDeviceInterfaceType.Gamepad or 1
+        end
+    end
+    return KeyboardStyle()
+end
+
+ns.CurrentInterfaceStyle = CurrentStyle
+
+local function LayoutReference(layout)
+    return { layoutName = layout.layoutName, layoutType = layout.layoutType,
+        interfaceStyle = layout.interfaceStyle or KeyboardStyle() }
+end
+
+function ns.LayoutLabel(ref)
+    if not ref then return "Choose layout" end
+    if ref.layoutName then return ref.layoutName end
+    if ref.builtin then
+        local names = PresetLayouts()
+        local name = names[ref.builtin] and names[ref.builtin].layoutName
+            or ({ "Modern", "Classic" })[ref.builtin]
+            or ("Built-in layout " .. ref.builtin)
+        if name:lower() == "gamepad" then return name .. " (Gamepad mode only)" end
+        return name
+    end
+    return "Choose layout"
 end
 
 local function FindLayout(layouts)
@@ -78,20 +137,65 @@ local function LayoutRef(info, absolute)
     if absolute <= PresetCount() then return { builtin = absolute } end
     local layout = info.layouts[absolute - PresetCount()]
     if not layout then return nil end
-    return { layoutName = layout.layoutName, layoutType = layout.layoutType }
+    return LayoutReference(layout)
 end
 
 local function ResolveLayout(info, ref)
     if type(ref) ~= "table" then return nil end
     if ref.builtin and ref.builtin >= 1 and ref.builtin <= PresetCount() then return ref.builtin end
     for index, layout in ipairs(info.layouts) do
-        if layout.layoutName == ref.layoutName and layout.layoutType == ref.layoutType then
+        if layout.layoutName == ref.layoutName and layout.layoutType == ref.layoutType
+            and (ref.interfaceStyle == nil or (layout.interfaceStyle or KeyboardStyle()) == ref.interfaceStyle) then
             return PresetCount() + index
         end
     end
 end
 
+function ns.LayoutInterfaceStyle(ref)
+    if type(ref) ~= "table" then return nil end
+    if type(ref.interfaceStyle) == "number" then return ref.interfaceStyle end
+    if ref.builtin then
+        local layout = PresetLayouts()[ref.builtin]
+        return layout and (layout.interfaceStyle or KeyboardStyle()) or nil
+    end
+    if not EditModeReady() then return nil end
+    local info = LoadLayouts()
+    if not info then return nil end
+    local absolute = ResolveLayout(info, ref)
+    local layout = absolute and info.layouts[absolute - PresetCount()]
+    return layout and (layout.interfaceStyle or KeyboardStyle()) or KeyboardStyle()
+end
+
+function ns.ValidatePresetInterface()
+    local preset = ns.ActivePreset and ns.ActivePreset()
+    if not preset then return true end
+    if not EditModeReady() then return false end
+    local info = LoadLayouts()
+    if not info then return false end
+    local style = ns.PresetInterfaceStyle(preset)
+    if style == nil then return false end
+    if style ~= CurrentStyle() then
+        ns.ActivatePreset(nil)
+        if ns.LayoutSettingsChanged then ns.LayoutSettingsChanged() end
+        if ns.RefreshSetup then ns.RefreshSetup() end
+        ns.Print('Preset "' .. preset.name .. '" uses a layout for another interface mode. '
+            .. 'Using personal settings instead.')
+    end
+    return true
+end
+
 local previewOriginal, previewPending, previewApplying
+
+function ns.LayoutStatus()
+    if not EditModeReady() then return "Edit Mode is not available." end
+    local info = LoadLayouts()
+    if not info then return "Edit Mode layouts are not loaded." end
+    local preset = ns.ActivePreset and ns.ActivePreset()
+    local linked = preset and ResolveLayout(info, preset.layout)
+    return string.format("Active layout: %s; preset layout: %s; preview: %s.",
+        tostring(info.activeLayout), tostring(linked or "none"),
+        previewPending and "pending" or previewOriginal and "open" or "none")
+end
 
 local function SelectReference(ref)
     if InCombatLockdown() or not EditModeReady() then return false end
@@ -160,15 +264,17 @@ function ns.LayoutChoices()
     local info = LoadLayouts()
     if not info then return {} end
     local result = {}
-    local names = { "Modern", "Classic" }
-    for index = 1, PresetCount() do
-        result[#result + 1] = { name = names[index] or ("Default " .. index), ref = { builtin = index } }
+    local style = CurrentStyle()
+    for index, layout in ipairs(PresetLayouts()) do
+        if (layout.interfaceStyle or KeyboardStyle()) == style then
+            result[#result + 1] = { name = ns.LayoutLabel({ builtin = index }), ref = { builtin = index } }
+        end
     end
     local account = Enum and Enum.EditModeLayoutType and Enum.EditModeLayoutType.Account or 1
     for _, layout in ipairs(info.layouts) do
-        if layout.layoutType == account then
+        if layout.layoutType == account and (layout.interfaceStyle or KeyboardStyle()) == style then
             result[#result + 1] = { name = layout.layoutName,
-                ref = { layoutName = layout.layoutName, layoutType = layout.layoutType } }
+                ref = LayoutReference(layout) }
         end
     end
     return result
