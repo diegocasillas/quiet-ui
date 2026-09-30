@@ -775,42 +775,72 @@ end
 
 local function SelectMenu(owner, key, anchor, entries)
     local menu = owner[key]
+    if menu and menu:IsShown() then menu:Hide(); return end
     if not menu then
         menu = Backdropped("Frame", nil, owner)
         menu:SetFrameStrata("DIALOG")
         menu:SetFrameLevel(owner:GetFrameLevel() + 60)
         Flat(menu, 1)
+        if menu.SetBackdropBorderColor then menu:SetBackdropBorderColor(0.95, 0.75, 0.25, 0.7) end
+        menu:EnableMouse(true)
         menu.items = {}
         owner[key] = menu
     end
     for _, item in ipairs(menu.items) do item:Hide() end
     menu:ClearAllPoints()
-    menu:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 0, -2)
-    menu:SetSize(300, 8 + 24 * math.min(#entries, 8))
+    menu:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 0, -8)
+    menu:SetSize(300, 12 + 28 * math.min(#entries, 8))
     if not menu.scroll then
         menu.scroll = CreateFrame("ScrollFrame", nil, menu)
-        menu.scroll:SetPoint("TOPLEFT", 4, -4)
-        menu.scroll:SetPoint("BOTTOMRIGHT", -4, 4)
+        menu.scroll:SetPoint("TOPLEFT", 6, -6)
+        menu.scroll:SetPoint("BOTTOMRIGHT", -6, 6)
         menu.content = CreateFrame("Frame", nil, menu.scroll)
-        menu.content:SetWidth(292)
+        menu.content:SetWidth(288)
         menu.scroll:SetScrollChild(menu.content)
         menu.scroll:EnableMouseWheel(true)
         menu.scroll:SetScript("OnMouseWheel", function(_, delta)
-            menu.offset = math.max(0, math.min(menu.maximum or 0, (menu.offset or 0) - delta * 24))
+            menu.offset = math.max(0, math.min(menu.maximum or 0, (menu.offset or 0) - delta * 28))
             menu.scroll:SetVerticalScroll(menu.offset)
         end)
     end
-    menu.content:SetHeight(math.max(24, #entries * 24))
-    menu.maximum = math.max(0, (#entries - 8) * 24)
+    menu.content:SetHeight(math.max(28, #entries * 28))
+    menu.maximum = math.max(0, (#entries - 8) * 28)
     menu.offset = 0
     menu.scroll:SetVerticalScroll(0)
     for index, entry in ipairs(entries) do
         local item = menu.items[index]
-        if not item then item = ActionButton(menu.content, "", function() end); menu.items[index] = item end
-        item:SetSize(292, 24)
+        if not item then
+            item = CreateFrame("Button", nil, menu.content)
+            item:RegisterForClicks("LeftButtonUp")
+            item.label = item:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+            item.label:SetPoint("LEFT", 18, 0)
+            item.label:SetPoint("RIGHT", -8, 0)
+            item.label:SetJustifyH("LEFT")
+            item.selected = item:CreateTexture(nil, "BACKGROUND")
+            item.selected:SetAllPoints()
+            item.selected:SetColorTexture(0.95, 0.75, 0.25, 0.12)
+            item.mark = item:CreateTexture(nil, "ARTWORK")
+            item.mark:SetSize(2, 14)
+            item.mark:SetPoint("LEFT", 6, 0)
+            item.mark:SetColorTexture(0.95, 0.75, 0.25, 1)
+            local hover = item:CreateTexture(nil, "HIGHLIGHT")
+            hover:SetAllPoints()
+            hover:SetColorTexture(0.95, 0.75, 0.25, 0.16)
+            menu.items[index] = item
+        end
+        item:SetSize(288, 26)
         item:ClearAllPoints()
-        item:SetPoint("TOPLEFT", 0, -(index - 1) * 24)
+        item:SetPoint("TOPLEFT", 0, -(index - 1) * 28)
         ButtonText(item, entry.name)
+        if entry.selected then
+            item.selected:Show()
+            item.mark:Show()
+            item.label:SetTextColor(0.95, 0.75, 0.25)
+        else
+            item.selected:Hide()
+            item.mark:Hide()
+            item.label:SetTextColor(0.9, 0.9, 0.9)
+        end
         item:SetScript("OnClick", function() menu:Hide(); entry.select() end)
         item:Show()
     end
@@ -943,14 +973,14 @@ local function CreateSetup()
     widget.presetHeader:SetPoint("TOPLEFT", general, "TOPLEFT", 0, 0)
     widget.presetSelector = ActionButton(general, "<no preset>", function()
         if widget.layoutMenu then widget.layoutMenu:Hide() end
-        local entries = { { name = "<no preset>", select = function()
+        local entries = { { name = "<no preset>", selected = presetName == nil, select = function()
             if ns.CancelLayoutPreview then ns.CancelLayoutPreview() end
             selectedPresetId, presetName, presetLayout = nil, nil, nil
             Paint()
         end } }
         for _, item in ipairs(ns.PresetList()) do
             local id = item.id
-            entries[#entries + 1] = { name = item.name, select = function()
+            entries[#entries + 1] = { name = item.name, selected = selectedPresetId == id, select = function()
                 local preset = ns.Presets()[id]
                 if not preset then return end
                 if ns.CancelLayoutPreview then ns.CancelLayoutPreview() end
@@ -1002,7 +1032,10 @@ local function CreateSetup()
         local entries = {}
         for _, choice in ipairs(ns.LayoutChoices()) do
             local ref = choice.ref
-            entries[#entries + 1] = { name = choice.name, select = function()
+            entries[#entries + 1] = { name = choice.name, selected = presetLayout and (
+                ref.builtin and ref.builtin == presetLayout.builtin
+                or not ref.builtin and ref.layoutName == presetLayout.layoutName
+                    and ref.layoutType == presetLayout.layoutType), select = function()
                 presetLayout = ns.Copy(ref)
                 if ns.PreviewLayout then ns.PreviewLayout(presetLayout) end
                 Paint()
