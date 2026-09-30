@@ -31,14 +31,16 @@ end
 -- With Force QuietUI layout off, the active Edit Mode layout stays as it is.
 local function FinishLayout()
     if finishingLayout then return end
-    if not ns.ForceQuietLayout() then
+    if ns.UpdateLayoutPreview and ns.UpdateLayoutPreview() then return end
+    if layoutPending == "select" and not ns.ForceQuietLayout() then
         layoutPending = nil
         return
     end
     if layoutPending ~= "select" and layoutPending ~= "restore" then return end
     finishingLayout = true
     local job = layoutPending
-    local fn = job == "select" and ns.SelectQuietLayout or ns.RestorePreviousLayout
+    local select = ns.ActivePreset and ns.ActivePreset() and ns.SelectPresetLayout or ns.SelectQuietLayout
+    local fn = job == "select" and select or ns.RestorePreviousLayout
     local ok, done = pcall(fn)
     finishingLayout = false
     if not ok then
@@ -74,6 +76,7 @@ local function ArmLayoutSettle()
 end
 
 local function RestoreAll()
+    if ns.CancelLayoutPreview then ns.CancelLayoutPreview() end
     glancing = false
     ns.HideQuestCatcher()
     ns.HideRangeMark()
@@ -84,7 +87,7 @@ local function RestoreAll()
     settleToken = settleToken + 1
     settleUntil = 0
     layoutChosen = false
-    if ns.ForceQuietLayout() then
+    if ns.ForceQuietLayout() or ns.CharDB().presetLayoutManaged then
         layoutPending = "restore"
         FinishLayout()
     else
@@ -121,6 +124,13 @@ end
 
 ns.ApplyAll = ApplyAll
 
+function ns.LayoutSettingsChanged()
+    settleToken = settleToken + 1
+    settleUntil = 0
+    layoutChosen = false
+    if layoutPending ~= "restore" then layoutPending = nil end
+end
+
 local function Rescan()
     ns.RefreshWorld()
     ns.FindFaders(true)
@@ -152,6 +162,7 @@ local function Boot()
     local first = not booted
     booted = true
     ns.CharDB()
+    if ns.Settings then ns.Settings() end
     if first then
         local state = ns.DB().enabled and "on, enjoy the quiet" or "off for now"
         ns.Print("is " .. state .. ".")
@@ -301,8 +312,18 @@ events:SetScript("OnEvent", function(_, event, ...)
     Run(event, handler, ...)
 end)
 
+local disabledLayoutAcc = 0
+
 events:SetScript("OnUpdate", function(_, elapsed)
-    if not booted or not ns.DB().enabled then return end
+    if not booted then return end
+    if not ns.DB().enabled then
+        disabledLayoutAcc = disabledLayoutAcc + (elapsed or 0)
+        if disabledLayoutAcc >= 0.1 then
+            disabledLayoutAcc = 0
+            Run("layout", FinishLayout)
+        end
+        return
+    end
     elapsed = elapsed or 0
     local flyout = FlyoutShown()
     local glance = ns.Glancing() and true or false
@@ -311,6 +332,7 @@ events:SetScript("OnUpdate", function(_, elapsed)
     slowAcc = slowAcc + elapsed
     local slow = slowAcc >= 0.1
     if slow then
+        if layoutPending or ns.UpdateLayoutPreview then Run("layout", FinishLayout) end
         slowAcc = 0
         ns.ForgetCursor()
     end

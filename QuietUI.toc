@@ -7,6 +7,7 @@
 ## SavedVariablesPerCharacter: QuietUICharDB
 
 Core.lua
+Presets.lua
 Frames.lua
 Bars.lua
 Faders.lua

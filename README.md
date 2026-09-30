@@ -4,7 +4,7 @@
 
 QuietUI fades the Blizzard HUD while you explore and brings back the parts you
 need through hover, combat, and your current situation. One setup window chooses
-what stays visible, with separate settings for each character.
+what stays visible, with personal settings or shared presets across characters.
 
 ![QuietUI while exploring](docs/images/img001.png)
 
@@ -55,9 +55,10 @@ open. **X** or **Escape** closes it without saving pending changes.
 
 ![QuietUI setup](docs/images/img007.png)
 
-- **General:** Enable **Force QuietUI layout** to switch to the bundled layout
-  when QuietUI turns on and restore your previous layout when it turns off.
-  This is off by default.
+- **General:** Choose a shared preset or keep `<no preset>` for personal settings.
+  Create, rename, or delete presets here, and choose the existing Edit Mode layout
+  each preset uses. Without a preset, **Force QuietUI layout** switches to the
+  bundled layout when QuietUI turns on; it is off by default.
 - **Visible:** Check the HUD elements you want to keep on screen. Action bars and
   the swing timer have separate checks.
 - **Bars:** Give bars the same number to reveal them together on hover. **Enemy**
@@ -71,14 +72,30 @@ open. **X** or **Escape** closes it without saving pending changes.
   visible at the bottom.
 - **Info:** A short guide to QuietUI and Glance.
 
-**Reset default** applies and saves the defaults immediately: no Always visible
+With a preset selected, **Save** updates its settings for every character using
+it. Other characters load the changes on their next login. Selecting, creating,
+and renaming take effect after **Save**. Choosing a preset's layout previews it
+immediately; **Save** stores the link, while **X** or **Escape** restores the layout
+used before the preview. Deletion takes
+effect immediately after confirmation. New characters start with `<no preset>`.
+Leaving a preset, or losing it because it was deleted on another character, keeps
+the last settings used as a personal copy.
+
+A preset selects its linked layout when you log in, enable QuietUI, or save it.
+Turning QuietUI off restores your previous layout. If the linked layout is missing,
+QuietUI uses its bundled layout and reports the missing link once per login. Choose
+a replacement in General and save to repair it. Layout changes wait until combat
+ends. Presets can also be managed while QuietUI is off.
+
+**Reset default** disconnects this character from its preset without changing the
+shared preset, then applies and saves the defaults immediately: no Always visible
 checks, default bar groups, player frame and grouped buffs on, modern chat with a
 10-second fade, and Force layout, living-target requirement, and In range off.
 
 **Import layout** adds or updates the bundled Edit Mode layout immediately,
 including after choosing Not now. Each bundled layout version is offered once;
-updates require your agreement. With Force layout off, enabling or disabling
-QuietUI leaves your active layout alone.
+updates require your agreement. Without a preset and with Force layout off,
+enabling or disabling QuietUI leaves your active layout alone.
 
 <details>
 <summary><strong>Visibility rules in detail</strong></summary>

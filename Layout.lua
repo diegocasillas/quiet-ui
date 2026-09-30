@@ -13,6 +13,7 @@ local LAYOUT_NAME = "QuietUI"
 local FALLBACK_PRESETS = 2
 
 local done = false
+local missingWarned = {}
 
 local function EditModeReady()
     return C_EditMode
@@ -66,17 +67,133 @@ local function MarkAnswered()
 end
 
 local function LoadLayouts()
-    local info = C_EditMode.GetLayouts()
+    local ok, info = pcall(C_EditMode.GetLayouts)
+    if not ok then return nil end
     if type(info) ~= "table" or type(info.layouts) ~= "table" then return nil end
     return info
 end
 
--- Saved once, before the switch. A retry must not overwrite it with QuietUI.
+local function LayoutRef(info, absolute)
+    if type(absolute) ~= "number" then return nil end
+    if absolute <= PresetCount() then return { builtin = absolute } end
+    local layout = info.layouts[absolute - PresetCount()]
+    if not layout then return nil end
+    return { layoutName = layout.layoutName, layoutType = layout.layoutType }
+end
+
+local function ResolveLayout(info, ref)
+    if type(ref) ~= "table" then return nil end
+    if ref.builtin and ref.builtin >= 1 and ref.builtin <= PresetCount() then return ref.builtin end
+    for index, layout in ipairs(info.layouts) do
+        if layout.layoutName == ref.layoutName and layout.layoutType == ref.layoutType then
+            return PresetCount() + index
+        end
+    end
+end
+
+local previewOriginal, previewPending, previewApplying
+
+local function SelectReference(ref)
+    if InCombatLockdown() or not EditModeReady() then return false end
+    local info = LoadLayouts()
+    if not info then return false end
+    local absolute = ResolveLayout(info, ref)
+    if not absolute then error("The selected Edit Mode layout is no longer available.") end
+    if info.activeLayout ~= absolute then C_EditMode.SetActiveLayout(absolute) end
+    local after = LoadLayouts()
+    return after and after.activeLayout == absolute or false
+end
+
+-- A draft owns the layout until Save or cancel, including login-settle retries.
+function ns.UpdateLayoutPreview()
+    if previewApplying then return true end
+    if previewPending then
+        previewApplying = true
+        local ok, applied = pcall(SelectReference, previewPending)
+        previewApplying = false
+        if not ok then
+            previewPending = nil
+            ns.Report("layout preview", applied)
+        elseif applied then
+            previewPending = nil
+        end
+    end
+    return previewOriginal ~= nil or previewPending ~= nil
+end
+
+function ns.PreviewLayout(ref)
+    if not previewOriginal then
+        if not EditModeReady() then return end
+        local info = LoadLayouts()
+        if not info then return end
+        previewOriginal = LayoutRef(info, info.activeLayout)
+    end
+    previewPending = ns.Copy(ref)
+    ns.UpdateLayoutPreview()
+end
+
+function ns.CancelLayoutPreview()
+    if not previewOriginal then return end
+    previewPending = previewOriginal
+    previewOriginal = nil
+    ns.UpdateLayoutPreview()
+end
+
+function ns.CommitLayoutPreview(managed)
+    if managed and previewOriginal and ns.DB().enabled then
+        local char = ns.CharDB()
+        if char.previousLayout == nil then
+            local info = LoadLayouts()
+            local absolute = info and ResolveLayout(info, previewOriginal)
+            if absolute then
+                char.previousLayout = absolute
+                char.previousLayoutRef = ns.Copy(previewOriginal)
+                char.presetLayoutManaged = true
+            end
+        end
+    end
+    previewOriginal, previewPending = nil, nil
+end
+
+function ns.LayoutChoices()
+    if not EditModeReady() then return {} end
+    local info = LoadLayouts()
+    if not info then return {} end
+    local result = {}
+    local names = { "Modern", "Classic" }
+    for index = 1, PresetCount() do
+        result[#result + 1] = { name = names[index] or ("Default " .. index), ref = { builtin = index } }
+    end
+    local account = Enum and Enum.EditModeLayoutType and Enum.EditModeLayoutType.Account or 1
+    for _, layout in ipairs(info.layouts) do
+        if layout.layoutType == account then
+            result[#result + 1] = { name = layout.layoutName,
+                ref = { layoutName = layout.layoutName, layoutType = layout.layoutType } }
+        end
+    end
+    return result
+end
+
+function ns.CurrentLayoutRef()
+    if not EditModeReady() then return nil end
+    local info = LoadLayouts()
+    if not info then return nil end
+    local ref = LayoutRef(info, info.activeLayout)
+    for _, choice in ipairs(ns.LayoutChoices()) do
+        if ResolveLayout(info, choice.ref) == info.activeLayout then return ref end
+    end
+    return { layoutName = LAYOUT_NAME,
+        layoutType = Enum and Enum.EditModeLayoutType and Enum.EditModeLayoutType.Account or 1 }
+end
+
+-- Remember the original identity; switching between presets must not replace it.
 local function Remember(active, absolute)
     if type(active) ~= "number" or active < 1 or active == absolute then return end
     local char = ns.CharDB()
     if char.previousLayout == nil then
         char.previousLayout = active
+        local info = LoadLayouts()
+        char.previousLayoutRef = info and LayoutRef(info, active)
     end
 end
 
@@ -131,25 +248,50 @@ function ns.SelectQuietLayout()
     return false
 end
 
+function ns.SelectPresetLayout()
+    if InCombatLockdown() or not EditModeReady() then return false end
+    local preset = ns.ActivePreset()
+    if not preset then return ns.SelectQuietLayout() end
+    local info = LoadLayouts()
+    if not info then return false end
+    local absolute = ResolveLayout(info, preset.layout)
+    if not absolute then
+        if not ns.SelectQuietLayout() then return false end
+        if ns.CharDB().previousLayout then ns.CharDB().presetLayoutManaged = true end
+        local id = ns.CharDB().presetId
+        if not missingWarned[id] then
+            ns.Print('Preset "' .. preset.name .. '" refers to missing Edit Mode layout "'
+                .. (preset.layout and preset.layout.layoutName or "Unknown") .. '". Using "QuietUI" instead.')
+            missingWarned[id] = true
+        end
+        return true
+    end
+    Remember(info.activeLayout, absolute)
+    if ns.CharDB().previousLayout then ns.CharDB().presetLayoutManaged = true end
+    if info.activeLayout ~= absolute then C_EditMode.SetActiveLayout(absolute) end
+    local after = LoadLayouts()
+    return after and after.activeLayout == absolute or false
+end
+
 function ns.RestorePreviousLayout()
     local char = ns.CharDB()
     local previous = char.previousLayout
-    if previous == nil then return true end
+    if previous == nil then char.presetLayoutManaged = nil; return true end
     if InCombatLockdown() or not EditModeReady() then return false end
     local info = LoadLayouts()
     if not info then return false end
+    if char.previousLayoutRef then previous = ResolveLayout(info, char.previousLayoutRef) end
     local presets = PresetCount()
-    local custom = type(previous) == "number" and previous - presets or nil
     local valid = type(previous) == "number" and previous >= 1
-        and (previous <= presets or type(info.layouts[custom]) == "table")
-    if not valid then
-        char.previousLayout = nil
-        return true
-    end
-    if info.activeLayout ~= previous then
+        and (previous <= presets or type(info.layouts[previous - presets]) == "table")
+    if valid and info.activeLayout ~= previous then
         C_EditMode.SetActiveLayout(previous)
+        local after = LoadLayouts()
+        if not after or after.activeLayout ~= previous then return false end
     end
     char.previousLayout = nil
+    char.previousLayoutRef = nil
+    char.presetLayoutManaged = nil
     return true
 end
 
@@ -377,6 +519,7 @@ end
 -- Layouts are not loaded right at login and are locked in combat, so this
 -- retries on every apply until it has run once per session.
 function ns.EnsureLayout()
+    if ns.ActivePreset and ns.ActivePreset() then return end
     if done or InCombatLockdown() or not EditModeReady() then return end
     local ok, finished = pcall(Check)
     if not ok then

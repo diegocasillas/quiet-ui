@@ -53,7 +53,7 @@ function ns.BarGroup(id)
         end
     end
     if type(ns.CharDB) ~= "function" then return fallback end
-    local groups = ns.CharDB().groups
+    local groups = (ns.Settings and ns.Settings() or ns.CharDB()).groups
     local n = type(groups) == "table" and groups[id]
     if type(n) ~= "number" or n ~= n then return fallback end
     n = math.floor(n)
@@ -64,7 +64,7 @@ end
 -- Missing means off. kind is "hostile" or "friendly".
 function ns.BarTarget(id, kind)
     if type(ns.CharDB) ~= "function" then return false end
-    local map = ns.CharDB()[kind]
+    local map = (ns.Settings and ns.Settings() or ns.CharDB())[kind]
     return type(map) == "table" and map[id] and true or false
 end
 

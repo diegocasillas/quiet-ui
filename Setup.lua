@@ -22,6 +22,8 @@ local CONTENT_W = 428
 local MINIMAP_ANGLE = 225
 
 local draft = {}
+local selectedPresetId, presetName, presetLayout
+local LoadSavedDraft
 local frame
 local minimapButton
 local minimapHooked
@@ -45,38 +47,39 @@ function ns.CharDB()
 end
 
 function ns.Pinned(name)
-    local visible = ns.CharDB().visible
+    local visible = (ns.Settings and ns.Settings() or ns.CharDB()).visible
     return type(visible) == "table" and visible[name] and true or false
 end
 
 -- Missing means on. Only an explicit "resource" keeps the portrait for edit mode.
 function ns.PlayerStyle()
-    if ns.CharDB().player == "resource" then return "resource" end
+    if (ns.Settings and ns.Settings() or ns.CharDB()).player == "resource" then return "resource" end
     return "classic"
 end
 
 function ns.RequireLivingTarget()
-    return ns.CharDB().requireLivingTarget == true
+    return (ns.Settings and ns.Settings() or ns.CharDB()).requireLivingTarget == true
 end
 
 -- Missing means on. Only an explicit false leaves buffs on their own.
 function ns.GroupAuras()
-    return ns.CharDB().groupAuras ~= false
+    return (ns.Settings and ns.Settings() or ns.CharDB()).groupAuras ~= false
 end
 
 -- Missing means on. Only an explicit false turns the modern chat off.
 function ns.ModernChat()
-    return ns.CharDB().chat ~= false
+    return (ns.Settings and ns.Settings() or ns.CharDB()).chat ~= false
 end
 
 -- Missing means off. Only an explicit true selects the QuietUI layout when the addon turns on.
 function ns.ForceQuietLayout()
-    return ns.CharDB().forceLayout == true
+    return (ns.ActivePreset and ns.ActivePreset()) ~= nil
+        or (ns.Settings and ns.Settings() or ns.CharDB()).forceLayout == true
 end
 
 -- Seconds a line stays at the bottom. Missing means 10. 0 keeps the line.
 function ns.ChatFade()
-    local n = ns.CharDB().chatFade
+    local n = (ns.Settings and ns.Settings() or ns.CharDB()).chatFade
     if type(n) ~= "number" or n ~= n then return 10 end
     if n <= 0 then return 0 end
     n = math.floor(n)
@@ -87,7 +90,7 @@ end
 -- Missing means off. yards is 10, 28, or "spell". kind is "hostile" or "friendly".
 -- spell is an optional name. Missing means the longest matching spell on bar 1.
 function ns.Range()
-    local range = ns.CharDB().range
+    local range = (ns.Settings and ns.Settings() or ns.CharDB()).range
     if type(range) ~= "table" then return nil end
     local yards = range.yards
     if yards ~= 10 and yards ~= 28 and yards ~= "spell" then return nil end
@@ -174,8 +177,28 @@ local function PaintBox(box, on)
     if on then box.check:Show() else box.check:Hide() end
 end
 
+local function ButtonText(button, text)
+    if button.label then button.label:SetText(text) else button:SetText(text) end
+end
+
 local function Paint()
     if not frame then return end
+    if frame.presetSelector then
+        ButtonText(frame.presetSelector, presetName or "<no preset>")
+        ButtonText(frame.layoutSelector, presetLayout and (presetLayout.layoutName
+            or ({ "Modern", "Classic" })[presetLayout.builtin]) or "Choose layout")
+        if presetName then
+            frame.forceLayout:Hide()
+            frame.layoutSelector:Show()
+            frame.renamePreset:Enable()
+            if selectedPresetId then frame.deletePreset:Enable() else frame.deletePreset:Disable() end
+        else
+            frame.forceLayout:Show()
+            frame.layoutSelector:Hide()
+            frame.renamePreset:Disable()
+            frame.deletePreset:Disable()
+        end
+    end
     for _, row in ipairs(frame.rows) do
         PaintBox(row.box, draft[row.key])
     end
@@ -258,29 +281,39 @@ local function Paint()
     end
 end
 
-local function ReadDraft()
+local function ReadDraft(source)
+    if frame and frame.rangeSpell and frame.rangeSpell.edit:HasFocus() then frame.rangeSpell.edit:ClearFocus() end
+    source = source or (ns.Settings and ns.Settings() or ns.CharDB())
     for _, row in ipairs(ROWS) do
-        draft[row.key] = ns.Pinned(row.key)
+        draft[row.key] = type(source.visible) == "table" and source.visible[row.key] == true
     end
-    draft.forceLayout = ns.ForceQuietLayout()
-    draft.player = ns.PlayerStyle() == "classic"
-    draft.requireLivingTarget = ns.RequireLivingTarget()
-    draft.groupAuras = ns.GroupAuras()
-    draft.chat = ns.ModernChat()
-    draft.chatFade = ns.ChatFade()
-    local yards, kind, spell = ns.Range()
-    draft.range = yards ~= nil
-    draft.rangeYards = yards or "spell"
-    draft.rangeKind = kind or "hostile"
-    draft.rangeSpell = spell or ""
-    draft.groups = {}
-    draft.hostile = {}
-    draft.friendly = {}
+    draft.forceLayout = source.forceLayout == true
+    draft.player = source.player ~= "resource"
+    draft.requireLivingTarget = source.requireLivingTarget == true
+    draft.groupAuras = source.groupAuras ~= false
+    draft.chat = source.chat ~= false
+    local fade = source.chatFade
+    draft.chatFade = type(fade) == "number" and fade == fade and math.floor(math.max(0, math.min(60, fade)) / 5) * 5 or 10
+    local range = type(source.range) == "table" and source.range or {}
+    draft.range = range.yards == 10 or range.yards == 28 or range.yards == "spell"
+    draft.rangeYards = draft.range and range.yards or "spell"
+    draft.rangeKind = range.kind == "friendly" and "friendly" or "hostile"
+    draft.rangeSpell = type(range.spell) == "string" and not ns.IsSecret(range.spell) and range.spell or ""
+    draft.groups, draft.hostile, draft.friendly = {}, {}, {}
     for _, row in ipairs(ns.BAR_ROWS) do
-        draft.groups[row.id] = ns.BarGroup(row.id)
-        draft.hostile[row.id] = ns.BarTarget(row.id, "hostile")
-        draft.friendly[row.id] = ns.BarTarget(row.id, "friendly")
+        local n = type(source.groups) == "table" and source.groups[row.id]
+        draft.groups[row.id] = type(n) == "number" and n == n and n >= 1 and n <= #ns.BAR_ROWS and math.floor(n) or row.group
+        draft.hostile[row.id] = type(source.hostile) == "table" and source.hostile[row.id] == true
+        draft.friendly[row.id] = type(source.friendly) == "table" and source.friendly[row.id] == true
     end
+end
+
+LoadSavedDraft = function()
+    ReadDraft()
+    local preset = ns.ActivePreset()
+    selectedPresetId = preset and ns.CharDB().presetId or nil
+    presetName = preset and preset.name or nil
+    presetLayout = preset and ns.Copy(preset.layout) or nil
 end
 
 -- Only checked bar ids are stored. A missing map means every box is off.
@@ -295,8 +328,8 @@ local function SavedFlags(flags)
     return saved
 end
 
-local function Write()
-    local db = ns.CharDB()
+local function DraftSettings()
+    local db = {}
     local visible
     for _, row in ipairs(ROWS) do
         if draft[row.key] then
@@ -352,6 +385,26 @@ local function Write()
     db.groups = groups
     db.hostile = SavedFlags(draft.hostile)
     db.friendly = SavedFlags(draft.friendly)
+    if presetName then db.forceLayout = nil end
+    return db
+end
+
+local function Write()
+    local settings = DraftSettings()
+    if presetName then
+        if not presetLayout then ns.Print("Choose an Edit Mode layout before saving."); return end
+        local id, err = ns.SavePreset(selectedPresetId, presetName, presetLayout, settings)
+        if not id then ns.Print(err); return end
+        if ns.CommitLayoutPreview then ns.CommitLayoutPreview(true) end
+        ns.ActivatePreset(id)
+    else
+        if ns.CancelLayoutPreview then ns.CancelLayoutPreview() end
+        ns.ActivatePreset(nil, settings)
+    end
+    LoadSavedDraft()
+    Paint()
+    if ns.LayoutSettingsChanged then ns.LayoutSettingsChanged() end
+    if ns.ApplyAll then ns.ApplyAll() end
 end
 
 local function ActionButton(parent, text, onClick)
@@ -573,7 +626,7 @@ local function ColumnLabel(parent, text)
 end
 
 local TABS = {
-    { id = "general", label = "General", height = 48 },
+    { id = "general", label = "General", height = 224 },
     { id = "visible", label = "Visible", height = 262 },
     { id = "bars", label = "Bars", height = 308 },
     { id = "player", label = "Player", height = 220 },
@@ -621,6 +674,8 @@ local function Page(parent, id, height, metrics)
 end
 
 local function ShowPage(widget, id)
+    if widget.presetMenu then widget.presetMenu:Hide() end
+    if widget.layoutMenu then widget.layoutMenu:Hide() end
     widget.page = id
     for _, page in ipairs(widget.pages) do
         if page.id == id then page:Show() else page:Hide() end
@@ -708,6 +763,118 @@ local function PortraitChrome(widget)
         or widget.PortraitContainer or widget.portrait
 end
 
+local function SelectMenu(owner, key, anchor, entries)
+    local menu = owner[key]
+    if not menu then
+        menu = Backdropped("Frame", nil, owner)
+        menu:SetFrameStrata("DIALOG")
+        menu:SetFrameLevel(owner:GetFrameLevel() + 60)
+        Flat(menu, 1)
+        menu.items = {}
+        owner[key] = menu
+    end
+    for _, item in ipairs(menu.items) do item:Hide() end
+    menu:ClearAllPoints()
+    menu:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 0, -2)
+    menu:SetSize(300, 8 + 24 * math.min(#entries, 8))
+    if not menu.scroll then
+        menu.scroll = CreateFrame("ScrollFrame", nil, menu)
+        menu.scroll:SetPoint("TOPLEFT", 4, -4)
+        menu.scroll:SetPoint("BOTTOMRIGHT", -4, 4)
+        menu.content = CreateFrame("Frame", nil, menu.scroll)
+        menu.content:SetWidth(292)
+        menu.scroll:SetScrollChild(menu.content)
+        menu.scroll:EnableMouseWheel(true)
+        menu.scroll:SetScript("OnMouseWheel", function(_, delta)
+            menu.offset = math.max(0, math.min(menu.maximum or 0, (menu.offset or 0) - delta * 24))
+            menu.scroll:SetVerticalScroll(menu.offset)
+        end)
+    end
+    menu.content:SetHeight(math.max(24, #entries * 24))
+    menu.maximum = math.max(0, (#entries - 8) * 24)
+    menu.offset = 0
+    menu.scroll:SetVerticalScroll(0)
+    for index, entry in ipairs(entries) do
+        local item = menu.items[index]
+        if not item then item = ActionButton(menu.content, "", function() end); menu.items[index] = item end
+        item:SetSize(292, 24)
+        item:ClearAllPoints()
+        item:SetPoint("TOPLEFT", 0, -(index - 1) * 24)
+        ButtonText(item, entry.name)
+        item:SetScript("OnClick", function() menu:Hide(); entry.select() end)
+        item:Show()
+    end
+    menu:Show()
+end
+
+local function PresetDialog(owner, title, text, accept)
+    local dialog = owner.presetDialog
+    if not dialog then
+        local blocker = CreateFrame("Frame", nil, owner)
+        blocker:SetAllPoints(owner)
+        blocker:SetFrameLevel(owner:GetFrameLevel() + 75)
+        blocker:EnableMouse(true)
+        local ok, widget = pcall(CreateFrame, "Frame", nil, blocker, "PortraitFrameTemplate")
+        local side, bodyY, editY, buttonY = 26, -96, -154, 18
+        if ok and widget and PortraitChrome(widget) then
+            dialog = widget
+            ApplyTitle(dialog, "Shared preset")
+            ApplyPortrait(dialog)
+            dialog:SetSize(420, 244)
+        else
+            dialog = ok and widget or Backdropped("Frame", nil, blocker)
+            if GoldWindow(dialog) then
+                side, bodyY, editY, buttonY = 28, -56, -114, 28
+                dialog:SetSize(420, 214)
+            else
+                Flat(dialog, 1)
+                side, bodyY, editY, buttonY = 16, -40, -98, 16
+                dialog:SetSize(380, 186)
+            end
+            dialog.title = dialog:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+            dialog.title:SetText("Shared preset")
+            dialog.title:SetPoint("TOP", 0, -26)
+        end
+        dialog.blocker = blocker
+        dialog:SetScript("OnHide", function() blocker:Hide() end)
+        dialog:SetPoint("CENTER")
+        dialog:SetFrameLevel(owner:GetFrameLevel() + 80)
+        dialog:EnableMouse(true)
+        local close = dialog.CloseButton or dialog.closeButton
+        if close then close:SetScript("OnClick", function() dialog:Hide() end) end
+        dialog.body = Body(dialog, "")
+        local contentWidth = (side == 16 and 380 or 420) - 2 * side
+        dialog.body:SetWidth(contentWidth)
+        dialog.body:SetPoint("TOPLEFT", side, bodyY)
+        dialog.edit = Backdropped("EditBox", nil, dialog)
+        if not GoldEdge(dialog.edit) then Flat(dialog.edit, 1) end
+        dialog.edit:SetSize(contentWidth, 24)
+        dialog.edit:SetPoint("TOPLEFT", side, editY)
+        dialog.edit:SetFontObject("GameFontHighlightSmall")
+        dialog.edit:SetAutoFocus(false)
+        dialog.edit:SetMaxLetters(64)
+        dialog.edit:SetTextInsets(6, 6, 0, 0)
+        dialog.edit:SetScript("OnEscapePressed", function() dialog:Hide() end)
+        dialog.edit:SetScript("OnEnterPressed", function() dialog.yes:GetScript("OnClick")() end)
+        dialog.yes = ActionButton(dialog, "Confirm", function() end)
+        dialog.yes:SetPoint("BOTTOMRIGHT", -side, buttonY)
+        dialog.no = ActionButton(dialog, "Cancel", function() dialog:Hide() end)
+        dialog.no:SetPoint("BOTTOMLEFT", side, buttonY)
+        owner.presetDialog = dialog
+    end
+    dialog.body:SetText(title)
+    if text ~= nil then dialog.edit:SetText(text); dialog.edit:Show() else dialog.edit:Hide() end
+    dialog.yes:SetScript("OnClick", function()
+        local ok, err = accept(dialog.edit:GetText())
+        if ok then dialog:Hide(); Paint() else dialog.body:SetText(err) end
+    end)
+    if owner.presetMenu then owner.presetMenu:Hide() end
+    if owner.layoutMenu then owner.layoutMenu:Hide() end
+    dialog.blocker:Show()
+    dialog:Show()
+    if text ~= nil then dialog.edit:SetFocus(); dialog.edit:HighlightText() end
+end
+
 local function CreateSetup()
     local ok, widget = pcall(CreateFrame, "Frame", "QuietUISetup", UIParent, "PortraitFrameTemplate")
     local kind = "flat"
@@ -762,13 +929,88 @@ local function CreateSetup()
     end
 
     local general = widget.pages[1]
+    widget.presetHeader = Section(general, "Shared preset")
+    widget.presetHeader:SetPoint("TOPLEFT", general, "TOPLEFT", 0, 0)
+    widget.presetSelector = ActionButton(general, "<no preset>", function()
+        if widget.layoutMenu then widget.layoutMenu:Hide() end
+        local entries = { { name = "<no preset>", select = function()
+            if ns.CancelLayoutPreview then ns.CancelLayoutPreview() end
+            selectedPresetId, presetName, presetLayout = nil, nil, nil
+            Paint()
+        end } }
+        for _, item in ipairs(ns.PresetList()) do
+            local id = item.id
+            entries[#entries + 1] = { name = item.name, select = function()
+                local preset = ns.Presets()[id]
+                if not preset then return end
+                if ns.CancelLayoutPreview then ns.CancelLayoutPreview() end
+                ReadDraft(preset.settings)
+                selectedPresetId, presetName, presetLayout = id, preset.name, ns.Copy(preset.layout)
+                Paint()
+            end }
+        end
+        SelectMenu(widget, "presetMenu", widget.presetSelector, entries)
+    end)
+    widget.presetSelector:SetSize(300, 24)
+    widget.presetSelector:SetPoint("TOPLEFT", general, "TOPLEFT", 0, -24)
+    widget.newPreset = ActionButton(general, "New preset", function()
+        PresetDialog(widget, "Name the new shared preset.", "", function(name)
+            local valid, err = ns.PresetName(name)
+            if not valid then return false, err end
+            selectedPresetId, presetName = nil, valid
+            presetLayout = ns.CurrentLayoutRef()
+            return true
+        end)
+    end)
+    widget.newPreset:SetPoint("TOPLEFT", general, "TOPLEFT", 0, -58)
+    widget.renamePreset = ActionButton(general, "Rename", function()
+        PresetDialog(widget, "Rename this shared preset.", presetName, function(name)
+            local valid, err = ns.PresetName(name, selectedPresetId)
+            if not valid then return false, err end
+            presetName = valid
+            return true
+        end)
+    end)
+    widget.renamePreset:SetPoint("TOPLEFT", general, "TOPLEFT", 120, -58)
+    widget.deletePreset = ActionButton(general, "Delete", function()
+        local id = selectedPresetId
+        if not id then return end
+        PresetDialog(widget, 'Delete "' .. presetName .. '" for all characters? They will keep their last settings.', nil, function()
+            if ns.CancelLayoutPreview then ns.CancelLayoutPreview() end
+            ns.DeletePreset(id)
+            LoadSavedDraft()
+            if ns.LayoutSettingsChanged then ns.LayoutSettingsChanged() end
+            if ns.ApplyAll then ns.ApplyAll() end
+            return true
+        end)
+    end)
+    widget.deletePreset:SetPoint("TOPLEFT", general, "TOPLEFT", 240, -58)
     widget.layoutHeader = Section(general, "Layout")
-    widget.layoutHeader:SetPoint("TOPLEFT", general, "TOPLEFT", 0, 0)
+    widget.layoutHeader:SetPoint("TOPLEFT", general, "TOPLEFT", 0, -104)
+    widget.layoutSelector = ActionButton(general, "Choose layout", function()
+        if widget.presetMenu then widget.presetMenu:Hide() end
+        local entries = {}
+        for _, choice in ipairs(ns.LayoutChoices()) do
+            local ref = choice.ref
+            entries[#entries + 1] = { name = choice.name, select = function()
+                presetLayout = ns.Copy(ref)
+                if ns.PreviewLayout then ns.PreviewLayout(presetLayout) end
+                Paint()
+            end }
+        end
+        if #entries == 0 then ns.Print("Edit Mode layouts are not available yet."); return end
+        SelectMenu(widget, "layoutMenu", widget.layoutSelector, entries)
+    end)
+    widget.layoutSelector:SetSize(300, 24)
+    widget.layoutSelector:SetPoint("TOPLEFT", general, "TOPLEFT", 0, -128)
     widget.forceLayout = Choice(general, "Force QuietUI layout", function()
         draft.forceLayout = not draft.forceLayout
         Paint()
     end)
-    widget.forceLayout:SetPoint("TOPLEFT", general, "TOPLEFT", 0, -20)
+    widget.forceLayout:SetPoint("TOPLEFT", general, "TOPLEFT", 0, -128)
+    widget.presetHelp = Body(general, "Save updates the selected preset for every character. Without a preset, settings belong to this character.")
+    widget.presetHelp:SetWidth(400)
+    widget.presetHelp:SetPoint("TOPLEFT", general, "TOPLEFT", 0, -174)
 
     local visible = widget.pages[2]
     widget.always = Section(visible, "Always visible")
@@ -886,20 +1128,11 @@ local function CreateSetup()
     widget.glanceBody:SetPoint("TOPLEFT", widget.glanceHeader, "BOTTOMLEFT", 0, -4)
 
     widget.reset = ActionButton(widget, "Reset default", function()
-        local db = ns.CharDB()
-        db.visible = nil
-        db.forceLayout = nil
-        db.player = nil
-        db.requireLivingTarget = nil
-        db.groupAuras = nil
-        db.chat = nil
-        db.chatFade = nil
-        db.groups = nil
-        db.hostile = nil
-        db.friendly = nil
-        db.range = nil
-        ReadDraft()
+        if ns.CancelLayoutPreview then ns.CancelLayoutPreview() end
+        ns.ActivatePreset(nil, {})
+        LoadSavedDraft()
         Paint()
+        if ns.LayoutSettingsChanged then ns.LayoutSettingsChanged() end
         if ns.ApplyAll then ns.ApplyAll() end
     end)
     widget.import = ActionButton(widget, "Import layout", function()
@@ -907,7 +1140,6 @@ local function CreateSetup()
     end)
     widget.save = ActionButton(widget, "Save", function()
         Write()
-        if ns.ApplyAll then ns.ApplyAll() end
     end)
     widget.reset:SetFrameLevel(widget:GetFrameLevel() + 20)
     widget.import:SetFrameLevel(widget:GetFrameLevel() + 20)
@@ -916,13 +1148,20 @@ local function CreateSetup()
     widget.reset:SetPoint("BOTTOMLEFT", metrics.side, metrics.buttonY)
     widget.import:SetPoint("BOTTOM", 0, metrics.buttonY)
     widget.save:SetPoint("BOTTOMRIGHT", -metrics.side, metrics.buttonY)
+    widget:SetScript("OnHide", function()
+        if ns.CancelLayoutPreview then ns.CancelLayoutPreview() end
+        for _, key in ipairs({ "presetMenu", "layoutMenu", "presetDialog" }) do
+            if widget[key] then widget[key]:Hide() end
+        end
+    end)
     ShowPage(widget, "general")
     return widget
 end
 
 function ns.ShowSetup()
+    if ns.CancelLayoutPreview then ns.CancelLayoutPreview() end
     frame = frame or CreateSetup()
-    ReadDraft()
+    LoadSavedDraft()
     if frame._quietPortrait then
         ApplyPortrait(frame)
     end
