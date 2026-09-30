@@ -845,16 +845,18 @@ local TOOLTIP_LINKS = {
     achievement = true, currency = true,
 }
 
-local function ShowLinkTip(button)
+local function ShowLinkTip(button, link, display)
+    link = link or button.link
+    display = display or button.display
     if not GameTooltip or not GameTooltip.SetOwner then return end
     GameTooltip:SetOwner(button, "ANCHOR_CURSOR")
     local shown = false
-    local kind = type(button.link) == "string" and button.link:match("^([^:]+):")
+    local kind = type(link) == "string" and link:match("^([^:]+):")
     if GameTooltip.SetHyperlink and TOOLTIP_LINKS[kind] then
-        shown = pcall(GameTooltip.SetHyperlink, GameTooltip, button.link)
+        shown = pcall(GameTooltip.SetHyperlink, GameTooltip, link)
     end
     if not shown and GameTooltip.SetText then
-        pcall(GameTooltip.SetText, GameTooltip, button.display or "", 1, 1, 1)
+        pcall(GameTooltip.SetText, GameTooltip, display or "", 1, 1, 1)
     end
     if GameTooltip.Show then GameTooltip:Show() end
 end
@@ -1001,8 +1003,31 @@ local function MakeLink(bubble)
     return button
 end
 
+-- The renderer knows the exact link bounds, including wrapped and indented rows.
+local function BindBubbleLinks(bubble)
+    if type(bubble.SetHyperlinksEnabled) ~= "function" then return end
+    local ok = pcall(function()
+        bubble:SetHyperlinksEnabled(true)
+        bubble:SetScript("OnHyperlinkEnter", function(self, link, text)
+            if self.msg and not self.msg.secret then ShowLinkTip(self, link, text) end
+        end)
+        bubble:SetScript("OnHyperlinkLeave", HideTip)
+        bubble:SetScript("OnHyperlinkClick", function(self, link, text, button)
+            if self.msg and not self.msg.secret then
+                OpenLink(self.chat, link, text, button)
+            end
+        end)
+    end)
+    bubble._quietNativeLinks = ok
+end
+
 local function PlaceLinks(bubble, msg, inner)
     local links = bubble.links
+    if bubble._quietNativeLinks then
+        pcall(bubble.SetHyperlinksEnabled, bubble, msg ~= nil and not msg.secret)
+        for i = 1, #links do links[i]:Hide() end
+        return
+    end
     if not msg or msg.secret then
         for i = 1, #links do
             links[i]:Hide()
@@ -1394,6 +1419,7 @@ local function CreateBubble(frame)
     bubble._quietBubble = true
     bubble.chat = frame
     bubble.links = {}
+    BindBubbleLinks(bubble)
     bubble:EnableMouse(true)
     bubble:EnableMouseWheel(true)
     local level = (frame.GetFrameLevel and frame:GetFrameLevel() or 0) + 2

@@ -197,6 +197,54 @@ test('Chat verifies wrapped history and resized bubbles before going idle', func
     end
 end)
 
+test('Chat uses rendered hyperlinks without covering wrapped text with buttons', function()
+    local ns = namespace()
+    loadAddon('Chat.lua', ns)
+    local layout = upvalue(ns.UpdateChat, 'LayoutFrame')
+    local create = upvalue(upvalue(layout, 'AcquireBubble'), 'CreateBubble')
+    local bind = upvalue(create, 'BindBubbleLinks')
+    local place = upvalue(upvalue(layout, 'SizeBubble'), 'PlaceLinks')
+    local bubble = frame()
+    bubble.chat, bubble.msg, bubble.links = frame(), { text = 'wrapped item links' }, {}
+    function bubble:SetHyperlinksEnabled(value) self.hyperlinks = value end
+    bind(bubble)
+    assert(bubble.hyperlinks, 'Rendered hyperlink hit testing was not enabled')
+    place(bubble, bubble.msg, 100)
+    assert(#bubble.links == 0, 'Manual hit rectangles still cover rendered text')
+    local oldTooltip, oldRef = GameTooltip, SetItemRef
+    local shown, opened = {}, {}
+    GameTooltip = {
+        SetOwner = function(_, owner) assert(owner == bubble) end,
+        SetHyperlink = function(_, link) shown[#shown + 1] = link end,
+        Show = function() end,
+        Hide = function() shown.hidden = true end,
+    }
+    SetItemRef = function(link, text, button, chat)
+        opened[#opened + 1] = { link, text, button, chat }
+    end
+    -- The renderer supplies the same link on either row, and distinct adjacent links.
+    for _, link in ipairs({ 'item:1', 'item:1', 'item:2' }) do
+        bubble.scripts.OnHyperlinkEnter(bubble, link, '[Wrapped item]')
+        bubble.scripts.OnHyperlinkClick(bubble, link, '[Wrapped item]', 'LeftButton')
+        bubble.scripts.OnHyperlinkLeave(bubble)
+        assert(shown[#shown] == link and shown.hidden, 'Tooltip used the wrong item')
+        local click = opened[#opened]
+        assert(click[1] == link and click[2] == '[Wrapped item]'
+            and click[3] == 'LeftButton' and click[4] == bubble.chat)
+    end
+    bubble.msg = { secret = true }
+    place(bubble, bubble.msg, 100)
+    assert(not bubble.hyperlinks, 'Secret text still has hyperlink hit testing')
+    bubble.scripts.OnHyperlinkEnter(bubble, 'item:3', '[Secret]')
+    bubble.scripts.OnHyperlinkClick(bubble, 'item:3', '[Secret]', 'LeftButton')
+    assert(#shown == 3 and #opened == 3, 'Secret message opened a link')
+    bubble.msg = { text = 'reused bubble' }
+    place(bubble, bubble.msg, 200)
+    assert(bubble.hyperlinks, 'Reused bubble did not restore hyperlink hit testing')
+    bind(frame()) -- Older clients may lack the method.
+    GameTooltip, SetItemRef = oldTooltip, oldRef
+end)
+
 test('Damage meter follows combat, instance, group, edit mode and grace only', function()
     local ns = namespace()
     loadAddon('Faders.lua', ns)
