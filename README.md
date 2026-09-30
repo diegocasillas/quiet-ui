@@ -40,13 +40,15 @@ what stays visible, with personal settings or shared presets across characters.
 /quiet on       Enable QuietUI
 /quiet off      Disable QuietUI
 /quiet setup    Open settings
+/quiet glance   Toggle the faded HUD while QuietUI is enabled
 ```
 
 The minimap button also opens settings, even while QuietUI is off. Drag it around
 the minimap to move it.
 
 Glance defaults to `` ` `` if the key is free. Change it under **QuietUI** in
-**Key Bindings**.
+**Key Bindings**. You can also use `/quiet glance` in a macro and bind that macro
+to a controller button through your controller setup.
 
 ## Make it yours
 

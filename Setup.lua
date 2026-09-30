@@ -1139,7 +1139,7 @@ local function CreateSetup()
     widget.aboutBody:SetPoint("TOPLEFT", widget.about, "BOTTOMLEFT", 0, -4)
     widget.glanceHeader = Section(info, "Glance")
     widget.glanceHeader:SetPoint("TOPLEFT", widget.aboutBody, "BOTTOMLEFT", 0, -12)
-    widget.glanceBody = Body(info, "Press ` to show what has faded. Press it again and the choices on the other tabs apply. Change the key under QuietUI in Key Bindings.")
+    widget.glanceBody = Body(info, "Press ` to show what has faded. Press it again and the choices on the other tabs apply. Change the key under QuietUI in Key Bindings. You can also use /quiet glance in a macro for your controller.")
     widget.glanceBody:SetPoint("TOPLEFT", widget.glanceHeader, "BOTTOMLEFT", 0, -4)
 
     widget.reset = ActionButton(widget, "Reset default", function()

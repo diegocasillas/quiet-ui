@@ -409,9 +409,13 @@ HookGlobal("FCF_DockUpdate", ns.StripAllChat)
 BINDING_CATEGORY_QUIETUI = "QuietUI"
 BINDING_NAME_QUIETUI_GLANCE = "Glance"
 
-function QuietUIGlance(keystate)
-    if keystate ~= "down" or not ns.DB().enabled then return end
+function ns.ToggleGlance()
+    if not ns.DB().enabled then return end
     glancing = not glancing
+end
+
+function QuietUIGlance(keystate)
+    if keystate == "down" then ns.ToggleGlance() end
 end
 
 function ns.Glancing()
@@ -419,7 +423,7 @@ function ns.Glancing()
 end
 
 ------------------------------------------------------------------------------
--- /quiet on | off | setup, no argument toggles.
+-- /quiet on | off | setup | glance, no argument toggles.
 ------------------------------------------------------------------------------
 SLASH_QUIETUI1 = "/quiet"
 SLASH_QUIETUI2 = "/quietui"
@@ -427,6 +431,10 @@ SlashCmdList["QUIETUI"] = function(msg)
     msg = (msg or ""):lower():match("^%s*(.-)%s*$")
     if msg == "setup" then
         ns.ShowSetup()
+        return
+    end
+    if msg == "glance" then
+        ns.ToggleGlance()
         return
     end
     local db = ns.DB()

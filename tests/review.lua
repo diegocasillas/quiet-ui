@@ -458,9 +458,33 @@ test('Show-all transitions recalculate bars even with a stationary pointer', fun
     assert(ns.Glancing(), 'Key-down did not toggle Glance')
     QuietUIGlance('down')
     assert(not ns.Glancing(), 'Second key-down did not clear Glance')
+    SlashCmdList.QUIETUI('  GlAnCe  ')
+    assert(ns.Glancing(), 'Slash command did not toggle Glance')
+    assert(QuietUIDB.enabled, 'Glance command disabled the addon')
+    scans = 0
+    update(events, 0.01)
+    assert(scans == 1, 'Glance command did not recalculate bars')
+    QuietUIGlance('down')
+    assert(not ns.Glancing(), 'Key binding did not clear command Glance')
+    SlashCmdList.QUIETUI('glance')
+    SlashCmdList.QUIETUI('glance')
+    assert(not ns.Glancing(), 'Second Glance command did not clear Glance')
     QuietUIDB.enabled = false
     QuietUIGlance('down')
     assert(not ns.Glancing(), 'Glance toggled while addon was disabled')
+    SlashCmdList.QUIETUI('glance')
+    assert(not ns.Glancing(), 'Glance command toggled while addon was disabled')
+    assert(not QuietUIDB.enabled, 'Glance command enabled the addon')
+    QuietUIDB.enabled = true
+    SlashCmdList.QUIETUI('glance')
+    for _, name in ipairs({ 'HideQuestCatcher', 'HideRangeMark', 'HideBarCatchers',
+        'ResetMenu', 'RestoreChat', 'RestoreAlpha' }) do
+        ns[name] = function() end
+    end
+    ns.ForceQuietLayout = function() return false end
+    SlashCmdList.QUIETUI('off')
+    assert(not ns.Glancing(), 'Disabling the addon did not clear command Glance')
+    assert(not QuietUIDB.enabled, 'Off command did not disable the addon')
 end)
 
 os.exit(failures == 0 and 0 or 1)
