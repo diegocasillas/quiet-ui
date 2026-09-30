@@ -1098,6 +1098,7 @@ local function SizeBubble(bubble, msg, maxW)
     if bubble._quietSizeKey == key and bubble.h then
         return bubble.h
     end
+    bubble._quietSizeKey = nil
     local innerMax = math.max(8, maxW - PAD * 2)
     if msg.secret then
         local lineH = type(size) == "number" and size or 14
@@ -1118,7 +1119,7 @@ local function SizeBubble(bubble, msg, maxW)
             end
         end
         local th = measured > 0 and measured or lineH * 4
-        if canRead then
+        if canRead and measured > 0 then
             bubble._quietSizeKey = key
         end
         bubble.inner = innerMax
@@ -1605,6 +1606,8 @@ local function LayoutFrame(frame, elapsed)
                 bubble._quietPA = current
             end
             if not bubble:IsShown() then bubble:Show() end
+            -- Wrapped text needs a shown frame before its height can be trusted.
+            if not bubble._quietSizeKey then sooner(0) end
             if sliding or math.abs(current - goal) > 0.01 then sooner(0) end
             if bubble._y ~= target then sooner(0) end
             if not reveal and fading and life > 0 and msg.born and not BubbleHeld(bubble) then

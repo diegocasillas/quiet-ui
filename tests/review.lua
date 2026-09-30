@@ -130,6 +130,73 @@ test('Native chat traversal reads each region and child list once', function()
     assert(chat.childReads == 1, 'Child list reads: ' .. chat.childReads)
 end)
 
+test('Chat verifies wrapped history and resized bubbles before going idle', function()
+    local ns = namespace()
+    ns.ChatFade = function() return 0 end
+    loadAddon('Chat.lua', ns)
+    local layout = upvalue(ns.UpdateChat, 'LayoutFrame')
+    local size = upvalue(layout, 'SizeBubble')
+    local function replace(fn, name, value)
+        for i = 1, 100 do
+            local key = debug.getupvalue(fn, i)
+            if key == name then debug.setupvalue(fn, i, value); return end
+            if not key then break end
+        end
+        error('Missing helper: ' .. name)
+    end
+    -- Three 60px words total 200px with spaces, but need three rows at 100px.
+    replace(size, 'UnboundedWidth', function() return 200 end)
+    replace(size, 'PlaceLinks', function() end)
+    for _, scenario in ipairs({ 'history', 'scroll', 'hover', 'resize', 'secret' }) do
+        local msg = { text = 'AAAAAA BBBBBB CCCCCC', born = 100,
+            secret = scenario == 'secret' or nil }
+        local fs = { reads = 0 }
+        function fs:GetFont() return 'test', 14, '' end
+        function fs:SetWidth(w) self.width = w end
+        function fs:SetText() end
+        function fs:SetTextColor() end
+        function fs:GetStringHeight()
+            self.reads = self.reads + 1
+            if scenario == 'secret' and self.reads == 1 then return 0 end
+            return self.width >= 200 and 14 or 42
+        end
+        function fs:GetNumLines() return self.width >= 200 and 1 or 3 end
+        function fs:GetLineHeight() return 14 end
+        local bubble = frame()
+        bubble.text, bubble.msg, bubble._y = fs, msg, 4
+        function bubble:SetSize(w, h) self.width, self.height = w, h end
+        local chat = frame()
+        chat.width = scenario == 'resize' and 318 or 118
+        function chat:GetWidth() return self.width end
+        function chat:GetHeight() return 200 end
+        function chat:GetFont() return 'test', 14, '' end
+        chat._quietLines = scenario == 'scroll' and { msg, {} } or { msg }
+        chat._quietByMsg = { [msg] = bubble }
+        chat._quietDirty = true
+        chat._quietHover = scenario == 'hover'
+        chat._quietScroll = scenario == 'scroll' and 1 or 0
+        layout(chat, 1/60)
+        if scenario == 'resize' then
+            assert(bubble._quietSizeKey, 'Single row should be cached')
+            chat.width = 118
+            layout(chat, 1/60)
+        end
+        assert(chat._quietNext == 0, scenario .. ': missing follow-up measurement')
+        layout(chat, 1/60)
+        if scenario == 'secret' then
+            assert(not bubble._quietSizeKey, 'Zero height must not be cached')
+            assert(chat._quietNext == 0, 'Unavailable height needs another measurement')
+            layout(chat, 1/60)
+        end
+        assert(bubble.height >= 52, scenario .. ': last row remains clipped')
+        assert(bubble._quietSizeKey, scenario .. ': measured size was not cached')
+        assert(chat._quietNext == nil, scenario .. ': settled chat keeps waking')
+        local reads = fs.reads
+        layout(chat, 1/60)
+        assert(fs.reads == reads, scenario .. ': idle chat remeasured text')
+    end
+end)
+
 test('Damage meter follows combat, instance, group, edit mode and grace only', function()
     local ns = namespace()
     loadAddon('Faders.lua', ns)
