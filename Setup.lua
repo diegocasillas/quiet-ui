@@ -97,6 +97,11 @@ function ns.ShowPlayerFrameInParty()
     return (ns.Settings and ns.Settings() or ns.CharDB()).showPlayerFrameInParty ~= false
 end
 
+-- Missing means on. Only an explicit false keeps frames hidden in instance.
+function ns.ForceFramesInInstance()
+    return (ns.Settings and ns.Settings() or ns.CharDB()).forceFramesInInstance ~= false
+end
+
 -- Missing means on. Only an explicit false turns the modern chat off.
 function ns.ModernChat()
     return (ns.Settings and ns.Settings() or ns.CharDB()).chat ~= false
@@ -252,6 +257,9 @@ local function Paint()
     if frame.showPlayerFrameInParty then
         PaintBox(frame.showPlayerFrameInParty.box, draft.showPlayerFrameInParty)
     end
+    if frame.forceFramesInInstance then
+        PaintBox(frame.forceFramesInInstance.box, draft.forceFramesInInstance)
+    end
     if frame.chat then
         PaintBox(frame.chat.box, draft.chat)
     end
@@ -364,6 +372,7 @@ local function ReadDraft(source)
     draft.groupAuras = source.groupAuras ~= false
     draft.alwaysShowDebuffs = source.alwaysShowDebuffs ~= false
     draft.showPlayerFrameInParty = source.showPlayerFrameInParty ~= false
+    draft.forceFramesInInstance = source.forceFramesInInstance ~= false
     draft.chat = source.chat ~= false
     local fade = source.chatFade
     draft.chatFade = type(fade) == "number" and fade == fade and math.floor(math.max(0, math.min(60, fade)) / 5) * 5 or 10
@@ -447,6 +456,7 @@ local function DraftSettings()
     end
     if not draft.alwaysShowDebuffs then db.alwaysShowDebuffs = false end
     if not draft.showPlayerFrameInParty then db.showPlayerFrameInParty = false end
+    if not draft.forceFramesInInstance then db.forceFramesInInstance = false end
     if draft.chat then
         db.chat = nil
     else
@@ -1182,6 +1192,12 @@ local function CreateSetup()
         y = y - 24
         widget.rows[#widget.rows + 1] = row
     end
+
+    widget.forceFramesInInstance = Choice(visible, "Force frames in instance", function()
+        draft.forceFramesInInstance = not draft.forceFramesInInstance
+        Paint()
+    end)
+    widget.forceFramesInInstance:SetPoint("TOPLEFT", visible, "TOPLEFT", 0, y - 24)
 
     local bars = widget.pages[3]
     widget.groupHeader = Section(bars, "Fade together")
