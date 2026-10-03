@@ -282,7 +282,7 @@ local function PlayerShouldShow()
         or ns.Hit(PetFrame)
         or ns.InCombat()
         or ns.InForcedInstance()
-        or ns.InGroup()
+        or (ns.InGroup() and ns.ShowPlayerFrameInParty())
         or ns.InVehicle()
         or ns.HasTarget()
 end
@@ -566,7 +566,7 @@ local function AurasShouldShow()
         end
         return ns.VisibilityShow("auras", false, hovered)
     end
-    local show = ns.InCombat() or ns.InForcedInstance() or ns.InGroup() or ns.InEditMode()
+    local show = ns.InCombat() or ns.InForcedInstance() or (ns.InGroup() and ns.ShowPlayerFrameInParty()) or ns.InEditMode()
         or ns.Pinned("auras") or ns.Glancing()
     if not show then
         for _, frame in ipairs(auraFrames) do
