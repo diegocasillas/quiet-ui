@@ -16,8 +16,8 @@ C_EditMode = {
     SaveLayouts = function() end,
     ConvertStringToLayoutInfo = function() return {} end,
 }
-assert(loadfile('Presets.lua'))('QuietUI', ns)
-assert(loadfile('Layout.lua'))('QuietUI', ns)
+dofile('tests/addon.lua')('Presets.lua', ns)
+dofile('tests/addon.lua')('Layout.lua', ns)
 local id = ns.SavePreset(nil, 'Test A', { layoutName = 'QuietUI', layoutType = 1 }, { chat = false })
 -- Simulate the character's saved selection from before the mode change.
 db.presets[id].interfaceStyle = nil
@@ -39,7 +39,7 @@ function events:SetScript(key, fn) self.scripts[key] = fn end
 function events:RegisterEvent() end
 CreateFrame = function() return events end
 SlashCmdList = {}
-assert(loadfile('QuietUI.lua'))('QuietUI', ns)
+dofile('tests/addon.lua')('QuietUI.lua', ns)
 events.scripts.OnEvent(events, 'PLAYER_LOGIN')
 assert(char.presetId == id and switches == 0, 'Unloaded layouts must defer validation and selection')
 ready = true

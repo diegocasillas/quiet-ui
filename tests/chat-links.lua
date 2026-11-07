@@ -1,15 +1,20 @@
 -- Run from the addon directory: lua tests/chat-links.lua
+local ns = {}
 local function upvalue(fn, name)
     for i = 1, 100 do
         local key, value = debug.getupvalue(fn, i)
         if key == name then return value end
         if not key then break end
     end
+    -- Shared helpers now live on the feature tables (ns.Chat, ns.Faders, ...).
+    for _, module in ipairs({ 'Core', 'Bars', 'Faders', 'Menu', 'Chat', 'Setup', 'Layout' }) do
+        local shared = ns[module]
+        if type(shared) == 'table' and shared[name] ~= nil then return shared[name] end
+    end
     error('Missing helper: ' .. name)
 end
 
-local ns = {}
-assert(loadfile('Chat.lua'))('QuietUI', ns)
+dofile('tests/addon.lua')('Chat.lua', ns)
 local layout = upvalue(ns.UpdateChat, 'LayoutFrame')
 local size = upvalue(layout, 'SizeBubble')
 local makeLink = upvalue(upvalue(size, 'PlaceLinks'), 'MakeLink')

@@ -11,7 +11,7 @@ ns.LayoutInterfaceStyle = function(ref)
 end
 ns.CancelLayoutPreview = function() canceled = canceled + 1 end
 ns.ApplyAll = function() applied = applied + 1 end
-assert(loadfile('Presets.lua'))('QuietUI', ns)
+dofile('tests/addon.lua')('Presets.lua', ns)
 local keyboard = ns.SavePreset(nil, 'Keyboard', { layoutName = 'QuietUI', layoutType = 1 }, { chat = false })
 mode = 1
 local gamepad = ns.SavePreset(nil, 'Test A', { builtin = 3 }, { chatFade = 0 })

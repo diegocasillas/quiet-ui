@@ -7,13 +7,19 @@ local function test(name, run)
     if not ok then failures = failures + 1 end
 end
 local function loadAddon(file, ns)
-    assert(loadfile(file))('QuietUI', ns)
+    _G.__ns = ns -- the helpers below look shared functions up on its feature tables
+    dofile('tests/addon.lua')(file, ns)
 end
 local function upvalue(fn, name)
     for i = 1, 100 do
         local key, value = debug.getupvalue(fn, i)
         if key == name then return value end
         if not key then break end
+    end
+    -- Shared helpers now live on the feature tables (ns.Chat, ns.Faders, ...).
+    for _, module in ipairs({ 'Core', 'Bars', 'Faders', 'Menu', 'Chat', 'Setup', 'Layout' }) do
+        local shared = _G.__ns[module]
+        if type(shared) == 'table' and shared[name] ~= nil then return shared[name] end
     end
     error('Missing helper: ' .. name)
 end
@@ -144,6 +150,10 @@ test('Chat verifies wrapped history and resized bubbles before going idle', func
             local key = debug.getupvalue(fn, i)
             if key == name then debug.setupvalue(fn, i, value); return end
             if not key then break end
+        end
+        for _, module in ipairs({ 'Core', 'Bars', 'Faders', 'Menu', 'Chat', 'Setup', 'Layout' }) do
+            local shared = ns[module]
+            if type(shared) == 'table' and shared[name] ~= nil then shared[name] = value; return end
         end
         error('Missing helper: ' .. name)
     end
@@ -327,6 +337,8 @@ test('Always visible debuffs override the shared power alpha curve', function()
         if name == 'EvalPower' then debug.setupvalue(update, i, function() return 0.25 end) end
         if not name then break end
     end
+    ns.Faders.RestingPower = function() return 0 end
+    ns.Faders.EvalPower = function() return 0.25 end
     BuffFrame, DebuffFrame = frame(UIParent), frame(UIParent)
     ns.FindFaders(false)
     update(1)
