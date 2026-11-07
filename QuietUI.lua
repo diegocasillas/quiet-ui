@@ -516,6 +516,7 @@ HookGlobal("UpdateMicroButtons", function() ns.RefreshChrome() end)
 HookGlobal("FCF_SetWindowAlpha", function(frame) ns.RestripChat(frame) end)
 HookGlobal("FCF_SetWindowColor", function(frame) ns.RestripChat(frame) end)
 HookGlobal("FCF_DockUpdate", function() ns.StripAllChat() end)
+HookGlobal("FCF_OpenTemporaryWindow", function() ns.StripAllChat() end)
 
 ------------------------------------------------------------------------------
 -- Press Glance to show the faded HUD. Press again and the rules apply.

@@ -62,8 +62,21 @@ local chromeStripped = false
 local measureWide
 local copyBox
 
+-- Whisper tabs open temporary windows past NUM_CHAT_WINDOWS (ChatFrame11+), listed in
+-- CHAT_FRAMES. The highest one seen is kept, so RestoreChat still reaches a closed one.
+local temporaryMax = 0
+
+local function NoteTemporary()
+    if type(CHAT_FRAMES) ~= "table" then return end
+    for _, name in ipairs(CHAT_FRAMES) do
+        local n = type(name) == "string" and tonumber(name:match("^ChatFrame(%d+)$"))
+        if n and n > temporaryMax then temporaryMax = n end
+    end
+end
+
 local function ChatCount()
-    return NUM_CHAT_WINDOWS or 10
+    local n = NUM_CHAT_WINDOWS or 10
+    return temporaryMax > n and temporaryMax or n
 end
 
 local function StripTab(tab)
@@ -280,8 +293,24 @@ local function StackPlate(edit, focused)
     end
 end
 
+-- The unfocused field is invisible but shown; it lets clicks through to the tabs.
+local function HoldEditMouse(edit, focused)
+    if not edit.EnableMouse then return end
+    if edit._quietMouse == nil and edit.IsMouseEnabled then
+        edit._quietMouse = edit:IsMouseEnabled() and true or false
+    end
+    pcall(edit.EnableMouse, edit, focused and true or false)
+end
+
+local function ReleaseEditMouse(edit)
+    if edit._quietMouse == nil then return end
+    pcall(edit.EnableMouse, edit, edit._quietMouse)
+    edit._quietMouse = nil
+end
+
 local function SyncEdit(edit)
     if not ns.DB().enabled or not ns.ModernChat() then
+        ReleaseEditMouse(edit)
         edit._quietAlpha = nil
         if edit._quietPlate then
             edit._quietPlate._quietAlpha = nil
@@ -291,6 +320,7 @@ local function SyncEdit(edit)
     end
     local focused = edit._quietFocus or (edit.HasFocus and edit:HasFocus())
     edit._quietWant = focused and 1 or 0
+    HoldEditMouse(edit, focused)
     PadEdit(edit)
     HideEditChrome(edit)
     EnsurePlate(edit)
@@ -361,6 +391,7 @@ local function RestoreEdits()
             end
             edit._quietPadded = nil
             edit._quietFocus = nil
+            ReleaseEditMouse(edit)
             ns.ReleaseAlpha(edit)
             if edit._quietHeader then
                 ns.ReleaseAlpha(edit._quietHeader)
@@ -513,6 +544,33 @@ local function ShortChannel(text)
     local short = inner:match("^(%d+)%.%s*%S") or TAG_SHORT[inner]
     if not short then return text end
     return text:sub(1, from - 1) .. short .. text:sub(to)
+end
+
+-- The message a line carries, for copying: no time, channel tag or sender.
+-- Lines without a sender (loot, system, emotes) keep everything after the tag.
+local function MessageBody(text)
+    if type(text) ~= "string" then return "" end
+    local pos = SkipCodes(text, 1)
+    for i = 1, #TIMESTAMPS do
+        local _, e = text:find(TIMESTAMPS[i], pos)
+        if e then
+            pos = SkipCodes(text, e + 1)
+            break
+        end
+    end
+    local _, e = text:find("^|Hchannel:[^|]*|h%[[^%]]*%]|h", pos)
+    if not e then _, e = text:find("^%[[^%]]*%]", pos) end
+    if e then pos = SkipCodes(text, e + 1) end
+    local rest = text:sub(pos)
+    local sender = SkipCodes(rest, (rest:match("^To ()") or 1))
+    _, e = rest:find("^|HB?N?player:.-|h.-|h", sender)
+    if e then
+        -- " says: ", " whispers: " or ": " right after the name, before any other link.
+        local said = rest:match("^[^|:]*:%s*()", SkipCodes(rest, e + 1))
+        local body = said and rest:sub(said)
+        if body and body ~= "" then return body end
+    end
+    return rest
 end
 
 -- "Changed Channel: |Hchannel:%d|h[%s]|h" -> "Changed Channel:".
@@ -1031,7 +1089,7 @@ end
 local function CopyLine(bubble)
     local msg = bubble.msg
     if not msg or msg.secret then return end
-    local text = PlainText(msg.text)
+    local text = PlainText(MessageBody(msg.text))
     if text == "" then return end
     if WriteClipboard(text) then return end
     ShowCopyBox(bubble, text)
@@ -1905,6 +1963,41 @@ local function EaseEdit(edit, elapsed)
     end
 end
 
+-- ChatFrame1 is the dock itself; other windows say so with isDocked.
+local function Docked(window, i)
+    if i == 1 then return true end
+    local d = window and window.isDocked
+    return d == true or (type(d) == "number" and d > 0)
+end
+
+-- A tab click leaves the pointer on the tab row, so the row counts as the chat's hover.
+local function TabRowHot(frame, i)
+    if ns.MouseOver(_G["ChatFrame" .. i .. "Tab"]) then return true end
+    return Docked(frame, i) and ns.MouseOver(GeneralDockManager)
+end
+
+-- Tabs show while the chat or the tab row is hovered, or while a tab flashes for new messages.
+local function TabAlerting(tab)
+    if tab.alerting then return true end
+    local glow = tab.glow
+    return glow and glow.IsShown and glow:IsShown() and true or false
+end
+
+local function FadeTabs(elapsed)
+    local hot = ns.MouseOver(GeneralDockManager)
+    for i = 1, ChatCount() do
+        local frame = _G["ChatFrame" .. i]
+        if frame and frame._quietHover then hot = true end
+    end
+    for i = 1, ChatCount() do
+        local tab = _G["ChatFrame" .. i .. "Tab"]
+        if tab and ns.Usable(tab) then
+            ns.NoteChat(tab)
+            ns.EaseAlpha(tab, hot or ns.MouseOver(tab) or TabAlerting(tab), elapsed)
+        end
+    end
+end
+
 function ns.UpdateChat(elapsed)
     if not ns.DB().enabled or not ns.ModernChat() then return end
     local now = GetTime()
@@ -1926,7 +2019,7 @@ function ns.UpdateChat(elapsed)
                     PlaceCatcher(frame)
                     frame._quietCatcherAt = now + 0.1
                 end
-                local hot = FrameHot(frame)
+                local hot = FrameHot(frame) or TabRowHot(frame, i)
                 if hot ~= frame._quietHover then
                     frame._quietHover = hot
                     frame._quietDirty = true
@@ -1938,9 +2031,19 @@ function ns.UpdateChat(elapsed)
             end
         end
     end
+    FadeTabs(elapsed)
+end
+
+-- Tabs keep Blizzard's own points above the chat; only their alpha is ours.
+local function RestoreTabs()
+    for i = 1, ChatCount() do
+        local tab = _G["ChatFrame" .. i .. "Tab"]
+        if tab and tab._quietAlpha ~= nil then ns.ReleaseAlpha(tab) end
+    end
 end
 
 function ns.RestoreChat()
+    RestoreTabs()
     HideCopyBox()
     RestoreEdits()
     ns.ReleaseChatHold()
@@ -2011,6 +2114,7 @@ function ns.StripAllChat(force)
     stripping = true
     ns.MarkingChat = true
     if force then chromeStripped = false end
+    NoteTemporary()
     local ok, err = pcall(function()
         for i = 1, ChatCount() do
             local frame = _G["ChatFrame" .. i]
@@ -2032,7 +2136,7 @@ function ns.StripAllChat(force)
 end
 
 -- Blizzard rewrote one window's alpha or color; strip only that window.
--- Only windows UpdateChat and RestoreChat walk; a temporary window stays native.
+-- Only windows UpdateChat and RestoreChat walk.
 local function OwnChatFrame(frame)
     for i = 1, ChatCount() do
         if _G["ChatFrame" .. i] == frame then return true end
