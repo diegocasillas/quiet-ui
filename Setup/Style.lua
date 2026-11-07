@@ -13,7 +13,6 @@ local ROWS = {
     { key = "resource", label = "Personal resource" },
     { key = "quests", label = "Quest tracker" },
     { key = "auras", label = "Buffs and debuffs" },
-    { key = "menu", label = "Bag button" },
     { key = "micro", label = "Micro menu" },
     { key = "raid manager", label = "Raid manager" },
 }

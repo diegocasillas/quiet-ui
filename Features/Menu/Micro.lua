@@ -99,7 +99,6 @@ function ns.RefreshChrome()
                 frame._quietChrome = true
             end
         end
-        Menu.EnsureButton()
     end)
     Menu.refreshing = false
     if not ok then ns.Report("menu", err) end
@@ -184,8 +183,14 @@ local function PlaceMicroCatcher()
     if not box:IsShown() then box:Show() end
 end
 
+-- The bag bar sits beside the micro menu and fades with it.
 local function MicroHot()
     if microCatcher and ns.Hit(microCatcher) then return true end
+    local bagHot = false
+    ns.EachBagFrame(function(frame)
+        if not bagHot and ns.Hit(frame) then bagHot = true end
+    end)
+    if bagHot then return true end
     local list = MicroList()
     for i = 1, #list do
         if ns.Hit(list[i]) then return true end
@@ -201,20 +206,20 @@ local function UpdateMicro(elapsed)
     for i = 1, #list do
         if ns.Usable(list[i]) then ns.UpdateFaded(list[i], show, elapsed) end
     end
+    -- The bag bar carries the backpack and its slots. An item on the cursor shows
+    -- it so a bag can take the item.
+    local bags = _G.BagsBar
+    if ns.Usable(bags) then
+        ns.UpdateFaded(bags, show or ns.BagsShouldShow(), elapsed)
+    end
 end
 
--- Hover, bag slots, a drag, or Glance on keeps the button up. Setup can pin it on.
+-- Hover, edit mode, or Glance shows the micro menu and the bag bar. Setup can pin them on.
 function ns.UpdateMenuButton(elapsed)
     UpdateMicro(elapsed)
-    if not Menu.button or not Menu.button:IsShown() then return end
-    local show = ns.VisibilityShow("menu", false, ns.Hit(Menu.button))
-        or Menu.button._moved or ns.BagsShouldShow()
-    ns.UpdateFaded(Menu.button, show, elapsed)
 end
 
 function ns.ResetMenu()
-    Menu.bagSlotsPinned = false
-    Menu.shownSlots = nil
     local function clear(name)
         local frame = _G[name]
         if frame then frame._quietChrome = nil end
@@ -238,9 +243,5 @@ function ns.ResetMenu()
         microCatcher:Hide()
         microCatcher._quietA, microCatcher._quietB = nil, nil
     end
-    if Menu.button then Menu.button:Hide() end
     BuildMicroButtons()
-    ns.EachBagFrame(function(frame)
-        Menu.SetBagInput(frame, true)
-    end)
 end

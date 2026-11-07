@@ -18,8 +18,8 @@ what stays visible, with personal settings or shared presets across characters.
 - **Chat without the chrome.** Messages appear in dark bubbles and fade after
   10 seconds by default. Hover to see faded lines, scroll through history, or copy
   a message. Enter works as usual.
-- **One bag button.** Left click opens bags, right click reveals bag slots, and
-  dragging moves the button.
+- **Bags with the micro menu.** The native bag bar (backpack and bag slots) fades
+  in and out with the micro menu, and shows while you hold an item.
 - **Glance.** Press `` ` `` to reveal the faded HUD at once. Press again to return
   to your usual visibility rules. Chat stays unchanged.
 
@@ -131,8 +131,7 @@ enabling or disabling QuietUI leaves your active layout alone.
 groups, target rules, low resources, XP rewards, and post-combat meter time.
 For buffs and debuffs it also overrides aura grouping and **Always show debuffs**.
 Glance and Edit Mode still reveal these elements. Bars and XP also stay up with
-an open spell flyout or an item on the cursor; the bag button stays up while
-its slots are open, while dragging, or with an item on the cursor.
+an open spell flyout or an item on the cursor.
 Cooldowns, the meter, and the resource bar gain hover detection in this mode.
 Existing Action bars and Swing timer pins move to group settings automatically;
 mixed groups are split when needed to preserve which bars stay visible.
@@ -159,7 +158,7 @@ arranging it. Elements appear immediately and fade out over 0.3 seconds.
   default and also reveals them with the enabled player frame. **Always show debuffs**
   keeps debuffs visible by default; turn it off to apply these fade rules to them.
 - **Quest tracker and micro menu:** Hover across their whole area, including gaps.
-- **Bag button:** Hover, open bag slots, an item on the cursor, or dragging.
+  The bag bar follows the micro menu, and an item on the cursor shows it.
 
 In range needs a visible target nameplate and a living target. It stays off during
 combat, in vehicles and instances, in Edit Mode, with a spell flyout or item on the
