@@ -5,7 +5,6 @@ local ADDON, ns = ...
 local booted = false
 local hookedGlobal = {}
 local chromeAcc = 0
-local glancing = false
 local layoutPending = nil
 local layoutChosen = false
 local presetCheckPending = false
@@ -130,7 +129,7 @@ end
 local function RestoreAll()
     if ns.HideHoverCatchers then ns.HideHoverCatchers() end
     if ns.CancelLayoutPreview then ns.CancelLayoutPreview() end
-    glancing = false
+    ns.ClearGlance()
     ns.HideQuestCatcher()
     ns.HideRangeMark()
     -- Target and action bar events stop while off.
@@ -219,26 +218,6 @@ function ns.RequestRescan()
     C_Timer.After(0, RunRescan)
 end
 
--- A default on the header binding is stored as HEADER_QUIETUI, so ` does nothing.
--- Take that key, or a free `, for QUIETUI_GLANCE. Leave any other action alone.
-local function EnsureGlanceBinding()
-    if type(GetBindingKey) ~= "function" or type(SetBinding) ~= "function" then return end
-    if type(GetBindingAction) ~= "function" then return end
-    if InCombatLockdown and InCombatLockdown() then return end
-    local ok, existing = pcall(GetBindingKey, "QUIETUI_GLANCE")
-    if ok and type(existing) == "string" and existing ~= "" then return end
-    local actionOk, action = pcall(GetBindingAction, "`")
-    if not actionOk or type(action) ~= "string" then return end
-    if action ~= "" and action ~= "HEADER_QUIETUI" then return end
-    local setOk, bound = pcall(SetBinding, "`", "QUIETUI_GLANCE")
-    if not setOk or not bound then return end
-    if type(SaveBindings) ~= "function" or type(GetCurrentBindingSet) ~= "function" then return end
-    local setOk2, set = pcall(GetCurrentBindingSet)
-    if setOk2 and type(set) == "number" then
-        pcall(SaveBindings, set)
-    end
-end
-
 local function Boot()
     local first = not booted
     booted = true
@@ -252,7 +231,7 @@ local function Boot()
         print("   |cffffffff/quiet setup|r  choose what stays visible")
     end
     Rescan()
-    EnsureGlanceBinding()
+    ns.EnsureGlanceBinding()
     ns.EnsureMinimap()
     if first and ns.DB().enabled then
         settleArmed = true
@@ -517,26 +496,6 @@ HookGlobal("FCF_SetWindowAlpha", function(frame) ns.RestripChat(frame) end)
 HookGlobal("FCF_SetWindowColor", function(frame) ns.RestripChat(frame) end)
 HookGlobal("FCF_DockUpdate", function() ns.StripAllChat() end)
 HookGlobal("FCF_OpenTemporaryWindow", function() ns.StripAllChat() end)
-
-------------------------------------------------------------------------------
--- Press Glance to show the faded HUD. Press again and the rules apply.
--- The binding system calls a global; down and up both arrive.
-------------------------------------------------------------------------------
-BINDING_CATEGORY_QUIETUI = "QuietUI"
-BINDING_NAME_QUIETUI_GLANCE = "Glance"
-
-function ns.ToggleGlance()
-    if not ns.DB().enabled then return end
-    glancing = not glancing
-end
-
-function QuietUIGlance(keystate)
-    if keystate == "down" then ns.ToggleGlance() end
-end
-
-function ns.Glancing()
-    return glancing
-end
 
 ------------------------------------------------------------------------------
 -- /quiet on | off | setup | glance | preset, no argument toggles.

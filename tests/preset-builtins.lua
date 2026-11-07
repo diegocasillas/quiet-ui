@@ -21,8 +21,8 @@ C_EditMode = {
     SaveLayouts = function() end,
     ConvertStringToLayoutInfo = function() return {} end,
 }
-assert(loadfile('Presets.lua'))('QuietUI', ns)
-assert(loadfile('Layout.lua'))('QuietUI', ns)
+dofile('tests/addon.lua')('Presets.lua', ns)
+dofile('tests/addon.lua')('Layout.lua', ns)
 assert(ns.LayoutChoices()[3].name == 'Controller', 'Read the actual name of the third built-in layout')
 local id = ns.SavePreset(nil, 'Test A', { builtin = 3 }, { chat = false })
 ns.ActivatePreset(id)

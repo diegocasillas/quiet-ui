@@ -1,0 +1,35 @@
+-- Loads one of the old single-file names as its group of files, in toc order.
+-- Usage in a test: dofile('tests/addon.lua')('Bars.lua', ns [, root])
+local GROUPS = {
+    ['Core.lua'] = { 'Core/Base.lua', 'Core/Hover.lua', 'Core/Alpha.lua', 'Core/Fade.lua',
+        'Core/Textures.lua', 'Core/Restore.lua' },
+    ['Frames.lua'] = { 'Core/Frames.lua' },
+    ['Presets.lua'] = { 'Settings/Presets.lua' },
+    ['Bars.lua'] = { 'Core/World.lua', 'Settings/Groups.lua', 'Features/Bars/Frames.lua',
+        'Features/Bars/Ownership.lua', 'Features/Bars/Buttons.lua', 'Features/Bars/Catchers.lua',
+        'Features/Bars/Swing.lua', 'Features/Bars/Fade.lua' },
+    ['Faders.lua'] = { 'Features/Faders/Discovery.lua', 'Features/Faders/Visible.lua',
+        'Features/Faders/Curves.lua', 'Features/Faders/Resource.lua', 'Features/Faders/Player.lua',
+        'Features/Faders/Party.lua', 'Features/Faders/Auras.lua', 'Features/Faders/Quest.lua',
+        'Features/Faders/Smooth.lua', 'Features/Faders/Range.lua', 'Features/Faders/RangeMark.lua' },
+    ['Menu.lua'] = { 'Features/Menu/Bags.lua', 'Features/Menu/Micro.lua' },
+    ['Chat.lua'] = { 'Features/Chat/Base.lua', 'Features/Chat/Input.lua', 'Features/Chat/Scroll.lua',
+        'Features/Chat/Lines.lua', 'Features/Chat/Text.lua', 'Features/Chat/Links.lua',
+        'Features/Chat/Copy.lua', 'Features/Chat/Bubbles.lua', 'Features/Chat/Pool.lua',
+        'Features/Chat/Layout.lua', 'Features/Chat/Tabs.lua', 'Features/Chat/Update.lua',
+        'Features/Chat/Strip.lua' },
+    ['Layout.lua'] = { 'Layout/Layouts.lua', 'Layout/Preview.lua', 'Layout/Select.lua',
+        'Layout/Prompt.lua' },
+    ['LayoutString.lua'] = { 'Layout/String.lua' },
+    ['Setup.lua'] = { 'Settings/Getters.lua', 'Setup/Style.lua', 'Setup/Paint.lua', 'Setup/Draft.lua',
+        'Setup/Widgets.lua', 'Setup/Window.lua', 'Setup/Minimap.lua' },
+    ['QuietUI.lua'] = { 'Features/Glance/Binding.lua', 'Features/Glance/Glance.lua', 'QuietUI.lua' },
+}
+
+return function(file, ns, root)
+    local files = GROUPS[file]
+    assert(files, 'Unknown addon file ' .. tostring(file))
+    for _, path in ipairs(files) do
+        assert(loadfile((root or '.') .. '/' .. path))('QuietUI', ns)
+    end
+end
