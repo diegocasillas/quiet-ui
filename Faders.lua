@@ -748,14 +748,21 @@ local function PlaceQuestCatcher()
         box:ClearAllPoints()
         box:SetAllPoints(target)
         questCatcherTarget = target
+        -- SetParent can move strata and level, so write them again.
+        box._quietStrata, box._quietLevel = nil, nil
     end
     local strata = target.GetFrameStrata and target:GetFrameStrata()
-    if type(strata) == "string" then
+    if type(strata) == "string" and not ns.IsSecret(strata) and box._quietStrata ~= strata then
         box:SetFrameStrata(strata)
+        box._quietStrata = strata
     end
     local level = target.GetFrameLevel and target:GetFrameLevel() or 1
-    if type(level) ~= "number" then level = 1 end
-    box:SetFrameLevel(math.max(level - 1, 0))
+    if type(level) ~= "number" or ns.IsSecret(level) then level = 1 end
+    level = math.max(level - 1, 0)
+    if box._quietLevel ~= level then
+        box:SetFrameLevel(level)
+        box._quietLevel = level
+    end
     if not box:IsShown() then box:Show() end
 end
 
@@ -785,7 +792,9 @@ end
 -- A green gradient over the target nameplate health bar. A flat tint turns the red bar grey. Secret results are left as they were.
 -- Strong on the left, fading out to the right, so the health bar still reads.
 local rangeMark
-local rangeSlot = { at = -1, helpful = nil, slot = nil }
+local rangeSlot = { at = nil, helpful = nil, slot = nil }
+-- Bar 1 changes come as events; the timer only covers a missed one.
+local SLOT_FALLBACK = 5
 
 local function PlainNumber(value)
     return type(value) == "number" and not ns.IsSecret(value)
@@ -874,7 +883,7 @@ end
 -- Bar 1 changes rarely, so the chosen spell is cached. Distance is read every frame.
 local function CachedSlot(helpful)
     local now = type(GetTime) == "function" and GetTime() or 0
-    if rangeSlot.helpful == helpful and now - rangeSlot.at < 0.25 then
+    if rangeSlot.at and rangeSlot.helpful == helpful and now - rangeSlot.at < SLOT_FALLBACK then
         return rangeSlot.slot
     end
     local slot = BestSlot(helpful)
@@ -1081,6 +1090,21 @@ local function TightestBar(root)
     return best
 end
 
+function ns.ForgetRangeSlot()
+    rangeSlot.at = nil
+end
+
+-- The last found bar, kept while the target keeps the same plate.
+local cachedPlate, cachedUnit, cachedBar
+
+function ns.ForgetRangePlate()
+    cachedPlate, cachedUnit, cachedBar = nil, nil, nil
+end
+
+local function PlateUnit(plate)
+    return plate.UnitFrame or plate.unitFrame or plate
+end
+
 local function TargetPlate()
     local finder = C_NamePlate and C_NamePlate.GetNamePlateForUnit
     if type(finder) ~= "function" then finder = GetNamePlateForUnit end
@@ -1090,7 +1114,11 @@ local function TargetPlate()
     end
     local ok, plate = pcall(finder, "target")
     if not ok or not ns.Usable(plate) then return nil end
-    local unitOk, unit = pcall(function() return plate.UnitFrame or plate.unitFrame or plate end)
+    if cachedBar and cachedPlate == plate and ShownBox(cachedUnit) and ShownBox(cachedBar) then
+        return cachedBar, plate
+    end
+    cachedPlate, cachedUnit, cachedBar = nil, nil, nil
+    local unitOk, unit = pcall(PlateUnit, plate)
     if not unitOk or not ShownBox(unit) then return nil end
     local namedOk, named = pcall(function()
         return unit.healthBar or unit.HealthBar or unit.HealthBarsContainer
@@ -1105,6 +1133,7 @@ local function TargetPlate()
     end
     bar = bar or TightestBar(unit)
     if not bar then return nil end
+    cachedPlate, cachedUnit, cachedBar = plate, unit, bar
     return bar, plate
 end
 

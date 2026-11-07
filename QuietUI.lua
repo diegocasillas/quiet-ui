@@ -12,6 +12,9 @@ local presetCheckPending = false
 local finishingLayout = false
 local settleUntil = 0
 local settleToken = 0
+local settleArmed = false
+local rescanPending = false
+local rescanMissed = false
 local cpuProfile
 
 local function StartCPUProfile()
@@ -130,6 +133,9 @@ local function RestoreAll()
     glancing = false
     ns.HideQuestCatcher()
     ns.HideRangeMark()
+    -- Target and action bar events stop while off.
+    if ns.ForgetRangeSlot then ns.ForgetRangeSlot() end
+    if ns.ForgetRangePlate then ns.ForgetRangePlate() end
     ns.HideBarCatchers()
     ns.ResetMenu()
     ns.RestoreChat()
@@ -190,6 +196,29 @@ local function Rescan()
     ApplyAll()
 end
 
+local function RunRescan()
+    rescanPending = false
+    if not booted or not ns.DB().enabled then return end
+    Run("rescan", Rescan)
+end
+
+-- Events coalesce into at most one rescan per frame.
+function ns.RequestRescan()
+    if not ns.DB().enabled then
+        -- Catch up on enable; frames may have loaded meanwhile.
+        rescanMissed = true
+        return
+    end
+    if rescanPending then return end
+    rescanMissed = false
+    if not (C_Timer and C_Timer.After) then
+        RunRescan()
+        return
+    end
+    rescanPending = true
+    C_Timer.After(0, RunRescan)
+end
+
 -- A default on the header binding is stored as HEADER_QUIETUI, so ` does nothing.
 -- Take that key, or a free `, for QUIETUI_GLANCE. Leave any other action alone.
 local function EnsureGlanceBinding()
@@ -226,6 +255,7 @@ local function Boot()
     EnsureGlanceBinding()
     ns.EnsureMinimap()
     if first and ns.DB().enabled then
+        settleArmed = true
         ArmLayoutSettle()
     end
     if first and C_Timer and C_Timer.After then
@@ -256,8 +286,8 @@ local handlers = {}
 function handlers.ADDON_LOADED(name)
     if name == ADDON then
         ns.DB()
-    elseif booted and ns.DB().enabled then
-        Rescan()
+    elseif booted then
+        ns.RequestRescan()
     end
 end
 
@@ -268,8 +298,14 @@ end
 
 function handlers.PLAYER_ENTERING_WORLD(isInitialLogin, isReloading)
     ns.DB()
-    Boot()
-    if ns.DB().enabled and (isInitialLogin or isReloading) then
+    if booted then
+        ns.RequestRescan()
+    else
+        Boot()
+    end
+    -- Boot usually armed it already; arm once if it was skipped.
+    if ns.DB().enabled and (isInitialLogin or isReloading) and not settleArmed then
+        settleArmed = true
         ArmLayoutSettle()
     end
 end
@@ -312,7 +348,18 @@ end
 
 function handlers.PLAYER_TARGET_CHANGED()
     ns.RefreshWorld()
+    ns.ForgetRangePlate()
 end
+
+function handlers.NAME_PLATE_UNIT_REMOVED()
+    ns.ForgetRangePlate()
+end
+
+function handlers.ACTIONBAR_SLOT_CHANGED()
+    ns.ForgetRangeSlot()
+end
+
+handlers.SPELLS_CHANGED = handlers.ACTIONBAR_SLOT_CHANGED
 
 function handlers.UNIT_FLAGS(unit)
     if unit == "target" then ns.RefreshWorld() end
@@ -364,10 +411,6 @@ function ns.PointerMoved()
     return pointerMoved
 end
 
-local function FlyoutShown()
-    return SpellFlyout and SpellFlyout.IsShown and SpellFlyout:IsShown() and true or false
-end
-
 events:SetScript("OnEvent", function(_, event, ...)
     if booted and (event == "PLAYER_REGEN_ENABLED" or event == "EDIT_MODE_LAYOUTS_UPDATED") then
         Run("layout", FinishLayout)
@@ -392,7 +435,7 @@ events:SetScript("OnUpdate", function(_, elapsed)
         return
     end
     elapsed = elapsed or 0
-    local flyout = FlyoutShown()
+    local flyout = ns.FlyoutOpen and ns.FlyoutOpen() and true or false
     local glance = ns.Glancing() and true or false
     local moved = PointerMoved()
     local hud = ns.ConsumeHud()
@@ -468,10 +511,11 @@ for eventName in pairs(handlers) do
     pcall(events.RegisterEvent, events, eventName)
 end
 
-HookGlobal("UpdateMicroButtons", ns.RefreshChrome)
-HookGlobal("FCF_SetWindowAlpha", ns.StripAllChat)
-HookGlobal("FCF_SetWindowColor", ns.StripAllChat)
-HookGlobal("FCF_DockUpdate", ns.StripAllChat)
+-- Hooked arguments are not ours to forward, except the chat frame.
+HookGlobal("UpdateMicroButtons", function() ns.RefreshChrome() end)
+HookGlobal("FCF_SetWindowAlpha", function(frame) ns.RestripChat(frame) end)
+HookGlobal("FCF_SetWindowColor", function(frame) ns.RestripChat(frame) end)
+HookGlobal("FCF_DockUpdate", function() ns.StripAllChat() end)
 
 ------------------------------------------------------------------------------
 -- Press Glance to show the faded HUD. Press again and the rules apply.
@@ -527,7 +571,12 @@ SlashCmdList["QUIETUI"] = function(msg)
         db.enabled = not db.enabled
     end
     if booted then
-        if db.enabled then ApplyAll() else RestoreAll() end
+        if db.enabled then
+            ApplyAll()
+            if rescanMissed then ns.RequestRescan() end
+        else
+            RestoreAll()
+        end
     end
     ns.Print(db.enabled and "enabled" or "disabled")
 end
