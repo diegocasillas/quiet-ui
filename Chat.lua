@@ -66,16 +66,6 @@ local function ChatCount()
     return NUM_CHAT_WINDOWS or 10
 end
 
-local function Wipe(t)
-    if type(wipe) == "function" then
-        wipe(t)
-        return
-    end
-    for k in pairs(t) do
-        t[k] = nil
-    end
-end
-
 local function StripTab(tab)
     if not tab or not ns.DB().enabled or not ns.ModernChat() then return end
     local marked = ns.MarkingChat
@@ -484,13 +474,45 @@ local CHAT_TAGS = {
     { "Raid", "R" },
 }
 
--- [2. Trade - English] becomes [2], [Guild] becomes [G].
-local function ShortChannel(text)
-    text = text:gsub("%[(%d+)%.%s*[^%]]+%]", "[%1]")
-    for i = 1, #CHAT_TAGS do
-        text = text:gsub("%[" .. CHAT_TAGS[i][1] .. "%]", "[" .. CHAT_TAGS[i][2] .. "]")
+local TAG_SHORT = {}
+for i = 1, #CHAT_TAGS do
+    TAG_SHORT[CHAT_TAGS[i][1]] = CHAT_TAGS[i][2]
+end
+
+local TIMESTAMPS = {
+    "^%[%d%d?:%d%d:?%d*%s?[AaPp]?[Mm]?%]%s*",
+    "^%d%d?:%d%d:?%d*%s?[AaPp]?[Mm]?%s+",
+}
+
+local function SkipCodes(text, pos)
+    while true do
+        local _, e = text:find("^|c%x%x%x%x%x%x%x%x", pos)
+        if not e then _, e = text:find("^|r", pos) end
+        if not e then _, e = text:find("^%s+", pos) end
+        if not e then return pos end
+        pos = e + 1
     end
-    return text
+end
+
+-- Only the channel tag that opens the line: [2. Trade - English] becomes [2],
+-- [Guild] becomes [G]. Brackets inside the message stay as typed.
+local function ShortChannel(text)
+    if not text:find("[", 1, true) then return text end
+    local pos = SkipCodes(text, 1)
+    for i = 1, #TIMESTAMPS do
+        local _, e = text:find(TIMESTAMPS[i], pos)
+        if e then
+            pos = SkipCodes(text, e + 1)
+            break
+        end
+    end
+    local from, to = text:match("^|Hchannel:[^|]*|h%[()[^%]]*()%]|h", pos)
+    if not from then from, to = text:match("^%[()[^%]]*()%]", pos) end
+    if not from then return text end
+    local inner = text:sub(from, to - 1)
+    local short = inner:match("^(%d+)%.%s*%S") or TAG_SHORT[inner]
+    if not short then return text end
+    return text:sub(1, from - 1) .. short .. text:sub(to)
 end
 
 -- "Changed Channel: |Hchannel:%d|h[%s]|h" -> "Changed Channel:".
@@ -570,9 +592,15 @@ local function PushLine(frame, text, r, g, b, animate)
     -- Always the newest entry. The client sometimes passes addToStart, which
     -- would pin a new line to the top of this stack.
     lines[#lines + 1] = entry
-    local cap = MaxLines(frame)
-    while #lines > cap do
-        table.remove(lines, 1)
+    local n = #lines
+    local over = n - MaxLines(frame)
+    if over > 0 then
+        for i = 1, n - over do
+            lines[i] = lines[i + over]
+        end
+        for i = n - over + 1, n do
+            lines[i] = nil
+        end
     end
     frame._quietDirty = true
 end
@@ -637,9 +665,42 @@ local function RepairTinyFont(frame)
     pcall(frame.SetFont, frame, font or "Fonts\\FRIZQT__.TTF", 14, flags or "")
 end
 
-local function HideNativeText(frame)
+local function ShapeCount(obj)
+    local regions = obj.GetNumRegions and obj:GetNumRegions()
+    local children = obj.GetNumChildren and obj:GetNumChildren()
+    if type(regions) ~= "number" or type(children) ~= "number" then return nil end
+    if ns.IsSecret(regions) or ns.IsSecret(children) then return nil end
+    return regions + children
+end
+
+-- Regions and children of the frame and its direct children. Nil means unknown.
+local function TextSignature(frame, children)
+    local sum = ShapeCount(frame)
+    if not sum then return nil end
+    for i = 1, #children do
+        local child = children[i]
+        if ns.Usable(child) then
+            local count = ShapeCount(child)
+            if not count then return nil end
+            sum = sum + count
+        end
+    end
+    return sum
+end
+
+local function HideNativeText(frame, force)
     if not ns.DB().enabled or not ns.ModernChat() then return end
-    local function walk(obj, depth)
+    if Forbidden(frame) then return end
+    -- The root child list is read once and shared by the signature and the walk.
+    local okKids, rootKids = pcall(function()
+        return frame.GetChildren and { frame:GetChildren() } or {}
+    end)
+    if not okKids then rootKids = {} end
+    local okSig, sig = pcall(TextSignature, frame, rootKids)
+    if not okSig then sig = nil end
+    if not force and sig ~= nil and sig == frame._quietTextSig then return end
+    frame._quietTextSig = sig
+    local function walk(obj, depth, kids)
         if not obj or depth > 5 or Forbidden(obj) then return end
         if obj.GetNumRegions then
             local regions = { obj:GetRegions() }
@@ -651,7 +712,7 @@ local function HideNativeText(frame)
             end
         end
         if not obj.GetNumChildren then return end
-        local children = { obj:GetChildren() }
+        local children = kids or { obj:GetChildren() }
         for i = 1, #children do
             local child = children[i]
             if ns.Usable(child) and not SkipChild(child) then
@@ -659,7 +720,7 @@ local function HideNativeText(frame)
             end
         end
     end
-    pcall(walk, frame, 0)
+    pcall(walk, frame, 0, rootKids)
 end
 
 local function RestoreFonts(frame)
@@ -1123,10 +1184,11 @@ local function ApplyFont(bubble, chat)
 end
 
 local function SizeBubble(bubble, msg, maxW)
-    local font, size = bubble.text:GetFont()
+    local font, size, flags = bubble.text:GetFont()
     -- A secret string cannot be concatenated into the cache key.
     local tail = msg.secret and tostring(msg) or (msg.text or "")
-    local key = tostring(font) .. ":" .. tostring(size) .. ":" .. math.floor(maxW) .. ":" .. tail
+    local fontKey = tostring(font) .. ":" .. tostring(size) .. ":" .. tostring(flags)
+    local key = fontKey .. ":" .. math.floor(maxW) .. ":" .. tail
     if bubble._quietSizeKey == key and bubble.h then
         return bubble.h
     end
@@ -1161,11 +1223,15 @@ local function SizeBubble(bubble, msg, maxW)
         return bubble.h
     end
     local text = msg.text or ""
-    local wide = UnboundedWidth(bubble.text, text)
-    if wide > 0 then
-        msg.wide = wide
-    elseif type(msg.wide) == "number" then
-        wide = msg.wide
+    local wide = msg.wide
+    if msg._quietWidthFont ~= fontKey or msg._quietWidthText ~= text or not wide or wide <= 0 then
+        wide = UnboundedWidth(bubble.text, text)
+        if wide > 0 then
+            msg.wide = wide
+            msg._quietWidthFont, msg._quietWidthText = fontKey, text
+        elseif msg._quietWidthFont == fontKey and msg._quietWidthText == text then
+            wide = msg.wide or 0
+        end
     end
     -- A width that matches the text exactly still wraps the last word.
     local SLACK = 8
@@ -1284,9 +1350,9 @@ local function SettleHot(bubble)
     end
 end
 
-local function SlideX(msg)
+local function SlideX(msg, now)
     if not msg.slide then return 0 end
-    local age = GetTime() - msg.slide
+    local age = now - msg.slide
     if age < 0 or age >= SLIDE_TIME then return 0 end
     local t = age / SLIDE_TIME
     local k = 1 - (1 - t) * (1 - t)
@@ -1301,10 +1367,9 @@ local function ChatLife()
 end
 
 -- 0 hides the line. The last half second fades it. A missing interval stays at 10.
-local function LineAlpha(msg)
-    local life = ChatLife()
+local function LineAlpha(msg, life, now)
     if life <= 0 or not msg.born then return 1 end
-    local left = life - (GetTime() - msg.born)
+    local left = life - (now - msg.born)
     if left <= 0 then return 0 end
     if left >= FADE_OUT then return 1 end
     return left / FADE_OUT
@@ -1375,15 +1440,26 @@ local function PlaceCatcher(frame)
 end
 
 -- The block, a bubble, or the copy icon. The copy box alone does not count.
+-- A still pointer does not need another pass over every bubble.
 local function FrameHot(frame)
     local box = frame._quietCatcher
     if box and box:IsShown() and ns.Hit(box) then return true end
     local byMsg = frame._quietByMsg
     if not byMsg then return false end
-    for _, bubble in pairs(byMsg) do
-        if bubble._quietHot or (bubble:IsShown() and ns.MouseOver(bubble)) then
-            return true
+    local moved = not ns.PointerMoved or ns.PointerMoved()
+    if not moved then
+        local anyHot = false
+        for _, bubble in pairs(byMsg) do
+            if bubble._quietHot then
+                anyHot = true
+                break
+            end
         end
+        if not anyHot then return false end
+    end
+    for _, bubble in pairs(byMsg) do
+        local over = bubble:IsShown() and ns.MouseOver(bubble)
+        if bubble._quietHot or over then return true end
     end
     return false
 end
@@ -1412,6 +1488,8 @@ local function ReleaseBubble(frame, bubble)
     bubble._quietPA = nil
     bubble._quietLevel = nil
     bubble._quietFontStamp = nil
+    bubble._quietTargetY = nil
+    bubble._quietPendingAlpha, bubble._quietPendingGoal, bubble._quietPendingHeld = nil, nil, nil
     frame._quietPool[#frame._quietPool + 1] = bubble
 end
 
@@ -1491,6 +1569,12 @@ local function AcquireBubble(frame)
 end
 
 local function HideActive(frame)
+    frame._quietDirty = true
+    frame._quietNext, frame._quietFadeAt, frame._quietLayoutPending = 0, nil, nil
+    local animations = frame._quietAnimations
+    if animations then
+        for i = #animations, 1, -1 do animations[i] = nil end
+    end
     local byMsg = frame._quietByMsg
     if not byMsg then return end
     for msg, bubble in pairs(byMsg) do
@@ -1506,6 +1590,80 @@ local function FontStamp(frame)
         if ok then font, size, flags = f, s, fl end
     end
     return tostring(font) .. "\0" .. tostring(size) .. "\0" .. tostring(flags)
+end
+
+local function BubbleAlpha(known, msg, fading, reveal, life, now, elapsed)
+    local held = known and BubbleHeld(known)
+    local natural = fading and not held and LineAlpha(msg, life, now) or 1
+    local goal = (reveal or held) and 1 or natural
+    local current = known and known._quietPA
+    if type(current) ~= "number" or goal >= current then
+        current = goal
+    elseif current > goal + 0.02 then
+        current = Approach(current, goal, elapsed, FADE_UI)
+    else
+        current = goal
+    end
+    return current, goal, held
+end
+
+local function PaintBubble(frame, bubble, x, y, alpha)
+    if bubble._quietPX ~= x or bubble._quietPY ~= y then
+        bubble:ClearAllPoints()
+        bubble:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", x, y)
+        bubble._quietPX, bubble._quietPY = x, y
+    end
+    if bubble._quietPA ~= alpha then
+        bubble:SetAlpha(alpha)
+        bubble._quietPA = alpha
+    end
+    if not bubble:IsShown() then bubble:Show() end
+end
+
+local function BubbleSchedule(bubble, goal, held, fading, reveal, life, now)
+    local msg = bubble.msg
+    local animated = (msg.slide and now - msg.slide < SLIDE_TIME)
+        or math.abs(bubble._quietPA - goal) > 0.01 or bubble._y ~= bubble._quietTargetY
+    local fadeAt
+    if not reveal and fading and life > 0 and msg.born and not held then
+        local at = msg.born + life - FADE_OUT
+        if now < at - 0.02 then fadeAt = at
+        else animated = true end
+    end
+    return animated, fadeAt
+end
+
+local function AnimateFrame(frame, elapsed, now)
+    local animations = frame._quietAnimations
+    if not animations or #animations == 0 then return false end
+    local fading = frame._quietOffset == 0
+    local reveal = fading and frame._quietHover
+    local life = frame._quietLife
+    local count = #animations
+    -- A disappearing row changes the stack. Decide before moving any other row.
+    for i = 1, count do
+        local bubble = animations[i]
+        local msg = bubble.msg
+        local current, goal, held = BubbleAlpha(bubble, msg, fading, reveal, life, now, elapsed)
+        local sliding = msg.slide and now - msg.slide < SLIDE_TIME
+        if current <= 0.01 and goal <= 0 and not sliding then return false end
+        bubble._quietPendingAlpha, bubble._quietPendingGoal, bubble._quietPendingHeld = current, goal, held
+    end
+    local n, fadeAt = 0, frame._quietFadeAt
+    for i = 1, count do
+        local bubble = animations[i]
+        local current, goal, held = bubble._quietPendingAlpha, bubble._quietPendingGoal, bubble._quietPendingHeld
+        bubble._quietPendingAlpha, bubble._quietPendingGoal, bubble._quietPendingHeld = nil, nil, nil
+        bubble._y = Ease(bubble._y, bubble._quietTargetY, elapsed)
+        PaintBubble(frame, bubble, 4 + SlideX(bubble.msg, now), bubble._y, current)
+        local animated, wake = BubbleSchedule(bubble, goal, held, fading, reveal, life, now)
+        if animated then n = n + 1; animations[n] = bubble end
+        if wake and (not fadeAt or wake < fadeAt) then fadeAt = wake end
+    end
+    for i = n + 1, count do animations[i] = nil end
+    frame._quietFadeAt = fadeAt
+    frame._quietNext = n > 0 and 0 or fadeAt
+    return true
 end
 
 local function LayoutFrame(frame, elapsed)
@@ -1536,6 +1694,8 @@ local function LayoutFrame(frame, elapsed)
         or frame._quietOffset ~= offset or frame._quietLife ~= life
     local due = frame._quietNext == 0 or (type(frame._quietNext) == "number" and frame._quietNext > 0 and now >= frame._quietNext)
     if not restack and not due then return end
+    if not restack and not frame._quietLayoutPending and (not frame._quietFadeAt or now < frame._quietFadeAt)
+        and AnimateFrame(frame, elapsed, now) then return end
     frame._quietDirty = nil
     frame._quietW, frame._quietH = width, height
     frame._quietOffset = offset
@@ -1567,38 +1727,21 @@ local function LayoutFrame(frame, elapsed)
         fontStamp = FontStamp(frame)
         frame._quietFont = fontStamp
     end
-    local nextAt = nil
-    local function sooner(when)
-        if nextAt == 0 then return end
-        if when == 0 or not nextAt or when < nextAt then nextAt = when end
-    end
+    local animations = frame._quietAnimations
+    if not animations then animations = {}; frame._quietAnimations = animations end
+    local animatedN, fadeAt, measure, dropped = 0, nil, false, false
     local guard = 0
     while index >= 1 and guard < 40 do
         guard = guard + 1
         local msg = lines[index]
         local known = byMsg[msg]
-        local held = known and BubbleHeld(known)
-        local natural = 1
-        if fading and not held then
-            natural = LineAlpha(msg)
-        end
-        local goal = (reveal or held) and 1 or natural
-        local current = nil
-        if known and type(known._quietPA) == "number" then
-            current = known._quietPA
-        end
-        if current == nil or goal >= current then
-            current = goal
-        elseif current > goal + 0.02 then
-            current = Approach(current, goal, elapsed, FADE_UI)
-        else
-            current = goal
-        end
+        local current, goal, held = BubbleAlpha(known, msg, fading, reveal, life, now, elapsed)
         local place = true
         local sliding = msg.slide and now - msg.slide < SLIDE_TIME
         if current <= 0.01 and goal <= 0 and not sliding then
             place = false
             if not known then break end
+            dropped = true
         end
         if place then
             local bubble = known or AcquireBubble(frame)
@@ -1622,6 +1765,7 @@ local function LayoutFrame(frame, elapsed)
             stackN = stackN + 1
             stack[stackN] = bubble
             local target = y
+            bubble._quietTargetY = target
             if bubble.msg ~= msg or bubble._y == nil then
                 bubble._y = target
             else
@@ -1629,29 +1773,12 @@ local function LayoutFrame(frame, elapsed)
             end
             bubble.msg = msg
             bubble.chat = frame
-            local x = 4 + SlideX(msg)
-            if bubble._quietPX ~= x or bubble._quietPY ~= bubble._y then
-                bubble:ClearAllPoints()
-                bubble:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", x, bubble._y)
-                bubble._quietPX, bubble._quietPY = x, bubble._y
-            end
-            if bubble._quietPA ~= current then
-                bubble:SetAlpha(current)
-                bubble._quietPA = current
-            end
-            if not bubble:IsShown() then bubble:Show() end
+            PaintBubble(frame, bubble, 4 + SlideX(msg, now), bubble._y, current)
             -- Wrapped text needs a shown frame before its height can be trusted.
-            if not bubble._quietSizeKey then sooner(0) end
-            if sliding or math.abs(current - goal) > 0.01 then sooner(0) end
-            if bubble._y ~= target then sooner(0) end
-            if not reveal and fading and life > 0 and msg.born and not BubbleHeld(bubble) then
-                local fadeAt = msg.born + life - FADE_OUT
-                if now < fadeAt - 0.02 then
-                    sooner(fadeAt)
-                else
-                    sooner(0)
-                end
-            end
+            if not bubble._quietSizeKey then measure = true end
+            local animated, wake = BubbleSchedule(bubble, goal, held, fading, reveal, life, now)
+            if animated then animatedN = animatedN + 1; animations[animatedN] = bubble end
+            if wake and (not fadeAt or wake < fadeAt) then fadeAt = wake end
             y = y + h + GAP
         end
         index = index - 1
@@ -1668,7 +1795,11 @@ local function LayoutFrame(frame, elapsed)
             pcall(bubble.SetFrameLevel, bubble, level)
         end
     end
-    frame._quietNext = nextAt
+    for i = animatedN + 1, #animations do animations[i] = nil end
+    -- Revisit a released history gap before continuing the remaining animations.
+    frame._quietLayoutPending = measure or (dropped and animatedN > 0)
+    frame._quietFadeAt = fadeAt
+    frame._quietNext = (frame._quietLayoutPending or animatedN > 0) and 0 or fadeAt
     for msg, bubble in pairs(byMsg) do
         if not seen[msg] then
             byMsg[msg] = nil
@@ -1746,7 +1877,7 @@ local function BindBubbles(frame)
     if not ok then ns.Report("chat line", err) end
     if type(frame.Clear) == "function" then
         pcall(hooksecurefunc, frame, "Clear", function(self)
-            if self._quietLines then Wipe(self._quietLines) end
+            if self._quietLines then ns.Wipe(self._quietLines) end
             self._quietScroll = 0
             self._quietDirty = true
         end)
@@ -1781,15 +1912,29 @@ function ns.UpdateChat(elapsed)
         EaseEdit(_G["ChatFrame" .. i .. "EditBox"], elapsed)
         local frame = _G["ChatFrame" .. i]
         if frame and frame._quietBubbles then
-            PlaceCatcher(frame)
-            local hot = FrameHot(frame)
-            if hot ~= frame._quietHover then
-                frame._quietHover = hot
-                frame._quietDirty = true
-            end
-            local wake = frame._quietNext
-            if frame._quietDirty or wake == 0 or (type(wake) == "number" and wake > 0 and now >= wake) then
-                LayoutFrame(frame, elapsed)
+            if not ns.Usable(frame) or not frame.IsShown or not frame:IsShown() then
+                if frame._quietShown ~= false then
+                    HideActive(frame)
+                    if frame._quietCatcher then frame._quietCatcher:Hide() end
+                    frame._quietShown, frame._quietHover = false, false
+                    frame._quietCatcherAt = nil
+                end
+            else
+                if frame._quietShown == false then frame._quietDirty = true end
+                -- Anchors follow the chat automatically; only stacking needs a periodic refresh.
+                if frame._quietDirty or not frame._quietCatcherAt or now >= frame._quietCatcherAt then
+                    PlaceCatcher(frame)
+                    frame._quietCatcherAt = now + 0.1
+                end
+                local hot = FrameHot(frame)
+                if hot ~= frame._quietHover then
+                    frame._quietHover = hot
+                    frame._quietDirty = true
+                end
+                local wake = frame._quietNext
+                if frame._quietDirty or wake == 0 or (type(wake) == "number" and wake > 0 and now >= wake) then
+                    LayoutFrame(frame, elapsed)
+                end
             end
         end
     end
@@ -1805,6 +1950,8 @@ function ns.RestoreChat()
         if frame and frame._quietBubbles then
             frame._quietStripped = nil
             frame._quietHover = false
+            frame._quietCatcherAt = nil
+            frame._quietTextSig = nil
             if frame._quietCatcher then frame._quietCatcher:Hide() end
             HideActive(frame)
             RestoreFonts(frame)
@@ -1820,7 +1967,7 @@ end
 local function MarkStripped(frame)
     if not frame then return end
     if frame._quietLines and #frame._quietLines > 0 then
-        HideNativeText(frame)
+        HideNativeText(frame, true)
     end
     frame._quietStripped = true
     frame._quietDirty = true
@@ -1879,6 +2026,26 @@ function ns.StripAllChat(force)
             chromeStripped = true
         end
     end)
+    ns.MarkingChat = false
+    stripping = false
+    if not ok then ns.Report("chat", err) end
+end
+
+-- Blizzard rewrote one window's alpha or color; strip only that window.
+-- Only windows UpdateChat and RestoreChat walk; a temporary window stays native.
+local function OwnChatFrame(frame)
+    for i = 1, ChatCount() do
+        if _G["ChatFrame" .. i] == frame then return true end
+    end
+    return false
+end
+
+function ns.RestripChat(frame)
+    if stripping or not ns.Usable(frame) or not OwnChatFrame(frame) or not ns.DB().enabled
+        or not ns.ModernChat() then return end
+    stripping = true
+    ns.MarkingChat = true
+    local ok, err = pcall(StripChat, frame)
     ns.MarkingChat = false
     stripping = false
     if not ok then ns.Report("chat", err) end

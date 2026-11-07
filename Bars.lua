@@ -82,6 +82,17 @@ function ns.MigrateVisibility(settings)
     for _, row in ipairs(ns.BAR_ROWS) do visible[row.id] = nil end
 end
 
+-- Migration runs once per visible table; a replaced table migrates again.
+local migrated = setmetatable({}, { __mode = "k" })
+
+function ns.MigrateOnce(settings)
+    if type(settings) ~= "table" then return end
+    local visible = settings.visible
+    if type(visible) ~= "table" or migrated[visible] then return end
+    migrated[visible] = true
+    ns.MigrateVisibility(settings)
+end
+
 function ns.GroupVisibility(group)
     local settings = ns.Settings and ns.Settings() or ns.CharDB()
     local modes = settings.groupVisibility
@@ -292,6 +303,7 @@ end
 local function FlyoutOpen()
     return SpellFlyout and SpellFlyout.IsShown and SpellFlyout:IsShown() and true or false
 end
+ns.FlyoutOpen = FlyoutOpen
 
 -- Explicit HUD/bar-editing exceptions also reveal hover-only bars and XP.
 function ns.XPForced()
@@ -310,29 +322,45 @@ local function Parent(frame)
     if ok then return parent end
 end
 
+local ancestorCache = {}
+local structureDirty = true
+local parentHooked = setmetatable({}, { __mode = "k" })
+
+local function WatchParent(frame)
+    if not ns.Usable(frame) or parentHooked[frame] or type(frame.SetParent) ~= "function" then return end
+    local ok = pcall(hooksecurefunc, frame, "SetParent", function()
+        ns.ForgetBarButtons()
+    end)
+    if ok then parentHooked[frame] = true end
+end
+
 local function IsAncestor(frame, ancestor)
+    local chain = ancestorCache[frame]
+    if chain then return chain[ancestor] or false end
+    chain = {}
+    ancestorCache[frame] = chain
+    WatchParent(frame)
     local current = Parent(frame)
     local depth = 0
     while current and depth < 8 do
-        if current == ancestor then return true end
+        chain[current] = true
+        WatchParent(current)
         current = Parent(current)
         depth = depth + 1
     end
-    return false
+    return chain[ancestor] or false
 end
 
--- frame -> bar id, rebuilt each tick. A bar that parents another stays at
+-- Frame ownership changes when the UI structure changes. A bar that parents another stays at
 -- alpha 1 or the child would fade with it.
 local owner = {}
+-- Built with owner in Collect: hosts[bar] lists nested bars of another row, covered[bar]
+-- marks a bar whose outer frame of the same row already carries the alpha.
+local hosts = {}
+local covered = {}
 local resolved = {}
 local held = {}
 local seenHeld = {}
-
-local function Clear(map)
-    for key in pairs(map) do
-        map[key] = nil
-    end
-end
 
 local function UnderOther(frame, bar)
     for other in pairs(owner) do
@@ -344,12 +372,7 @@ local function UnderOther(frame, bar)
 end
 
 local function HostsOther(bar)
-    for other in pairs(owner) do
-        if other ~= bar and owner[other] ~= owner[bar] and IsAncestor(other, bar) then
-            return true
-        end
-    end
-    return false
+    return hosts[bar] ~= nil
 end
 
 local function LeaveAlone(frame)
@@ -444,6 +467,11 @@ local function RegionsFor(bar)
 end
 
 function ns.ForgetBarButtons()
+    structureDirty = true
+    ancestorCache = {}
+    ns.Wipe(hosts)
+    ns.Wipe(covered)
+    ns.TouchHud()
     for bar in pairs(buttonCache) do
         buttonCache[bar] = nil
     end
@@ -453,6 +481,58 @@ function ns.ForgetBarButtons()
     for bar in pairs(regionCache) do
         regionCache[bar] = nil
     end
+end
+
+-- GetNumChildren is enough to notice a new button. The full rebuild waits for that.
+local childCounts = {}
+local childPrimed = false
+local childFallback = 0
+local childArmed = false
+
+local function ChildCount(bar)
+    if type(bar.GetNumChildren) ~= "function" then return nil end
+    local ok, count = pcall(bar.GetNumChildren, bar)
+    if not ok or type(count) ~= "number" or ns.IsSecret(count) then return nil end
+    return count
+end
+
+function ns.BarChildrenChanged()
+    local missing = false
+    local changed = false
+    local seen = {}
+    for _, row in ipairs(ns.BAR_ROWS) do
+        for _, name in ipairs(row.names) do
+            local bar = _G[name]
+            if ns.Usable(bar) then
+                seen[bar] = true
+                local count = ChildCount(bar)
+                if count == nil then
+                    missing = true
+                elseif childCounts[bar] ~= count then
+                    if childPrimed then changed = true end
+                    childCounts[bar] = count
+                end
+            end
+        end
+    end
+    for bar in pairs(childCounts) do
+        if not seen[bar] then
+            childCounts[bar] = nil
+            if childPrimed then changed = true end
+        end
+    end
+    childPrimed = true
+    if changed then return true end
+    if not missing then return false end
+    local now = type(GetTime) == "function" and GetTime() or 0
+    if not childArmed then
+        childArmed = true
+        childFallback = now + 5
+        return false
+    end
+    if now < childFallback then return false end
+    childFallback = now + 5
+    return true
 end
 
 local function ListHovered(list)
@@ -594,10 +674,10 @@ end
 
 -- Hover on a nested bar belongs to that bar, not the frame behind it.
 local function OverNested(bar)
-    for other in pairs(owner) do
-        if other ~= bar and owner[other] ~= owner[bar] and IsAncestor(other, bar) then
-            if DirectHot(other) then return true end
-        end
+    local nested = hosts[bar]
+    if not nested then return false end
+    for i = 1, #nested do
+        if DirectHot(nested[i]) then return true end
     end
     return false
 end
@@ -632,19 +712,20 @@ local function FollowArt(alpha)
 end
 
 local swingFound = {}
-local swingScan = 0
+local swingFullAt = 0
 
+-- Named frames match on that name. GetDebugName is only for frames without one.
 local function LooksLikeSwing(frame)
     if not ns.Usable(frame) or not frame.SetAlpha then return false end
     local name = ns.FrameName(frame)
-    if name and name:find("Swing") then return true end
+    if name then return name:find("Swing") ~= nil end
     if type(frame.GetDebugName) ~= "function" then return false end
     local ok, debugName = pcall(frame.GetDebugName, frame)
     return ok and type(debugName) == "string" and debugName:find("Swing") ~= nil
 end
 
 -- The swing timer is not one fixed global. Main hand and off hand are separate
--- frames, and only the debug name is stable.
+-- frames. Named ones match on the name; anonymous ones use the debug name.
 local function WalkSwing(root, depth)
     if depth > 1 or not ns.Usable(root) or type(root.GetChildren) ~= "function" then return end
     local ok, children = pcall(function()
@@ -663,10 +744,19 @@ local function WalkSwing(root, depth)
     end
 end
 
+-- No timer found is settled too; walking UIParent every second only makes garbage.
+local function SwingReady()
+    for frame in pairs(swingFound) do
+        if not ns.Usable(frame) then return false end
+    end
+    return true
+end
+
+-- A full UIParent walk waits until a found timer disappears or 10s pass.
 function ns.ScanSwing()
     local now = type(GetTime) == "function" and GetTime() or 0
-    if now < swingScan then return end
-    swingScan = now + 1
+    if SwingReady() and now < swingFullAt then return end
+    swingFullAt = now + 10
     for frame in pairs(swingFound) do
         swingFound[frame] = nil
     end
@@ -676,7 +766,11 @@ function ns.ScanSwing()
 end
 
 local function Collect()
-    Clear(owner)
+    if not structureDirty then return end
+    structureDirty = false
+    ns.Wipe(owner)
+    ns.Wipe(hosts)
+    ns.Wipe(covered)
     for index, row in ipairs(ns.BAR_ROWS) do
         local entry = resolved[index]
         if not entry then
@@ -689,7 +783,8 @@ local function Collect()
         local seen = {}
         for _, name in ipairs(row.names) do
             local bar = _G[name]
-            if bar and not seen[bar] then
+            if ns.Usable(bar) and not seen[bar] then
+                WatchParent(bar)
                 seen[bar] = true
                 count = count + 1
                 frames[count] = bar
@@ -714,17 +809,27 @@ local function Collect()
             end
         end
     end
-end
-
--- The outer frame of the same bar already carries the alpha.
-local function CoveredBySameBar(bar)
-    local id = owner[bar]
-    for other, otherId in pairs(owner) do
-        if other ~= bar and otherId == id and IsAncestor(bar, other) and not HostsOther(other) then
-            return true
+    -- Ownership passes run here once per structure change, not every tick.
+    for bar, id in pairs(owner) do
+        for other, otherId in pairs(owner) do
+            if other ~= bar and otherId ~= id and IsAncestor(other, bar) then
+                local list = hosts[bar]
+                if not list then
+                    list = {}
+                    hosts[bar] = list
+                end
+                list[#list + 1] = other
+            end
         end
     end
-    return false
+    for bar, id in pairs(owner) do
+        for other, otherId in pairs(owner) do
+            if other ~= bar and otherId == id and not hosts[other] and IsAncestor(bar, other) then
+                covered[bar] = true
+                break
+            end
+        end
+    end
 end
 
 local function Watch(frame)
@@ -781,7 +886,7 @@ local function FadeChildArt(bar, alpha)
 end
 
 local function ApplyBar(bar, show, elapsed)
-    if CoveredBySameBar(bar) then
+    if covered[bar] then
         if bar._quietAlpha ~= nil then
             ns.ReleaseAlpha(bar)
         end
@@ -808,7 +913,7 @@ local function ReleaseUnwatched()
             held[frame] = nil
         end
     end
-    Clear(seenHeld)
+    ns.Wipe(seenHeld)
 end
 
 local showGroup = {}
@@ -826,8 +931,9 @@ end
 function ns.UpdateBars(showAll, elapsed, rescan)
     if rescan == nil then rescan = true end
     local showAllForced = showAll or ns.Glancing()
+    -- ApplyBar reads hosts/covered, which ForgetBarButtons drops between rescans.
+    Collect()
     if rescan or not haveBarShow then
-        Collect()
         if ns.InEditMode() or not ns.DB().enabled then
             HideCatchers()
         else

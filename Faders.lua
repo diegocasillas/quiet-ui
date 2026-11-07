@@ -102,6 +102,24 @@ local function FindMeters(deep)
     end
 end
 
+-- Drop the child cache only when the frame grew or the count cannot be read.
+local function RefreshKids(list)
+    for i = 1, #list do
+        local frame = list[i]
+        local count, known
+        if type(frame.GetNumChildren) == "function" then
+            local ok, value = pcall(frame.GetNumChildren, frame)
+            if ok and type(value) == "number" and not ns.IsSecret(value) then
+                count, known = value, true
+            end
+        end
+        if not known or frame._quietKidCount ~= count then
+            frame._quietKids = nil
+            frame._quietKidCount = known and count or nil
+        end
+    end
+end
+
 function ns.FindFaders(deep)
     FindNamed(statusFrames, STATUS_NAMES)
     FindNamed(cooldownFrames, COOLDOWN_NAMES)
@@ -109,12 +127,8 @@ function ns.FindFaders(deep)
     FindNamed(questFrames, QUEST_NAMES)
     FindNamed(auraFrames, AURA_NAMES)
     FindNamed(partyFrames, PARTY_NAMES)
-    for i = 1, #resourceFrames do
-        resourceFrames[i]._quietKids = nil
-    end
-    for i = 1, #auraFrames do
-        auraFrames[i]._quietKids = nil
-    end
+    RefreshKids(resourceFrames)
+    RefreshKids(auraFrames)
     FindMeters(deep)
 end
 
@@ -166,13 +180,30 @@ end
 
 -- Catch hover even when Blizzard's container is not mouse-enabled.
 local hoverCatchers = {}
-local function HoverFrames(name, frames)
+
+local function ParkHover(name)
+    local catchers = hoverCatchers[name]
+    if not catchers or catchers.parked then return end
+    for i = 1, #catchers do
+        local box = catchers[i]
+        if box:IsShown() then box:Hide() end
+    end
+    catchers.parked = true
+end
+
+local function HoverFrames(name, frames, active)
     local catchers = hoverCatchers[name]
     if not catchers then catchers = {}; hoverCatchers[name] = catchers end
+    if active == nil then active = ns.OnlyOnHover(name) end
+    if not active then
+        ParkHover(name)
+        return false
+    end
+    catchers.parked = nil
     local hovered = false
     for i, target in ipairs(frames) do
         local box = catchers[i]
-        if ns.OnlyOnHover(name) and ns.DB().enabled and not ns.InEditMode()
+        if ns.DB().enabled and not ns.InEditMode()
             and ns.Usable(target) and target:IsShown() then
             if not box then
                 local ok, created = pcall(CreateFrame, "Frame", nil, UIParent)
@@ -189,10 +220,17 @@ local function HoverFrames(name, frames)
                     box._quietHoverTarget = target
                 end
                 local strata = target.GetFrameStrata and target:GetFrameStrata()
-                if type(strata) == "string" and not ns.IsSecret(strata) then box:SetFrameStrata(strata) end
-                local level = target:GetFrameLevel()
+                if type(strata) == "string" and not ns.IsSecret(strata) and box._quietStrata ~= strata then
+                    box:SetFrameStrata(strata)
+                    box._quietStrata = strata
+                end
+                local level = target.GetFrameLevel and target:GetFrameLevel() or 1
                 if type(level) ~= "number" or ns.IsSecret(level) then level = 1 end
-                box:SetFrameLevel(math.max(0, level - 1))
+                level = math.max(0, level - 1)
+                if box._quietLevel ~= level then
+                    box:SetFrameLevel(level)
+                    box._quietLevel = level
+                end
                 if not box:IsShown() then box:Show() end
                 if ns.Hit(box) then hovered = true end
             end
@@ -276,6 +314,7 @@ local aurasCurved = false
 local resourceWeight = 0
 local samplingPower = false
 local sampledKind
+local sampledPlayerShow
 local powerWeights, powerAlphas = {}, {}
 local powerSampleCount = 0
 
@@ -296,17 +335,18 @@ end
 -- Boolean show for the portrait. Low power stays on the curve below.
 -- Edit mode shows it even when the player frame is off.
 local function PlayerShouldShow()
+    if samplingPower and sampledPlayerShow ~= nil then return sampledPlayerShow end
     if ns.InEditMode() then return true end
     if DeadTargetBlocked() then return false end
     if ns.PlayerStyle() ~= "classic" then return false end
     return ns.Glancing()
-        or ns.Hit(PlayerFrame)
-        or ns.Hit(PetFrame)
         or ns.InCombat()
         or ns.InForcedInstance()
         or (ns.InGroup() and ns.ShowPlayerFrameInParty())
         or ns.InVehicle()
         or ns.HasTarget()
+        or ns.Hit(PlayerFrame)
+        or ns.Hit(PetFrame)
 end
 
 local function ResourceForced()
@@ -386,7 +426,24 @@ local function BlendedCurve(rest, forced, t, name)
     elseif t >= 1 then
         curve = CurveFor(forced, name .. ":1")
     else
-        curve = MakeCurve(BlendPoints(rest, forced, t))
+        local key = name .. ":blend"
+        curve = CurveFor(rest, key)
+        if not curve then return nil end
+        if type(curve.ClearPoints) ~= "function" then
+            return MakeCurve(BlendPoints(rest, forced, t))
+        end
+        local ok, err = pcall(function()
+            curve:ClearPoints()
+            for i = 1, #rest do
+                local y0, y1 = rest[i][2], forced[i][2]
+                curve:AddPoint(rest[i][1], y0 + (y1 - y0) * t)
+            end
+        end)
+        if not ok then
+            curveCache[key] = nil
+            ns.Report("resource bar", err)
+            return MakeCurve(BlendPoints(rest, forced, t))
+        end
     end
     return curve
 end
@@ -530,7 +587,7 @@ local function UpdateResource(elapsed)
         end
         return
     end
-    HoverFrames("resource", resourceFrames)
+    ParkHover("resource")
     local show = ResourceForced() and true or false
     resourceWeight = NextWeight(resourceWeight, show, elapsed)
     local powerAlpha = EvalPower(resourceWeight)
@@ -542,6 +599,7 @@ end
 
 local function UpdatePlayer(elapsed)
     local show = PlayerShouldShow() and true or false
+    if samplingPower then sampledPlayerShow = show end
     local blocked = DeadTargetBlocked()
     local useCurve = not blocked and ns.PlayerStyle() == "classic" and RestingPower() ~= nil
     playerCurved, playerWeight = TakeWeight(playerCurved, playerWeight, show, elapsed, useCurve)
@@ -614,6 +672,9 @@ local function AurasShouldShow()
     end
     local show = ns.InCombat() or ns.InForcedInstance() or (ns.InGroup() and ns.ShowPlayerFrameInParty()) or ns.InEditMode()
         or ns.Pinned("auras") or ns.Glancing()
+    if not show and ns.GroupAuras() and PlayerShouldShow() then
+        show = true
+    end
     if not show then
         for _, frame in ipairs(auraFrames) do
             if MouseOverAny(frame) then
@@ -621,9 +682,6 @@ local function AurasShouldShow()
                 break
             end
         end
-    end
-    if not show and ns.GroupAuras() and PlayerShouldShow() then
-        show = true
     end
     return show
 end
@@ -636,7 +694,9 @@ local function UpdateAuras(elapsed)
     local keepDebuffs = not ns.OnlyOnHover("auras") and ns.AlwaysShowDebuffs()
     for _, frame in ipairs(auraFrames) do
         if keepDebuffs and frame == _G.DebuffFrame then
-            PaintNumeric(frame, true, elapsed)
+            if frame._quietSecret ~= nil or frame._quietAlpha ~= 1 then
+                PaintNumeric(frame, true, elapsed)
+            end
         elseif alpha ~= nil then
             PaintSecret(frame, alpha)
         else
@@ -688,14 +748,21 @@ local function PlaceQuestCatcher()
         box:ClearAllPoints()
         box:SetAllPoints(target)
         questCatcherTarget = target
+        -- SetParent can move strata and level, so write them again.
+        box._quietStrata, box._quietLevel = nil, nil
     end
     local strata = target.GetFrameStrata and target:GetFrameStrata()
-    if type(strata) == "string" then
+    if type(strata) == "string" and not ns.IsSecret(strata) and box._quietStrata ~= strata then
         box:SetFrameStrata(strata)
+        box._quietStrata = strata
     end
     local level = target.GetFrameLevel and target:GetFrameLevel() or 1
-    if type(level) ~= "number" then level = 1 end
-    box:SetFrameLevel(math.max(level - 1, 0))
+    if type(level) ~= "number" or ns.IsSecret(level) then level = 1 end
+    level = math.max(level - 1, 0)
+    if box._quietLevel ~= level then
+        box:SetFrameLevel(level)
+        box._quietLevel = level
+    end
     if not box:IsShown() then box:Show() end
 end
 
@@ -707,6 +774,7 @@ end
 
 function ns.UpdateSmooth(elapsed)
     samplingPower = false
+    sampledPlayerShow = nil
     local ok, kind = pcall(ReadRestingPower)
     sampledKind = ok and kind or nil
     if not ok then ns.Report("player power", kind) end
@@ -724,7 +792,9 @@ end
 -- A green gradient over the target nameplate health bar. A flat tint turns the red bar grey. Secret results are left as they were.
 -- Strong on the left, fading out to the right, so the health bar still reads.
 local rangeMark
-local rangeSlot = { at = -1, helpful = nil, slot = nil }
+local rangeSlot = { at = nil, helpful = nil, slot = nil }
+-- Bar 1 changes come as events; the timer only covers a missed one.
+local SLOT_FALLBACK = 5
 
 local function PlainNumber(value)
     return type(value) == "number" and not ns.IsSecret(value)
@@ -813,7 +883,7 @@ end
 -- Bar 1 changes rarely, so the chosen spell is cached. Distance is read every frame.
 local function CachedSlot(helpful)
     local now = type(GetTime) == "function" and GetTime() or 0
-    if rangeSlot.helpful == helpful and now - rangeSlot.at < 0.25 then
+    if rangeSlot.at and rangeSlot.helpful == helpful and now - rangeSlot.at < SLOT_FALLBACK then
         return rangeSlot.slot
     end
     local slot = BestSlot(helpful)
@@ -1020,6 +1090,21 @@ local function TightestBar(root)
     return best
 end
 
+function ns.ForgetRangeSlot()
+    rangeSlot.at = nil
+end
+
+-- The last found bar, kept while the target keeps the same plate.
+local cachedPlate, cachedUnit, cachedBar
+
+function ns.ForgetRangePlate()
+    cachedPlate, cachedUnit, cachedBar = nil, nil, nil
+end
+
+local function PlateUnit(plate)
+    return plate.UnitFrame or plate.unitFrame or plate
+end
+
 local function TargetPlate()
     local finder = C_NamePlate and C_NamePlate.GetNamePlateForUnit
     if type(finder) ~= "function" then finder = GetNamePlateForUnit end
@@ -1029,7 +1114,11 @@ local function TargetPlate()
     end
     local ok, plate = pcall(finder, "target")
     if not ok or not ns.Usable(plate) then return nil end
-    local unitOk, unit = pcall(function() return plate.UnitFrame or plate.unitFrame or plate end)
+    if cachedBar and cachedPlate == plate and ShownBox(cachedUnit) and ShownBox(cachedBar) then
+        return cachedBar, plate
+    end
+    cachedPlate, cachedUnit, cachedBar = nil, nil, nil
+    local unitOk, unit = pcall(PlateUnit, plate)
     if not unitOk or not ShownBox(unit) then return nil end
     local namedOk, named = pcall(function()
         return unit.healthBar or unit.HealthBar or unit.HealthBarsContainer
@@ -1044,6 +1133,7 @@ local function TargetPlate()
     end
     bar = bar or TightestBar(unit)
     if not bar then return nil end
+    cachedPlate, cachedUnit, cachedBar = plate, unit, bar
     return bar, plate
 end
 
