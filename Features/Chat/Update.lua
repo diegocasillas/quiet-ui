@@ -113,9 +113,20 @@ function ns.UpdateChat(elapsed)
                     if frame._quietCatcher then frame._quietCatcher:Hide() end
                     frame._quietShown, frame._quietHover = false, false
                     frame._quietCatcherAt = nil
+                    frame._quietNativeAt = nil
                 end
             else
-                if frame._quietShown == false then frame._quietDirty = true end
+                if frame._quietShown == false then
+                    frame._quietDirty = true
+                    -- A tab that was hidden has its lines built when it shows, with no
+                    -- AddMessage to hide them, so look again at once.
+                    frame._quietTextSig = nil
+                    frame._quietNativeAt = nil
+                end
+                if not frame._quietNativeAt or now >= frame._quietNativeAt then
+                    frame._quietNativeAt = now + 0.25
+                    Chat.HideNativeText(frame)
+                end
                 -- Anchors follow the chat automatically; only stacking needs a periodic refresh.
                 if frame._quietDirty or not frame._quietCatcherAt or now >= frame._quietCatcherAt then
                     Chat.PlaceCatcher(frame)
@@ -148,6 +159,7 @@ function ns.RestoreChat()
             frame._quietStripped = nil
             frame._quietHover = false
             frame._quietCatcherAt = nil
+            frame._quietNativeAt = nil
             frame._quietTextSig = nil
             if frame._quietCatcher then frame._quietCatcher:Hide() end
             Chat.HideActive(frame)

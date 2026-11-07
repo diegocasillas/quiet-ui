@@ -120,6 +120,42 @@ test('Native chat stays visible after addon or Modern chat is disabled', functio
     assert(#chat._quietLines == 3, 'History must still be collected while disabled')
 end)
 
+test('A custom chat window hides its native text when its tab is shown', function()
+    local ns = namespace()
+    loadAddon('Core.lua', ns)
+    loadAddon('Frames.lua', ns)
+    loadAddon('Chat.lua', ns)
+    ns.ModernChat = function() return true end
+    ns.ChatFade = function() return 10 end
+    local reports = {}
+    ns.Report = function(name, err) reports[#reports + 1] = name .. ': ' .. tostring(err) end
+    NUM_CHAT_WINDOWS = 3
+    local chat = frame()
+    chat.name = 'ChatFrame3'
+    function chat:AddMessage() end
+    ChatFrame3 = chat
+    chat.shown = false
+    ns.StripAllChat(true)
+    assert(chat._quietBubbles, 'The window was not bound ' .. table.concat(reports, '; '))
+    chat:AddMessage('hello')
+    ns.UpdateChat(0.1)
+    -- Selecting the tab shows the window, and the client builds its lines then.
+    chat.shown = true
+    local line = frame(chat)
+    function line:GetObjectType() return 'FontString' end
+    chat.regions[1] = line
+    ns.UpdateChat(0.1)
+    assert(line.alpha == 0, 'Native text stayed visible after the tab was shown')
+    -- Lines made later (a longer window, more history) are held down too.
+    local later = frame(chat)
+    function later:GetObjectType() return 'FontString' end
+    chat.regions[2] = later
+    GetTime = function() return 101 end
+    ns.UpdateChat(0.1)
+    assert(later.alpha == 0, 'A native line made after the first pass stayed visible')
+    ChatFrame3 = nil
+end)
+
 test('Native chat traversal reads each region and child list once', function()
     local ns = namespace()
     loadAddon('Chat.lua', ns)
