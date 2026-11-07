@@ -46,13 +46,22 @@ function ns.CharDB()
     return QuietUICharDB
 end
 
+-- These rows show only on hover until setup says otherwise.
+local DEFAULT_HOVER = {
+    xp = true, quests = true, meter = true, micro = true, ["raid manager"] = true,
+}
+
+function ns.DefaultHover(name)
+    return DEFAULT_HOVER[name] and true or false
+end
+
 function ns.HoverSetting(settings, name)
     local hover = settings.hoverOnly
     local value
     if type(hover) == "table" then value = hover[name] end
     if type(value) == "boolean" then return value end
-    -- XP defaults to hover unless an existing Always visible choice keeps it up.
-    return name == "xp" and not (type(settings.visible) == "table" and settings.visible.xp == true)
+    -- A default hover row yields to an existing Always visible choice.
+    return DEFAULT_HOVER[name] and not (type(settings.visible) == "table" and settings.visible[name] == true) or false
 end
 
 function ns.OnlyOnHover(name)
@@ -91,9 +100,9 @@ function ns.AlwaysShowDebuffs()
     return (ns.Settings and ns.Settings() or ns.CharDB()).alwaysShowDebuffs ~= false
 end
 
--- Missing means on. Only an explicit false hides the player frame in party.
+-- Missing means off. Only an explicit true keeps the player frame up in a party.
 function ns.ShowPlayerFrameInParty()
-    return (ns.Settings and ns.Settings() or ns.CharDB()).showPlayerFrameInParty ~= false
+    return (ns.Settings and ns.Settings() or ns.CharDB()).showPlayerFrameInParty == true
 end
 
 -- Missing means on. Only an explicit false keeps frames hidden in instance.
@@ -370,7 +379,7 @@ local function ReadDraft(source)
     draft.requireLivingTarget = source.requireLivingTarget == true
     draft.groupAuras = source.groupAuras ~= false
     draft.alwaysShowDebuffs = source.alwaysShowDebuffs ~= false
-    draft.showPlayerFrameInParty = source.showPlayerFrameInParty ~= false
+    draft.showPlayerFrameInParty = source.showPlayerFrameInParty == true
     draft.forceFramesInInstance = source.forceFramesInInstance ~= false
     draft.chat = source.chat ~= false
     local fade = source.chatFade
@@ -382,15 +391,14 @@ local function ReadDraft(source)
     draft.rangeSpell = type(range.spell) == "string" and not ns.IsSecret(range.spell) and range.spell or ""
     draft.groupVisibility = {}
     for group = 1, #ns.BAR_ROWS do
-        local mode = type(source.groupVisibility) == "table" and source.groupVisibility[group]
-        if mode == "always" or mode == "hover" then draft.groupVisibility[group] = mode end
+        draft.groupVisibility[group] = ns.GroupMode(source, group)
     end
     draft.groups, draft.hostile, draft.friendly = {}, {}, {}
     for _, row in ipairs(ns.BAR_ROWS) do
         local n = type(source.groups) == "table" and source.groups[row.id]
         draft.groups[row.id] = type(n) == "number" and n == n and n >= 1 and n <= #ns.BAR_ROWS and math.floor(n) or row.group
-        draft.hostile[row.id] = type(source.hostile) == "table" and source.hostile[row.id] == true
-        draft.friendly[row.id] = type(source.friendly) == "table" and source.friendly[row.id] == true
+        draft.hostile[row.id] = ns.BarTargetSetting(source, row.id, "hostile")
+        draft.friendly[row.id] = ns.BarTargetSetting(source, row.id, "friendly")
     end
 end
 
@@ -402,13 +410,17 @@ LoadSavedDraft = function()
     presetLayout = preset and ns.Copy(preset.layout) or nil
 end
 
--- Only checked bar ids are stored. A missing map means every box is off.
-local function SavedFlags(flags)
+-- Checked bar ids are stored. An unchecked box that is on by default is stored
+-- as false, and a missing map means every box is at its default.
+local function SavedFlags(flags, kind)
     local saved
     for _, row in ipairs(ns.BAR_ROWS) do
         if flags[row.id] then
             saved = saved or {}
             saved[row.id] = true
+        elseif ns.DefaultBarTarget(row.id, kind) then
+            saved = saved or {}
+            saved[row.id] = false
         end
     end
     return saved
@@ -425,16 +437,17 @@ local function DraftSettings()
     end
     db.visible = visible
     for _, row in ipairs(ROWS) do
-        if draft.hoverOnly[row.key] or (row.key == "xp" and not draft[row.key]) then
+        if draft.hoverOnly[row.key] or (ns.DefaultHover(row.key) and not draft[row.key]) then
             db.hoverOnly = db.hoverOnly or {}
             db.hoverOnly[row.key] = draft.hoverOnly[row.key] and true or false
         end
     end
     for _, row in ipairs(ns.BAR_ROWS) do
         local group = draft.groups[row.id]
-        if draft.groupVisibility[group] then
+        local mode = draft.groupVisibility[group] or (ns.DefaultGroupMode(group) and "usual")
+        if mode then
             db.groupVisibility = db.groupVisibility or {}
-            db.groupVisibility[group] = draft.groupVisibility[group]
+            db.groupVisibility[group] = mode
         end
     end
     if draft.forceLayout then
@@ -454,7 +467,7 @@ local function DraftSettings()
         db.groupAuras = false
     end
     if not draft.alwaysShowDebuffs then db.alwaysShowDebuffs = false end
-    if not draft.showPlayerFrameInParty then db.showPlayerFrameInParty = false end
+    if draft.showPlayerFrameInParty then db.showPlayerFrameInParty = true end
     if not draft.forceFramesInInstance then db.forceFramesInInstance = false end
     if draft.chat then
         db.chat = nil
@@ -485,8 +498,8 @@ local function DraftSettings()
         end
     end
     db.groups = groups
-    db.hostile = SavedFlags(draft.hostile)
-    db.friendly = SavedFlags(draft.friendly)
+    db.hostile = SavedFlags(draft.hostile, "hostile")
+    db.friendly = SavedFlags(draft.friendly, "friendly")
     if presetName then db.forceLayout = nil end
     return db
 end

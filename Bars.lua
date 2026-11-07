@@ -82,11 +82,24 @@ function ns.MigrateVisibility(settings)
     for _, row in ipairs(ns.BAR_ROWS) do visible[row.id] = nil end
 end
 
-function ns.GroupVisibility(group)
-    local settings = ns.Settings and ns.Settings() or ns.CharDB()
+-- Group 2 (bars 4 and 5) shows only on hover until setup says otherwise. "usual"
+-- is the saved choice for the usual rules where a default would otherwise apply.
+local DEFAULT_GROUP_MODE = { [2] = "hover" }
+
+function ns.GroupMode(settings, group)
     local modes = settings.groupVisibility
     local mode = type(modes) == "table" and modes[group]
     if mode == "always" or mode == "hover" then return mode end
+    if mode == "usual" then return nil end
+    return DEFAULT_GROUP_MODE[group]
+end
+
+function ns.DefaultGroupMode(group)
+    return DEFAULT_GROUP_MODE[group]
+end
+
+function ns.GroupVisibility(group)
+    return ns.GroupMode(ns.Settings and ns.Settings() or ns.CharDB(), group)
 end
 
 function ns.AnyBarsAlwaysVisible()
@@ -113,11 +126,27 @@ function ns.BarGroup(id)
     return n
 end
 
--- Missing means off. kind is "hostile" or "friendly".
+-- Bars 1 to 3 stay up for an enemy target until setup says otherwise. A saved
+-- false is the choice to turn a default off. kind is "hostile" or "friendly".
+local DEFAULT_TARGET = { hostile = { ["1"] = true, ["2"] = true, ["3"] = true } }
+
+function ns.DefaultBarTarget(id, kind)
+    local defaults = DEFAULT_TARGET[kind]
+    return defaults and defaults[id] and true or false
+end
+
+function ns.BarTargetSetting(settings, id, kind)
+    local map = settings[kind]
+    local value
+    if type(map) == "table" then value = map[id] end
+    if value == true then return true end
+    if value == false then return false end
+    return ns.DefaultBarTarget(id, kind)
+end
+
 function ns.BarTarget(id, kind)
     if type(ns.CharDB) ~= "function" then return false end
-    local map = (ns.Settings and ns.Settings() or ns.CharDB())[kind]
-    return type(map) == "table" and map[id] and true or false
+    return ns.BarTargetSetting(ns.Settings and ns.Settings() or ns.CharDB(), id, kind)
 end
 
 local MAIN_BAR = {
