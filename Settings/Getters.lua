@@ -24,13 +24,22 @@ function ns.CharDB()
     return QuietUICharDB
 end
 
+-- These rows show only on hover until setup says otherwise.
+local DEFAULT_HOVER = {
+    xp = true, quests = true, meter = true, micro = true, ["raid manager"] = true,
+}
+
+function ns.DefaultHover(name)
+    return DEFAULT_HOVER[name] and true or false
+end
+
 function ns.HoverSetting(settings, name)
     local hover = settings.hoverOnly
     local value
     if type(hover) == "table" then value = hover[name] end
     if type(value) == "boolean" then return value end
-    -- XP defaults to hover unless an existing Always visible choice keeps it up.
-    return name == "xp" and not (type(settings.visible) == "table" and settings.visible.xp == true)
+    -- A default hover row yields to an existing Always visible choice.
+    return DEFAULT_HOVER[name] and not (type(settings.visible) == "table" and settings.visible[name] == true) or false
 end
 
 function ns.OnlyOnHover(name)
@@ -79,9 +88,9 @@ function ns.AlwaysShowDebuffs()
     return (ns.Settings and ns.Settings() or ns.CharDB()).alwaysShowDebuffs ~= false
 end
 
--- Missing means on. Only an explicit false hides the player frame in party.
+-- Missing means off. Only an explicit true keeps the player frame up in a party.
 function ns.ShowPlayerFrameInParty()
-    return (ns.Settings and ns.Settings() or ns.CharDB()).showPlayerFrameInParty ~= false
+    return (ns.Settings and ns.Settings() or ns.CharDB()).showPlayerFrameInParty == true
 end
 
 -- Missing means on. Only an explicit false keeps frames hidden in instance.

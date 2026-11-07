@@ -23,7 +23,7 @@ local function ReadDraft(source)
     Setup.draft.requireLivingTarget = source.requireLivingTarget == true
     Setup.draft.groupAuras = source.groupAuras ~= false
     Setup.draft.alwaysShowDebuffs = source.alwaysShowDebuffs ~= false
-    Setup.draft.showPlayerFrameInParty = source.showPlayerFrameInParty ~= false
+    Setup.draft.showPlayerFrameInParty = source.showPlayerFrameInParty == true
     Setup.draft.forceFramesInInstance = source.forceFramesInInstance ~= false
     Setup.draft.chat = source.chat ~= false
     local fade = source.chatFade
@@ -35,15 +35,14 @@ local function ReadDraft(source)
     Setup.draft.rangeSpell = type(range.spell) == "string" and not ns.IsSecret(range.spell) and range.spell or ""
     Setup.draft.groupVisibility = {}
     for group = 1, #ns.BAR_ROWS do
-        local mode = type(source.groupVisibility) == "table" and source.groupVisibility[group]
-        if mode == "always" or mode == "hover" then Setup.draft.groupVisibility[group] = mode end
+        Setup.draft.groupVisibility[group] = ns.GroupMode(source, group)
     end
     Setup.draft.groups, Setup.draft.hostile, Setup.draft.friendly = {}, {}, {}
     for _, row in ipairs(ns.BAR_ROWS) do
         local n = type(source.groups) == "table" and source.groups[row.id]
         Setup.draft.groups[row.id] = type(n) == "number" and n == n and n >= 1 and n <= #ns.BAR_ROWS and math.floor(n) or row.group
-        Setup.draft.hostile[row.id] = type(source.hostile) == "table" and source.hostile[row.id] == true
-        Setup.draft.friendly[row.id] = type(source.friendly) == "table" and source.friendly[row.id] == true
+        Setup.draft.hostile[row.id] = ns.BarTargetSetting(source, row.id, "hostile")
+        Setup.draft.friendly[row.id] = ns.BarTargetSetting(source, row.id, "friendly")
     end
 end
 Setup.ReadDraft = ReadDraft
@@ -56,13 +55,17 @@ Setup.LoadSavedDraft = function()
     Setup.presetLayout = preset and ns.Copy(preset.layout) or nil
 end
 
--- Only checked bar ids are stored. A missing map means every box is off.
-local function SavedFlags(flags)
+-- Checked bar ids are stored. An unchecked box that is on by default is stored
+-- as false, and a missing map means every box is at its default.
+local function SavedFlags(flags, kind)
     local saved
     for _, row in ipairs(ns.BAR_ROWS) do
         if flags[row.id] then
             saved = saved or {}
             saved[row.id] = true
+        elseif ns.DefaultBarTarget(row.id, kind) then
+            saved = saved or {}
+            saved[row.id] = false
         end
     end
     return saved
@@ -79,16 +82,17 @@ local function DraftSettings()
     end
     db.visible = visible
     for _, row in ipairs(Setup.ROWS) do
-        if Setup.draft.hoverOnly[row.key] or (row.key == "xp" and not Setup.draft[row.key]) then
+        if Setup.draft.hoverOnly[row.key] or (ns.DefaultHover(row.key) and not Setup.draft[row.key]) then
             db.hoverOnly = db.hoverOnly or {}
             db.hoverOnly[row.key] = Setup.draft.hoverOnly[row.key] and true or false
         end
     end
     for _, row in ipairs(ns.BAR_ROWS) do
         local group = Setup.draft.groups[row.id]
-        if Setup.draft.groupVisibility[group] then
+        local mode = Setup.draft.groupVisibility[group] or (ns.DefaultGroupMode(group) and "usual")
+        if mode then
             db.groupVisibility = db.groupVisibility or {}
-            db.groupVisibility[group] = Setup.draft.groupVisibility[group]
+            db.groupVisibility[group] = mode
         end
     end
     if Setup.draft.forceLayout then
@@ -118,7 +122,7 @@ local function DraftSettings()
         db.groupAuras = false
     end
     if not Setup.draft.alwaysShowDebuffs then db.alwaysShowDebuffs = false end
-    if not Setup.draft.showPlayerFrameInParty then db.showPlayerFrameInParty = false end
+    if Setup.draft.showPlayerFrameInParty then db.showPlayerFrameInParty = true end
     if not Setup.draft.forceFramesInInstance then db.forceFramesInInstance = false end
     if Setup.draft.chat then
         db.chat = nil
@@ -149,8 +153,8 @@ local function DraftSettings()
         end
     end
     db.groups = groups
-    db.hostile = SavedFlags(Setup.draft.hostile)
-    db.friendly = SavedFlags(Setup.draft.friendly)
+    db.hostile = SavedFlags(Setup.draft.hostile, "hostile")
+    db.friendly = SavedFlags(Setup.draft.friendly, "friendly")
     if Setup.presetName then db.forceLayout = nil end
     return db
 end

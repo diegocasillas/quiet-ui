@@ -661,6 +661,39 @@ test('Resource hover bypasses secret curves and restores both child and root alp
     PersonalResourceDisplayFrame, UnitPowerPercent, UnitHealthPercent = nil, nil, nil
 end)
 
+test('Defaults match the chosen setup and each one can be turned off', function()
+    local ns = namespace()
+    loadAddon('Bars.lua', ns)
+    loadAddon('Presets.lua', ns)
+    loadAddon('Setup.lua', ns)
+    loadAddon('Faders.lua', ns)
+    local read = upvalue(upvalue(ns.ShowSetup, 'LoadSavedDraft'), 'ReadDraft')
+    local saved = upvalue(upvalue(upvalue(ns.ShowSetup, 'CreateSetup'), 'Write'), 'DraftSettings')
+    local draft = upvalue(read, 'draft')
+    read({})
+    local db = saved()
+    for _, key in ipairs({ 'xp', 'quests', 'meter', 'micro', 'raid manager' }) do
+        assert(db.hoverOnly[key] == true, key .. ' is not Only on hover by default')
+    end
+    assert(not db.hoverOnly.cooldowns and not db.hoverOnly.resource)
+    assert(db.groupVisibility[2] == 'hover' and not db.groupVisibility[1])
+    assert(db.hostile['1'] and db.hostile['2'] and db.hostile['3'] and not db.hostile['4'])
+    assert(db.showPlayerFrameInParty == nil and not draft.showPlayerFrameInParty)
+    draft.hoverOnly.meter = false
+    draft.groupVisibility[2] = nil
+    draft.hostile['1'] = false
+    draft.showPlayerFrameInParty = true
+    db = saved()
+    assert(db.hoverOnly.meter == false, 'Turning a default hover row off was not saved')
+    assert(db.groupVisibility[2] == 'usual', 'Turning group 2 hover off was not saved')
+    assert(db.hostile['1'] == false and db.hostile['2'] == true)
+    assert(db.showPlayerFrameInParty == true)
+    read(db)
+    assert(not draft.hoverOnly.meter and draft.hoverOnly.quests)
+    assert(draft.groupVisibility[2] == nil and not draft.hostile['1'] and draft.hostile['2'])
+    assert(draft.showPlayerFrameInParty == true)
+end)
+
 test('XP defaults to hover and unchecking persists usual combat visibility', function()
     local ns = namespace()
     loadAddon('Bars.lua', ns)
@@ -670,7 +703,7 @@ test('XP defaults to hover and unchecking persists usual combat visibility', fun
     local read = upvalue(upvalue(ns.ShowSetup, 'LoadSavedDraft'), 'ReadDraft')
     local saved = upvalue(upvalue(upvalue(ns.ShowSetup, 'CreateSetup'), 'Write'), 'DraftSettings')
     local draft = upvalue(read, 'draft')
-    assert(ns.OnlyOnHover('xp') and not ns.OnlyOnHover('meter'))
+    assert(ns.OnlyOnHover('xp') and not ns.OnlyOnHover('cooldowns'))
     read({}); assert(draft.hoverOnly.xp and not draft.xp)
     draft.hoverOnly.xp = false
     ns.ActivatePreset(nil, saved())
