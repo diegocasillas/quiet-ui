@@ -128,6 +128,13 @@ function ns.ForceQuietLayout()
         or (ns.Settings and ns.Settings() or ns.CharDB()).forceLayout == true
 end
 
+-- Missing means below the chat. Only "top" keeps Blizzard's tabs above it.
+function ns.ChatTabs()
+    local tabs = (ns.Settings and ns.Settings() or ns.CharDB()).chatTabs
+    if tabs == "top" then return "top" end
+    return "bottom"
+end
+
 -- Seconds a line stays at the bottom. Missing means 10. 0 keeps the line.
 function ns.ChatFade()
     local n = (ns.Settings and ns.Settings() or ns.CharDB()).chatFade
@@ -290,6 +297,9 @@ local function Paint()
     if frame.fade then
         frame.fade.value:SetText(FadeText(draft.chatFade))
     end
+    if frame.chatTabs then
+        frame.chatTabs.value:SetText(draft.chatTabs == "top" and "Top" or "Bottom")
+    end
     if frame.range then
         PaintBox(frame.range.box, draft.range)
     end
@@ -407,6 +417,7 @@ local function ReadDraft(source)
     draft.chat = source.chat ~= false
     local fade = source.chatFade
     draft.chatFade = type(fade) == "number" and fade == fade and math.floor(math.max(0, math.min(60, fade)) / 5) * 5 or 10
+    draft.chatTabs = source.chatTabs == "top" and "top" or nil
     local range = type(source.range) == "table" and source.range or {}
     draft.range = range.yards == 10 or range.yards == 28 or range.yards == "spell"
     draft.rangeYards = draft.range and range.yards or "spell"
@@ -508,6 +519,7 @@ local function DraftSettings()
     else
         db.chatFade = draft.chatFade
     end
+    if draft.chatTabs == "top" then db.chatTabs = "top" end
     if draft.range then
         local spell = type(draft.rangeSpell) == "string" and draft.rangeSpell:match("^%s*(.-)%s*$") or ""
         db.range = {
@@ -612,6 +624,11 @@ local function Choice(parent, text, onClick)
     highlight:SetColorTexture(0.95, 0.75, 0.25, 0.12)
     button:SetScript("OnClick", onClick)
     return button
+end
+
+local function CycleChatTabs()
+    draft.chatTabs = draft.chatTabs ~= "top" and "top" or nil
+    Paint()
 end
 
 local function NudgeFade(delta)
@@ -808,7 +825,7 @@ local TABS = {
     { id = "bars", label = "Bars", height = 308 },
     { id = "groups", label = "Groups", height = 320 },
     { id = "player", label = "Player", height = 292 },
-    { id = "chat", label = "Chat", height = 72 },
+    { id = "chat", label = "Chat", height = 96 },
     { id = "info", label = "Info", height = 148 },
 }
 
@@ -1425,6 +1442,12 @@ local function CreateSetup()
         NudgeFade(sign * 5)
     end)
     widget.fade:SetPoint("TOPLEFT", chat, "TOPLEFT", 0, -44)
+    widget.fade.value:SetWidth(72)
+    widget.chatTabs = Stepper(chat, "Tabs", function()
+        CycleChatTabs()
+    end)
+    widget.chatTabs:SetPoint("TOPLEFT", chat, "TOPLEFT", 0, -68)
+    widget.chatTabs.value:SetWidth(72)
 
     local info = widget.pages[7]
     widget.about = Section(info, "About")
