@@ -23,7 +23,8 @@ local GROUPS = {
     ['LayoutString.lua'] = { 'Layout/String.lua' },
     ['Setup.lua'] = { 'Settings/Getters.lua', 'Setup/Style.lua', 'Setup/Paint.lua', 'Setup/Draft.lua',
         'Setup/Widgets.lua', 'Setup/Window.lua', 'Setup/Minimap.lua' },
-    ['QuietUI.lua'] = { 'Features/Glance/Binding.lua', 'Features/Glance/Glance.lua', 'QuietUI.lua' },
+    ['QuietUI.lua'] = { 'Features/Glance/Binding.lua', 'Features/Glance/Glance.lua',
+        'Features/Camera/Camera.lua', 'QuietUI.lua' },
 }
 
 return function(file, ns, root)

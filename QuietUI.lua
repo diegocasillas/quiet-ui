@@ -130,6 +130,7 @@ local function RestoreAll()
     if ns.HideHoverCatchers then ns.HideHoverCatchers() end
     if ns.CancelLayoutPreview then ns.CancelLayoutPreview() end
     ns.ClearGlance()
+    ns.RestoreCamera()
     ns.HideQuestCatcher()
     ns.HideRangeMark()
     -- Target and action bar events stop while off.
@@ -240,6 +241,7 @@ local function Boot()
         C_Timer.After(0.5, function()
             ApplyAll()
             ns.EnsureMinimap()
+            ns.ApplyDefaultCamera()
         end)
         C_Timer.After(2, Rescan)
     end
