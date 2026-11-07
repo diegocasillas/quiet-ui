@@ -170,7 +170,6 @@ local function ApplyAll()
         ns.RestoreChat()
     end
     UpdateFades(0)
-    ns.UpdateBagSlots()
 end
 
 ns.ApplyAll = ApplyAll
@@ -422,7 +421,6 @@ events:SetScript("OnUpdate", function(_, elapsed)
             Run("menu", ns.UpdateMenuButton, elapsed)
             if ns.FrameHot() then wasHot = true end
         end
-        Run("bags", ns.UpdateBagSlots)
         if ns.ModernChat() then
             Run("input", ns.SyncVisibleEdits)
         end

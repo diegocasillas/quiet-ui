@@ -1,8 +1,8 @@
 local _, ns = ...
 
--- Bags collapse into one button. Left click opens bags, right click shows
--- the bag slots for swapping, drag moves the button. The micro menu fades on
--- its own: hover, edit mode, and Glance show it, and the Visible row holds it.
+-- The micro menu and the native bag bar (backpack and bag slots) fade together:
+-- hover, edit mode, and Glance show them, and the Visible row holds them. An
+-- item on the cursor shows the bag bar too.
 
 local MICRO_NAMES = {
     "CharacterMicroButton",
@@ -33,11 +33,6 @@ local MENU_FRAMES = {
     "BagsBar",
 }
 
-local BORDER = { 0.85, 0.85, 0.85, 0.35 }
-local HIGHLIGHT = { 0.95, 0.75, 0.25, 0.95 }
-
-local button
-local bagSlotsPinned = false
 local refreshing = false
 
 ------------------------------------------------------------------------------
@@ -45,190 +40,7 @@ local refreshing = false
 ------------------------------------------------------------------------------
 function ns.BagsShouldShow()
     if not ns.DB().enabled then return false end
-    return bagSlotsPinned or ns.CursorHasItem()
-end
-
--- ItemButtonMixin:SetAlpha fades the icon, not the frame. HoldAlpha would
--- zero the icon and then skip restoring it, because the frame alpha stays 1.
-local function UsesIconAlpha(frame)
-    return type(ItemButtonMixin) == "table" and frame.SetAlpha == ItemButtonMixin.SetAlpha
-end
-
-local function ShowWidget(widget)
-    if widget and widget.SetAlpha then
-        widget:SetAlpha(1)
-    end
-end
-
-local function ReleaseIconAlpha(frame)
-    frame._quietAlpha = nil
-    frame._quietSecret = nil
-    ShowWidget(frame.icon or frame.Icon)
-    ShowWidget(frame.IconBorder)
-    ShowWidget(frame.IconOverlay)
-    ShowWidget(frame.Count)
-    ShowWidget(frame.Stock)
-end
-
--- Alpha 0 still receives the mouse, so a hidden slot would show its tooltip.
-local function SetBagInput(frame, show)
-    if frame.SetMouseMotionEnabled then
-        pcall(frame.SetMouseMotionEnabled, frame, show)
-    end
-    if frame.SetMouseClickEnabled then
-        pcall(frame.SetMouseClickEnabled, frame, show)
-    end
-end
-
-local shownSlots
-
-function ns.UpdateBagSlots()
-    if not ns.DB().enabled then return end
-    local show = ns.BagsShouldShow()
-    if show == shownSlots then return end
-    shownSlots = show
-    local alpha = show and 1 or 0
-    ns.EachBagFrame(function(frame)
-        if UsesIconAlpha(frame) then
-            ReleaseIconAlpha(frame)
-        else
-            ns.HoldAlpha(frame, alpha)
-        end
-        SetBagInput(frame, show)
-    end)
-    if button and button.SetBackdropBorderColor then
-        button:SetBackdropBorderColor(unpack(show and HIGHLIGHT or BORDER))
-    end
-end
-
-local function ToggleBagSlots()
-    bagSlotsPinned = not bagSlotsPinned
-    ns.UpdateBagSlots()
-    if bagSlotsPinned then
-        ns.Print("bag slots shown")
-    end
-end
-
-------------------------------------------------------------------------------
--- Button
-------------------------------------------------------------------------------
-local function PlaceButton(force)
-    local db = ns.DB()
-    if not force and button._quietPlaced == db then return end
-    button._quietPlaced = db
-    button:ClearAllPoints()
-    if type(db.point) == "string" and type(db.relPoint) == "string"
-        and type(db.x) == "number" and type(db.y) == "number" then
-        button:SetPoint(db.point, UIParent, db.relPoint, db.x, db.y)
-    else
-        button:SetPoint("BOTTOMRIGHT", UIParent, "BOTTOMRIGHT", -16, 16)
-    end
-end
-
-local function SavePoint(self)
-    local point, _, relPoint, x, y = self:GetPoint(1)
-    if not point or type(x) ~= "number" or type(y) ~= "number" then return end
-    local db = ns.DB()
-    db.point, db.relPoint, db.x, db.y = point, relPoint, x, y
-    self._quietPlaced = db
-end
-
-local function Style(frame)
-    if not frame.SetBackdrop then return end
-    pcall(function()
-        frame:SetBackdrop({
-            bgFile = "Interface\\Buttons\\WHITE8X8",
-            edgeFile = "Interface\\Buttons\\WHITE8X8",
-            edgeSize = 1,
-        })
-        frame:SetBackdropColor(0.05, 0.05, 0.05, 0.75)
-        frame:SetBackdropBorderColor(unpack(BORDER))
-    end)
-end
-
-local function AddIcon(frame)
-    local icon = frame:CreateTexture(nil, "ARTWORK")
-    icon:SetPoint("TOPLEFT", 4, -4)
-    icon:SetPoint("BOTTOMRIGHT", -4, 4)
-    local usedAtlas = false
-    if icon.SetAtlas then
-        local ok, result = pcall(icon.SetAtlas, icon, "bag-main")
-        usedAtlas = ok and result and true or false
-    end
-    if not usedAtlas then
-        icon:SetTexture("Interface\\Icons\\INV_Misc_Bag_08")
-        icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-    end
-    local highlight = frame:CreateTexture(nil, "HIGHLIGHT")
-    highlight:SetAllPoints()
-    if highlight.SetColorTexture then
-        highlight:SetColorTexture(1, 1, 1, 0.18)
-    end
-end
-
-local function OnMouseUp(self, click)
-    if self._moved then
-        self._moved = false
-        return
-    end
-    if click == "RightButton" then
-        ToggleBagSlots()
-    elseif type(ToggleAllBags) == "function" then
-        ToggleAllBags()
-    elseif type(ToggleBackpack) == "function" then
-        ToggleBackpack()
-    end
-end
-
-local function OnEnter(self)
-    if not GameTooltip then return end
-    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-    GameTooltip:SetText("QuietUI", 1, 1, 1)
-    GameTooltip:AddLine("Left click: open bags", 0.85, 0.85, 0.85)
-    GameTooltip:AddLine("Right click: bag slots", 0.85, 0.85, 0.85)
-    GameTooltip:AddLine("Drag: move", 0.6, 0.6, 0.6)
-    GameTooltip:Show()
-end
-
-local function CreateButton()
-    local ok, created = pcall(CreateFrame, "Button", nil, UIParent, "BackdropTemplate")
-    if not ok or not created then
-        created = CreateFrame("Button", nil, UIParent)
-    end
-    created:SetSize(28, 28)
-    created:SetFrameStrata("MEDIUM")
-    created:SetFrameLevel(40)
-    created:SetClampedToScreen(true)
-    created:SetMovable(true)
-    created:EnableMouse(true)
-    created:RegisterForDrag("LeftButton")
-    created:RegisterForClicks("LeftButtonUp", "RightButtonUp")
-    Style(created)
-    AddIcon(created)
-    created:SetScript("OnDragStart", function(self)
-        self._moved = true
-        self:StartMoving()
-    end)
-    created:SetScript("OnDragStop", function(self)
-        self:StopMovingOrSizing()
-        SavePoint(self)
-    end)
-    created:SetScript("OnMouseUp", OnMouseUp)
-    created:SetScript("OnEnter", OnEnter)
-    created:SetScript("OnLeave", function()
-        if GameTooltip then GameTooltip:Hide() end
-    end)
-    return created
-end
-
-local function EnsureButton()
-    if button then
-        PlaceButton(false)
-    else
-        button = CreateButton()
-        PlaceButton(true)
-    end
-    button:Show()
+    return ns.CursorHasItem()
 end
 
 ------------------------------------------------------------------------------
@@ -313,7 +125,6 @@ function ns.RefreshChrome()
                 frame._quietChrome = true
             end
         end
-        EnsureButton()
     end)
     refreshing = false
     if not ok then ns.Report("menu", err) end
@@ -391,8 +202,14 @@ local function PlaceMicroCatcher()
     if not box:IsShown() then box:Show() end
 end
 
+-- The bag bar sits beside the micro menu and fades with it.
 local function MicroHot()
     if microCatcher and ns.Hit(microCatcher) then return true end
+    local bagHot = false
+    ns.EachBagFrame(function(frame)
+        if not bagHot and ns.Hit(frame) then bagHot = true end
+    end)
+    if bagHot then return true end
     local hot = false
     EachMicroButton(function(button)
         if not hot and ns.Hit(button) then hot = true end
@@ -407,20 +224,20 @@ local function UpdateMicro(elapsed)
     EachMicroButton(function(button)
         ns.UpdateFaded(button, show, elapsed)
     end)
+    -- The bag bar carries the backpack and its slots. An item on the cursor shows
+    -- it so a bag can take the item.
+    local bags = _G.BagsBar
+    if ns.Usable(bags) then
+        ns.UpdateFaded(bags, show or ns.BagsShouldShow(), elapsed)
+    end
 end
 
--- Hover, bag slots, a drag, or Glance on keeps the button up. Setup can pin it on.
+-- Hover, edit mode, or Glance shows the micro menu and the bag bar. Setup can pin them on.
 function ns.UpdateMenuButton(elapsed)
     UpdateMicro(elapsed)
-    if not button or not button:IsShown() then return end
-    local show = ns.VisibilityShow("menu", false, ns.Hit(button))
-        or button._moved or ns.BagsShouldShow()
-    ns.UpdateFaded(button, show, elapsed)
 end
 
 function ns.ResetMenu()
-    bagSlotsPinned = false
-    shownSlots = nil
     local function clear(name)
         local frame = _G[name]
         if frame then frame._quietChrome = nil end
@@ -444,8 +261,4 @@ function ns.ResetMenu()
         microCatcher:Hide()
         microCatcher._quietA, microCatcher._quietB = nil, nil
     end
-    if button then button:Hide() end
-    ns.EachBagFrame(function(frame)
-        SetBagInput(frame, true)
-    end)
 end
