@@ -31,7 +31,7 @@ local function Paint()
         Setup.PaintBox(Setup.frame.playerRow.box, Setup.draft.player)
     end
     if Setup.frame.playerThresholdKind then
-        Setup.frame.playerThresholdKind.value:SetText(Setup.draft.playerThresholdKind == "health" and "Health" or "Resource")
+        Setup.frame.playerThresholdKind.value:SetText(Setup.draft.playerThresholdKind == "resource" and "Resource" or "Health")
         if Setup.draft.player then Setup.frame.playerThresholdKind:Show() else Setup.frame.playerThresholdKind:Hide() end
     end
     if Setup.frame.playerThresholdPercent then

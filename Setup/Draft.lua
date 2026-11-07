@@ -13,7 +13,7 @@ local function ReadDraft(source)
     end
     Setup.draft.forceLayout = source.forceLayout == true
     Setup.draft.player = source.player ~= "resource"
-    Setup.draft.playerThresholdKind = source.playerThresholdKind == "health" and "health" or "resource"
+    Setup.draft.playerThresholdKind = source.playerThresholdKind == "resource" and "resource" or "health"
     local value = source.playerThresholdPercent
     if value == false then Setup.draft.playerThresholdPercent = ""
     elseif type(value) == "number" and not ns.IsSecret(value)
@@ -105,7 +105,7 @@ local function DraftSettings()
     else
         db.player = "resource"
     end
-    if Setup.draft.playerThresholdKind == "health" then db.playerThresholdKind = "health" end
+    if Setup.draft.playerThresholdKind == "resource" then db.playerThresholdKind = "resource" end
     local text = Setup.draft.playerThresholdPercent:match("^%s*(.-)%s*$")
     if text == "" then db.playerThresholdPercent = false
     else

@@ -66,7 +66,7 @@ end
 
 function ns.PlayerThreshold()
     local settings = ns.Settings and ns.Settings() or ns.CharDB()
-    local kind = settings.playerThresholdKind == "health" and "health" or "resource"
+    local kind = settings.playerThresholdKind == "resource" and "resource" or "health"
     local value = settings.playerThresholdPercent
     if value == false then return kind, nil end
     if type(value) == "number" and not ns.IsSecret(value)
