@@ -314,6 +314,7 @@ local aurasCurved = false
 local resourceWeight = 0
 local samplingPower = false
 local sampledKind
+local sampledPlayerShow
 local powerWeights, powerAlphas = {}, {}
 local powerSampleCount = 0
 
@@ -334,6 +335,7 @@ end
 -- Boolean show for the portrait. Low power stays on the curve below.
 -- Edit mode shows it even when the player frame is off.
 local function PlayerShouldShow()
+    if samplingPower and sampledPlayerShow ~= nil then return sampledPlayerShow end
     if ns.InEditMode() then return true end
     if DeadTargetBlocked() then return false end
     if ns.PlayerStyle() ~= "classic" then return false end
@@ -597,6 +599,7 @@ end
 
 local function UpdatePlayer(elapsed)
     local show = PlayerShouldShow() and true or false
+    if samplingPower then sampledPlayerShow = show end
     local blocked = DeadTargetBlocked()
     local useCurve = not blocked and ns.PlayerStyle() == "classic" and RestingPower() ~= nil
     playerCurved, playerWeight = TakeWeight(playerCurved, playerWeight, show, elapsed, useCurve)
@@ -691,7 +694,9 @@ local function UpdateAuras(elapsed)
     local keepDebuffs = not ns.OnlyOnHover("auras") and ns.AlwaysShowDebuffs()
     for _, frame in ipairs(auraFrames) do
         if keepDebuffs and frame == _G.DebuffFrame then
-            PaintNumeric(frame, true, elapsed)
+            if frame._quietSecret ~= nil or frame._quietAlpha ~= 1 then
+                PaintNumeric(frame, true, elapsed)
+            end
         elseif alpha ~= nil then
             PaintSecret(frame, alpha)
         else
@@ -762,6 +767,7 @@ end
 
 function ns.UpdateSmooth(elapsed)
     samplingPower = false
+    sampledPlayerShow = nil
     local ok, kind = pcall(ReadRestingPower)
     sampledKind = ok and kind or nil
     if not ok then ns.Report("player power", kind) end
