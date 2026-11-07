@@ -280,8 +280,24 @@ local function StackPlate(edit, focused)
     end
 end
 
+-- The unfocused field is invisible but shown; it lets clicks through to the tabs.
+local function HoldEditMouse(edit, focused)
+    if not edit.EnableMouse then return end
+    if edit._quietMouse == nil and edit.IsMouseEnabled then
+        edit._quietMouse = edit:IsMouseEnabled() and true or false
+    end
+    pcall(edit.EnableMouse, edit, focused and true or false)
+end
+
+local function ReleaseEditMouse(edit)
+    if edit._quietMouse == nil then return end
+    pcall(edit.EnableMouse, edit, edit._quietMouse)
+    edit._quietMouse = nil
+end
+
 local function SyncEdit(edit)
     if not ns.DB().enabled or not ns.ModernChat() then
+        ReleaseEditMouse(edit)
         edit._quietAlpha = nil
         if edit._quietPlate then
             edit._quietPlate._quietAlpha = nil
@@ -291,6 +307,7 @@ local function SyncEdit(edit)
     end
     local focused = edit._quietFocus or (edit.HasFocus and edit:HasFocus())
     edit._quietWant = focused and 1 or 0
+    HoldEditMouse(edit, focused)
     PadEdit(edit)
     HideEditChrome(edit)
     EnsurePlate(edit)
@@ -361,6 +378,7 @@ local function RestoreEdits()
             end
             edit._quietPadded = nil
             edit._quietFocus = nil
+            ReleaseEditMouse(edit)
             ns.ReleaseAlpha(edit)
             if edit._quietHeader then
                 ns.ReleaseAlpha(edit._quietHeader)
