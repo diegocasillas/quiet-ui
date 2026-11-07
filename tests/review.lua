@@ -7,13 +7,19 @@ local function test(name, run)
     if not ok then failures = failures + 1 end
 end
 local function loadAddon(file, ns)
-    assert(loadfile(file))('QuietUI', ns)
+    _G.__ns = ns -- the helpers below look shared functions up on its feature tables
+    dofile('tests/addon.lua')(file, ns)
 end
 local function upvalue(fn, name)
     for i = 1, 100 do
         local key, value = debug.getupvalue(fn, i)
         if key == name then return value end
         if not key then break end
+    end
+    -- Shared helpers now live on the feature tables (ns.Chat, ns.Faders, ...).
+    for _, module in ipairs({ 'Core', 'Bars', 'Faders', 'Menu', 'Chat', 'Setup', 'Layout' }) do
+        local shared = _G.__ns[module]
+        if type(shared) == 'table' and shared[name] ~= nil then return shared[name] end
     end
     error('Missing helper: ' .. name)
 end
@@ -144,6 +150,10 @@ test('Chat verifies wrapped history and resized bubbles before going idle', func
             local key = debug.getupvalue(fn, i)
             if key == name then debug.setupvalue(fn, i, value); return end
             if not key then break end
+        end
+        for _, module in ipairs({ 'Core', 'Bars', 'Faders', 'Menu', 'Chat', 'Setup', 'Layout' }) do
+            local shared = ns[module]
+            if type(shared) == 'table' and shared[name] ~= nil then shared[name] = value; return end
         end
         error('Missing helper: ' .. name)
     end
@@ -327,6 +337,8 @@ test('Always visible debuffs override the shared power alpha curve', function()
         if name == 'EvalPower' then debug.setupvalue(update, i, function() return 0.25 end) end
         if not name then break end
     end
+    ns.Faders.RestingPower = function() return 0 end
+    ns.Faders.EvalPower = function() return 0.25 end
     BuffFrame, DebuffFrame = frame(UIParent), frame(UIParent)
     ns.FindFaders(false)
     update(1)
@@ -649,6 +661,39 @@ test('Resource hover bypasses secret curves and restores both child and root alp
     PersonalResourceDisplayFrame, UnitPowerPercent, UnitHealthPercent = nil, nil, nil
 end)
 
+test('Defaults match the chosen setup and each one can be turned off', function()
+    local ns = namespace()
+    loadAddon('Bars.lua', ns)
+    loadAddon('Presets.lua', ns)
+    loadAddon('Setup.lua', ns)
+    loadAddon('Faders.lua', ns)
+    local read = upvalue(upvalue(ns.ShowSetup, 'LoadSavedDraft'), 'ReadDraft')
+    local saved = upvalue(upvalue(upvalue(ns.ShowSetup, 'CreateSetup'), 'Write'), 'DraftSettings')
+    local draft = upvalue(read, 'draft')
+    read({})
+    local db = saved()
+    for _, key in ipairs({ 'xp', 'quests', 'meter', 'micro', 'raid manager' }) do
+        assert(db.hoverOnly[key] == true, key .. ' is not Only on hover by default')
+    end
+    assert(not db.hoverOnly.cooldowns and not db.hoverOnly.resource)
+    assert(db.groupVisibility[2] == 'hover' and not db.groupVisibility[1])
+    assert(db.hostile['1'] and db.hostile['2'] and db.hostile['3'] and not db.hostile['4'])
+    assert(db.showPlayerFrameInParty == nil and not draft.showPlayerFrameInParty)
+    draft.hoverOnly.meter = false
+    draft.groupVisibility[2] = nil
+    draft.hostile['1'] = false
+    draft.showPlayerFrameInParty = true
+    db = saved()
+    assert(db.hoverOnly.meter == false, 'Turning a default hover row off was not saved')
+    assert(db.groupVisibility[2] == 'usual', 'Turning group 2 hover off was not saved')
+    assert(db.hostile['1'] == false and db.hostile['2'] == true)
+    assert(db.showPlayerFrameInParty == true)
+    read(db)
+    assert(not draft.hoverOnly.meter and draft.hoverOnly.quests)
+    assert(draft.groupVisibility[2] == nil and not draft.hostile['1'] and draft.hostile['2'])
+    assert(draft.showPlayerFrameInParty == true)
+end)
+
 test('XP defaults to hover and unchecking persists usual combat visibility', function()
     local ns = namespace()
     loadAddon('Bars.lua', ns)
@@ -658,7 +703,7 @@ test('XP defaults to hover and unchecking persists usual combat visibility', fun
     local read = upvalue(upvalue(ns.ShowSetup, 'LoadSavedDraft'), 'ReadDraft')
     local saved = upvalue(upvalue(upvalue(ns.ShowSetup, 'CreateSetup'), 'Write'), 'DraftSettings')
     local draft = upvalue(read, 'draft')
-    assert(ns.OnlyOnHover('xp') and not ns.OnlyOnHover('meter'))
+    assert(ns.OnlyOnHover('xp') and not ns.OnlyOnHover('cooldowns'))
     read({}); assert(draft.hoverOnly.xp and not draft.xp)
     draft.hoverOnly.xp = false
     ns.ActivatePreset(nil, saved())

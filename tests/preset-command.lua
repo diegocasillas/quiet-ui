@@ -3,7 +3,7 @@ local ns = {}
 local db, char = { enabled = true }, {}
 ns.DB = function() return db end
 ns.CharDB = function() return char end
-assert(loadfile('Presets.lua'))('QuietUI', ns)
+dofile('tests/addon.lua')('Presets.lua', ns)
 local healer = ns.SavePreset(nil, 'Raid Healer', { layoutName = 'Raid' }, { chatFade = 0 })
 local minimal = ns.SavePreset(nil, 'Minimal', { layoutName = 'Quiet' }, { chat = false })
 ns.ForceQuietLayout = function() return ns.ActivePreset() ~= nil end
@@ -37,7 +37,7 @@ function events:SetScript(key, value) self.scripts[key] = value end
 function events:RegisterEvent() end
 CreateFrame = function() return events end
 SlashCmdList = {}
-assert(loadfile('QuietUI.lua'))('QuietUI', ns)
+dofile('tests/addon.lua')('QuietUI.lua', ns)
 for i = 1, 100 do
     local name = debug.getupvalue(events.scripts.OnEvent, i)
     if name == 'booted' then debug.setupvalue(events.scripts.OnEvent, i, true); break end

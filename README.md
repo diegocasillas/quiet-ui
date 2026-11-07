@@ -18,8 +18,8 @@ what stays visible, with personal settings or shared presets across characters.
 - **Chat without the chrome.** Messages appear in dark bubbles and fade after
   10 seconds by default. Hover to see faded lines, scroll through history, or copy
   a message. Enter works as usual.
-- **One bag button.** Left click opens bags, right click reveals bag slots, and
-  dragging moves the button.
+- **Bags with the micro menu.** The native bag bar (backpack and bag slots) fades
+  in and out with the micro menu, and shows while you hold an item.
 - **Glance.** Press `` ` `` to reveal the faded HUD at once. Press again to return
   to your usual visibility rules. Chat stays unchanged.
 
@@ -79,15 +79,16 @@ open. **X** or **Escape** closes it without saving pending changes.
   bundled layout when QuietUI turns on; it is off by default.
 - **Visible:** Choose **Always visible** or **Only on hover** for each HUD element.
   Both unchecked keeps its usual rules. The two choices are mutually exclusive.
-  XP defaults to **Only on hover**; uncheck it to use the usual bar triggers.
+  XP, the quest tracker, the damage meter, the micro menu, and the raid manager
+  default to **Only on hover**; uncheck it to use their usual triggers.
 - **Bars:** Assign action bars and the swing timer to groups. **Enemy** and
   **Friend** show an individual bar for the matching target when its group uses
-  the usual rules.
+  the usual rules. **Enemy** is on for bars 1–3 by default.
 - **Groups:** Each used group lists its members with **Always visible** and
   **Only on hover** choices. Group modes temporarily disable Enemy/Friend
   without discarding their values. Scroll the group list to reach later groups.
 - **Player:** Toggle the portrait and pet, group buffs with the player frame, or
-  require a living target. **Always show debuffs** is on by default and keeps
+  require a living target. **Always show player frame in party** is off by default. **Always show debuffs** is on by default and keeps
   debuffs visible independently of the player frame and aura grouping. Optional
   **In range** adds a green gradient to your
   target's nameplate while in range and the action bars are down. Choose 10 yards,
@@ -114,8 +115,9 @@ ends. Presets can also be managed while QuietUI is off.
 
 **Reset default** disconnects this character from its preset without changing the
 shared preset, then applies and saves the defaults immediately: Always visible off,
-Only on hover on for XP and off for other elements, default bar groups, player
-frame, grouped buffs, and Always show debuffs on,
+Only on hover on for XP, quest tracker, damage meter, micro menu and raid manager
+and off for other elements, default bar groups (group 2 on Only on hover), Enemy
+on for bars 1–3, player frame, grouped buffs, and Always show debuffs on,
 modern chat with a 10-second fade, and Force layout, living-target requirement, and
 In range off.
 
@@ -131,8 +133,7 @@ enabling or disabling QuietUI leaves your active layout alone.
 groups, target rules, low resources, XP rewards, and post-combat meter time.
 For buffs and debuffs it also overrides aura grouping and **Always show debuffs**.
 Glance and Edit Mode still reveal these elements. Bars and XP also stay up with
-an open spell flyout or an item on the cursor; the bag button stays up while
-its slots are open, while dragging, or with an item on the cursor.
+an open spell flyout or an item on the cursor.
 Cooldowns, the meter, and the resource bar gain hover detection in this mode.
 Existing Action bars and Swing timer pins move to group settings automatically;
 mixed groups are split when needed to preserve which bars stay visible.
@@ -144,7 +145,7 @@ arranging it. Elements appear immediately and fade out over 0.3 seconds.
 - **Action bars:** Hover, combat, a vehicle, an instance, an open spell flyout, or
   an item on the cursor. By default, bars 1–3, stance, pet, and totem fade together;
   bars 4–5 share another group, later bars each have their own, and swing uses 10.
-- **XP:** Only on hover by default. With that unchecked: hover, combat, a vehicle,
+- **XP:** Only on hover by default, like the quest tracker, damage meter, micro menu, and raid manager. With that unchecked: hover, combat, a vehicle,
   an instance, five seconds after a quest awards XP, a spell flyout, or an item
   on the cursor.
 - **Cooldowns and damage meter:** Combat, an instance, or a group. The meter stays
@@ -159,7 +160,7 @@ arranging it. Elements appear immediately and fade out over 0.3 seconds.
   default and also reveals them with the enabled player frame. **Always show debuffs**
   keeps debuffs visible by default; turn it off to apply these fade rules to them.
 - **Quest tracker and micro menu:** Hover across their whole area, including gaps.
-- **Bag button:** Hover, open bag slots, an item on the cursor, or dragging.
+  The bag bar follows the micro menu, and an item on the cursor shows it.
 
 In range needs a visible target nameplate and a living target. It stays off during
 combat, in vehicles and instances, in Edit Mode, with a spell flyout or item on the

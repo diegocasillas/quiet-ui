@@ -1,7 +1,7 @@
 -- Run from the addon directory: lua tests/performance.lua [runtime-directory]
 local root = arg[1] or '.'
 local check = arg[2] == '--measure' and function() end or assert
-local function loadAddon(file, ns) assert(loadfile(root .. '/' .. file))('QuietUI', ns) end
+local function loadAddon(file, ns) dofile(root .. '/tests/addon.lua')(file, ns, root) end
 local function frame(parent)
     local obj = { alpha = 1, writes = 0, parent = parent }
     function obj:IsForbidden() return false end

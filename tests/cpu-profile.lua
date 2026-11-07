@@ -12,7 +12,7 @@ function events:SetScript(key, value) self.scripts[key] = value end
 function events:RegisterEvent() end
 CreateFrame = function() return events end
 SlashCmdList = {}
-assert(loadfile('QuietUI.lua'))('QuietUI', ns)
+dofile('tests/addon.lua')('QuietUI.lua', ns)
 for i = 1, 100 do
     local name = debug.getupvalue(events.scripts.OnUpdate, i)
     if name == 'booted' then debug.setupvalue(events.scripts.OnUpdate, i, true); break end

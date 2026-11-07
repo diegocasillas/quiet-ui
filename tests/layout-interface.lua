@@ -23,8 +23,8 @@ C_EditMode = {
     SaveLayouts = function() end,
     ConvertStringToLayoutInfo = function() return {} end,
 }
-assert(loadfile('Presets.lua'))('QuietUI', ns)
-assert(loadfile('Layout.lua'))('QuietUI', ns)
+dofile('tests/addon.lua')('Presets.lua', ns)
+dofile('tests/addon.lua')('Layout.lua', ns)
 local choices = ns.LayoutChoices()
 assert(#choices == 4 and choices[1].name == 'Modern' and choices[2].name == 'Classic')
 assert(choices[3].name == 'QuietUI' and choices[4].ref.interfaceStyle == 0)

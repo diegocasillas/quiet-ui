@@ -19,8 +19,8 @@ C_EditMode = {
     SaveLayouts = function(value) info = value end,
     ConvertStringToLayoutInfo = function() return {} end,
 }
-assert(loadfile('Presets.lua'))('QuietUI', ns)
-assert(loadfile('Layout.lua'))('QuietUI', ns)
+dofile('tests/addon.lua')('Presets.lua', ns)
+dofile('tests/addon.lua')('Layout.lua', ns)
 assert(type(ns.SelectPresetLayout) == 'function', 'Preset layout selection is not implemented')
 local id = ns.SavePreset(nil, 'Healer', { layoutName = 'Raid', layoutType = 1 }, {})
 ns.ActivatePreset(id)

@@ -4,8 +4,8 @@ QuietUIDB = {}
 QuietUICharDB = { forceLayout = true, chat = false, range = { yards = 28 }, previousLayout = 4 }
 ns.DB = function() return QuietUIDB end
 ns.CharDB = function() return QuietUICharDB end
-local file = io.open('Presets.lua', 'r')
-if file then file:close(); assert(loadfile('Presets.lua'))('QuietUI', ns) end
+local file = io.open('Settings/Presets.lua', 'r')
+if file then file:close(); dofile('tests/addon.lua')('Presets.lua', ns) end
 assert(type(ns.SavePreset) == 'function', 'Preset creation is not implemented')
 local id = assert(ns.SavePreset(nil, '  Healer  ', { layoutName = 'Raid', layoutType = 1 }, QuietUICharDB))
 assert(QuietUIDB.presets[id].name == 'Healer')
