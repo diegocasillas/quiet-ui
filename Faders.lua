@@ -102,6 +102,24 @@ local function FindMeters(deep)
     end
 end
 
+-- Drop the child cache only when the frame grew or the count cannot be read.
+local function RefreshKids(list)
+    for i = 1, #list do
+        local frame = list[i]
+        local count, known
+        if type(frame.GetNumChildren) == "function" then
+            local ok, value = pcall(frame.GetNumChildren, frame)
+            if ok and type(value) == "number" and not ns.IsSecret(value) then
+                count, known = value, true
+            end
+        end
+        if not known or frame._quietKidCount ~= count then
+            frame._quietKids = nil
+            frame._quietKidCount = known and count or nil
+        end
+    end
+end
+
 function ns.FindFaders(deep)
     FindNamed(statusFrames, STATUS_NAMES)
     FindNamed(cooldownFrames, COOLDOWN_NAMES)
@@ -109,12 +127,8 @@ function ns.FindFaders(deep)
     FindNamed(questFrames, QUEST_NAMES)
     FindNamed(auraFrames, AURA_NAMES)
     FindNamed(partyFrames, PARTY_NAMES)
-    for i = 1, #resourceFrames do
-        resourceFrames[i]._quietKids = nil
-    end
-    for i = 1, #auraFrames do
-        auraFrames[i]._quietKids = nil
-    end
+    RefreshKids(resourceFrames)
+    RefreshKids(auraFrames)
     FindMeters(deep)
 end
 
@@ -166,13 +180,30 @@ end
 
 -- Catch hover even when Blizzard's container is not mouse-enabled.
 local hoverCatchers = {}
-local function HoverFrames(name, frames)
+
+local function ParkHover(name)
+    local catchers = hoverCatchers[name]
+    if not catchers or catchers.parked then return end
+    for i = 1, #catchers do
+        local box = catchers[i]
+        if box:IsShown() then box:Hide() end
+    end
+    catchers.parked = true
+end
+
+local function HoverFrames(name, frames, active)
     local catchers = hoverCatchers[name]
     if not catchers then catchers = {}; hoverCatchers[name] = catchers end
+    if active == nil then active = ns.OnlyOnHover(name) end
+    if not active then
+        ParkHover(name)
+        return false
+    end
+    catchers.parked = nil
     local hovered = false
     for i, target in ipairs(frames) do
         local box = catchers[i]
-        if ns.OnlyOnHover(name) and ns.DB().enabled and not ns.InEditMode()
+        if ns.DB().enabled and not ns.InEditMode()
             and ns.Usable(target) and target:IsShown() then
             if not box then
                 local ok, created = pcall(CreateFrame, "Frame", nil, UIParent)
@@ -189,10 +220,17 @@ local function HoverFrames(name, frames)
                     box._quietHoverTarget = target
                 end
                 local strata = target.GetFrameStrata and target:GetFrameStrata()
-                if type(strata) == "string" and not ns.IsSecret(strata) then box:SetFrameStrata(strata) end
-                local level = target:GetFrameLevel()
+                if type(strata) == "string" and not ns.IsSecret(strata) and box._quietStrata ~= strata then
+                    box:SetFrameStrata(strata)
+                    box._quietStrata = strata
+                end
+                local level = target.GetFrameLevel and target:GetFrameLevel() or 1
                 if type(level) ~= "number" or ns.IsSecret(level) then level = 1 end
-                box:SetFrameLevel(math.max(0, level - 1))
+                level = math.max(0, level - 1)
+                if box._quietLevel ~= level then
+                    box:SetFrameLevel(level)
+                    box._quietLevel = level
+                end
                 if not box:IsShown() then box:Show() end
                 if ns.Hit(box) then hovered = true end
             end
@@ -530,7 +568,7 @@ local function UpdateResource(elapsed)
         end
         return
     end
-    HoverFrames("resource", resourceFrames)
+    ParkHover("resource")
     local show = ResourceForced() and true or false
     resourceWeight = NextWeight(resourceWeight, show, elapsed)
     local powerAlpha = EvalPower(resourceWeight)
