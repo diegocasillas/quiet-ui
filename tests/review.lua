@@ -362,6 +362,71 @@ test('Debuffs stay visible alone and opt-out restores aura fading and alpha', fu
     BuffFrame, DebuffFrame, TemporaryEnchantFrame = nil, nil, nil
 end)
 
+test('The personal resource bar and the player frame show and hide together', function()
+    local ns = namespace()
+    loadAddon('Faders.lua', ns)
+    local pinned = {}
+    ns.Pinned = function(name) return pinned[name] end
+    ns.PlayerThreshold = function() return 'health', nil end
+    PlayerFrame, PetFrame = frame(UIParent), frame(UIParent)
+    PersonalResourceDisplayFrame = frame(UIParent)
+    ns.FindFaders(false)
+    local function settle() for _ = 1, 20 do ns.UpdateSmooth(0.05) end end
+    local function both(want, message)
+        settle()
+        assert(PlayerFrame.alpha == want and PersonalResourceDisplayFrame.alpha == want,
+            message .. ': player ' .. tostring(PlayerFrame.alpha) .. ', resource ' ..
+            tostring(PersonalResourceDisplayFrame.alpha))
+    end
+    both(0, 'Nothing shows either')
+    ns.InCombat = function() return true end
+    both(1, 'Combat shows both')
+    ns.InCombat = function() return false end
+    both(0, 'Leaving combat hides both')
+    pinned.resource = true
+    both(1, 'Always visible on the resource row keeps the player frame up too')
+    pinned.resource = nil
+    ns.HasTarget = function() return true end
+    both(1, 'A target shows the resource bar with the player frame')
+    ns.HasTarget = function() return false end
+    both(0, 'Losing the target hides both')
+    -- The player frame off in setup: the bar keeps its own rules.
+    ns.PlayerStyle = function() return 'resource' end
+    pinned.resource = true
+    settle()
+    assert(PersonalResourceDisplayFrame.alpha == 1 and PlayerFrame.alpha == 0, 'Linked while the player frame is off')
+    pinned.resource = nil
+    ns.HasTarget = function() return true end
+    settle()
+    assert(PersonalResourceDisplayFrame.alpha == 0, 'A target showed the bar with the player frame off')
+    PlayerFrame, PetFrame, PersonalResourceDisplayFrame = nil, nil, nil
+end)
+
+test('The resource bar follows the player threshold alpha while they are linked', function()
+    local ns = namespace()
+    loadAddon('Faders.lua', ns)
+    ns.PlayerThreshold = function() return 'health', 70 end
+    C_CurveUtil = { CreateCurve = function()
+        return { SetType = function() end, ClearPoints = function() end, AddPoint = function() end }
+    end }
+    Enum = Enum or {}
+    Enum.LuaCurveType = Enum.LuaCurveType or { Step = 1, Linear = 2 }
+    local lowHealth = 0.4
+    UnitHealthPercent = function() return lowHealth end
+    PlayerFrame, PetFrame = frame(UIParent), frame(UIParent)
+    PersonalResourceDisplayFrame = frame(UIParent)
+    ns.FindFaders(false)
+    for _ = 1, 10 do ns.UpdateSmooth(0.05) end
+    assert(PlayerFrame.alpha == lowHealth and PersonalResourceDisplayFrame.alpha == lowHealth,
+        'Both did not take the health threshold alpha: ' .. tostring(PlayerFrame.alpha) .. ', ' ..
+        tostring(PersonalResourceDisplayFrame.alpha))
+    lowHealth = 1
+    for _ = 1, 10 do ns.UpdateSmooth(0.05) end
+    assert(PlayerFrame.alpha == 1 and PersonalResourceDisplayFrame.alpha == 1, 'They did not rise together')
+    PlayerFrame, PetFrame, PersonalResourceDisplayFrame = nil, nil, nil
+    UnitHealthPercent, C_CurveUtil = nil, nil
+end)
+
 test('Always visible debuffs override the shared power alpha curve', function()
     local ns = namespace()
     loadAddon('Setup.lua', ns)
