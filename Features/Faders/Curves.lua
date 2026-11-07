@@ -256,7 +256,7 @@ end
 
 local function ReadThreshold()
     if ns.PlayerThreshold then return ns.PlayerThreshold() end
-    return "resource", 70
+    return "health", 70
 end
 
 local function EvalPlayerThresholds(weight)

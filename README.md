@@ -99,7 +99,10 @@ open. **X** or **Escape** closes it without saving pending changes.
   **Only on hover** choices. Group modes temporarily disable Enemy/Friend
   without discarding their values. Scroll the group list to reach later groups.
 - **Player:** Toggle the portrait and pet, group buffs with the player frame, or
-  require a living target. **Always show player frame in party** is off by default. **Always show debuffs** is on by default and keeps
+  require a living target. The player frame stays up while **Health** (or
+  **Resource**: mana, focus or energy) is below a percentage you choose, 70% of
+  Health by default; leave the percentage empty to turn this off. It follows one
+  of the two, because the game does not let addons combine them. **Always show player frame in party** is off by default. **Always show debuffs** is on by default and keeps
   debuffs visible independently of the player frame and aura grouping. Optional
   **In range** adds a green gradient to your
   target's nameplate while in range and the action bars are down. Choose 10 yards,
