@@ -2,4 +2,7 @@
 	<Binding name="QUIETUI_GLANCE" category="QUIETUI" runOnUp="true">
 		QuietUIGlance(keystate)
 	</Binding>
+	<Binding name="QUIETUI_CAMERA_TOGGLE" category="QUIETUI" runOnUp="true">
+		QuietUICameraToggle(keystate)
+	</Binding>
 </Bindings>

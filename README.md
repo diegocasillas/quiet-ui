@@ -22,6 +22,9 @@ what stays visible, with personal settings or shared presets across characters.
   in and out with the micro menu, and shows while you hold an item.
 - **Glance.** Press `` ` `` to reveal the faded HUD at once. Press again to return
   to your usual visibility rules. Chat stays unchanged.
+- **Camera modes.** Action camera is applied at login and reload. Bind **Toggle
+  action camera** under **QuietUI** in **Key Bindings** to switch between it and
+  the normal camera.
 
 ![QuietUI in combat](docs/images/img003.png)
 
@@ -51,6 +54,14 @@ the minimap to move it.
 Glance defaults to `` ` `` if the key is free. Change it under **QuietUI** in
 **Key Bindings**. You can also use `/quiet glance` in a macro and bind that macro
 to a controller button through your controller setup.
+
+Camera modes have no default key. Bind **Toggle action camera** under **QuietUI**
+in **Key Bindings**. Action camera runs `actioncam full`,
+`camerakeepcharactercentered 0`, `actioncam noheadmove` and `actioncam focusall`;
+normal camera runs `actioncam off` and `camerakeepcharactercentered 1`. Action
+camera is applied at login and reload while QuietUI is on, the key switches between
+the two until the next login or reload, and turning QuietUI off restores the normal
+camera.
 
 Preset names ignore letter case. Use quotes for names with spaces. Selecting a
 preset saves the choice for this character and applies its settings and linked
