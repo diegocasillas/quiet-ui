@@ -7,6 +7,7 @@ ns.Faders = Faders
 -- other debuffs keep their places.
 local IGNORED = {
     ["boosted rest"] = true,
+    ["ghost"] = true,
 }
 local SCAN_EVERY = 0.1
 local DEPTH = 3
