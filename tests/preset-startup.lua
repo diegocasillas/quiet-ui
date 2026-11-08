@@ -28,7 +28,7 @@ ns.ForceCineLayout = function() return ns.ActivePreset() ~= nil end
 ns.ModernChat = function() return false end
 for _, key in ipairs({ 'RefreshWorld', 'FindFaders', 'ScanSwing', 'EnsureLayout', 'RefreshChrome',
     'RestoreChat', 'NextFadeTick', 'BeginTick', 'UpdateBars', 'UpdateFaders', 'UpdateMenuButton',
-    'UpdateBagSlots', 'EnsureMinimap', 'ForgetCursor', 'UpdateRange', 'UpdateSmooth' }) do
+    'UpdateBagSlots', 'EnsureMinimap', 'ForgetCursor', 'UpdateRange', 'UpdateSmooth', 'UpdateCameraZoom' }) do
     ns[key] = function() end
 end
 for _, key in ipairs({ 'ShowAll', 'FocusChanged', 'ConsumeHud', 'FrameHot' }) do

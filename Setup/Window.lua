@@ -4,7 +4,7 @@ ns.Setup = Setup
 
 local TABS = {
     { id = "general", label = "General", height = 224 },
-    { id = "visible", label = "Visible", height = 290 },
+    { id = "visible", label = "Visible", height = 314 },
     { id = "bars", label = "Bars", height = 308 },
     { id = "groups", label = "Groups", height = 320 },
     { id = "player", label = "Player", height = 292 },
@@ -467,6 +467,11 @@ local function CreateSetup()
         Setup.Paint()
     end)
     widget.letterbox:SetPoint("TOPLEFT", visible, "TOPLEFT", 0, y - 48)
+    widget.combatZoom = Setup.Choice(visible, "Zoom out in combat", function()
+        Setup.draft.combatZoom = not Setup.draft.combatZoom
+        Setup.Paint()
+    end)
+    widget.combatZoom:SetPoint("TOPLEFT", visible, "TOPLEFT", 0, y - 72)
 
     local bars = widget.pages[3]
     widget.groupHeader = Setup.Section(bars, "Fade together")

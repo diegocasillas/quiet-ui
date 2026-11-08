@@ -57,6 +57,9 @@ local function Paint()
     if Setup.frame.letterbox then
         Setup.PaintBox(Setup.frame.letterbox.box, Setup.draft.letterbox)
     end
+    if Setup.frame.combatZoom then
+        Setup.PaintBox(Setup.frame.combatZoom.box, Setup.draft.combatZoom)
+    end
     if Setup.frame.chat then
         Setup.PaintBox(Setup.frame.chat.box, Setup.draft.chat)
     end

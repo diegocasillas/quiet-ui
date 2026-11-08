@@ -93,6 +93,11 @@ function ns.ShowPlayerFrameInParty()
     return (ns.Settings and ns.Settings() or ns.CharDB()).showPlayerFrameInParty == true
 end
 
+-- Missing means on. Only an explicit false stops the combat zoom.
+function ns.CombatZoom()
+    return (ns.Settings and ns.Settings() or ns.CharDB()).combatZoom ~= false
+end
+
 -- Missing means on. Only an explicit false keeps frames hidden in instance.
 function ns.ForceFramesInInstance()
     return (ns.Settings and ns.Settings() or ns.CharDB()).forceFramesInInstance ~= false

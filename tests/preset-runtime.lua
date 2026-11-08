@@ -9,7 +9,7 @@ local selected, quiet, restored = 0, 0, 0
 ns.SelectCineLayout = function() quiet = quiet + 1; return true end
 ns.SelectPresetLayout = function() if combat or not ready then return false end; selected = selected + 1; return true end
 ns.RestorePreviousLayout = function() if combat then return false end; restored = restored + 1; return true end
-for _, key in ipairs({ 'UpdateRange', 'UpdateSmooth', 'ForgetCursor', 'BeginTick', 'NextFadeTick', 'RefreshWorld', 'EnsureLayout', 'RefreshChrome', 'RestoreChat', 'UpdateBars',
+for _, key in ipairs({ 'UpdateRange', 'UpdateSmooth', 'UpdateCameraZoom', 'ForgetCursor', 'BeginTick', 'NextFadeTick', 'RefreshWorld', 'EnsureLayout', 'RefreshChrome', 'RestoreChat', 'UpdateBars',
     'UpdateFaders', 'UpdateMenuButton', 'UpdateBagSlots', 'HideQuestCatcher', 'HideRangeMark',
     'HideBarCatchers', 'ResetMenu', 'RestoreAlpha', 'Print', 'Report' }) do ns[key] = function() end end
 ns.FrameHot = function() return false end
