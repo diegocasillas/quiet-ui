@@ -39,6 +39,7 @@ local world = {
     friendly = false,
     dead = false,
     eating = false,
+    peekUntil = 0,
 }
 Bars.world = world
 
@@ -85,11 +86,35 @@ function ns.PlayerEating()
     return world.eating
 end
 
+-- A buff that is new (not refreshed) shows the auras briefly. A full update and any
+-- aura whose kind is secret (in a fight, when the auras show anyway) do not count.
+local PEEK_TIME = 5
+
+local function NoteNewBuffs(updateInfo)
+    if type(updateInfo) ~= "table" or updateInfo.isFullUpdate then return end
+    local added = updateInfo.addedAuras
+    if type(added) ~= "table" then return end
+    for i = 1, #added do
+        local aura = added[i]
+        local helpful = type(aura) == "table" and aura.isHelpful
+        if helpful == true and not ns.IsSecret(helpful) then
+            world.peekUntil = GetTime() + PEEK_TIME
+            return
+        end
+    end
+end
+
+function ns.BuffPeek()
+    return world.peekUntil > 0 and GetTime() < world.peekUntil
+end
+
 if type(CreateFrame) == "function" then
     local auraEvents = CreateFrame("Frame")
     if pcall(auraEvents.RegisterUnitEvent, auraEvents, "UNIT_AURA", "player") then
-        auraEvents:SetScript("OnEvent", function()
-            if not world.combat and ns.DB().enabled then ns.RefreshEating() end
+        auraEvents:SetScript("OnEvent", function(_, _, _, updateInfo)
+            if world.combat or not ns.DB().enabled then return end
+            ns.RefreshEating()
+            NoteNewBuffs(updateInfo)
         end)
     end
 end
