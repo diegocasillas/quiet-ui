@@ -132,6 +132,7 @@ local function RestoreAll()
     ns.ClearGlance()
     ns.RestoreCamera()
     ns.RestoreLetterbox()
+    if ns.Faders and ns.Faders.RestorePet then ns.Faders.RestorePet() end
     ns.HideQuestCatcher()
     ns.HideRangeMark()
     -- Target and action bar events stop while off.
@@ -323,6 +324,12 @@ function handlers.UPDATE_CHAT_WINDOWS()
     ns.StripAllChat(true)
 end
 handlers.UPDATE_FLOATING_CHAT_WINDOWS = handlers.UPDATE_CHAT_WINDOWS
+
+function handlers.PLAYER_DEAD()
+    ns.RefreshWorld()
+end
+handlers.PLAYER_ALIVE = handlers.PLAYER_DEAD
+handlers.PLAYER_UNGHOST = handlers.PLAYER_DEAD
 
 function handlers.GROUP_ROSTER_UPDATE()
     ns.RefreshWorld()

@@ -37,6 +37,7 @@ local world = {
     target = false,
     hostile = false,
     friendly = false,
+    dead = false,
 }
 Bars.world = world
 
@@ -56,6 +57,7 @@ function ns.RefreshWorld()
     local target = type(UnitExists) == "function" and Safe(UnitExists, "target") or false
     local hostile = target and HostileTarget()
     local friendly = target and FriendlyTarget()
+    local dead = type(UnitIsDeadOrGhost) == "function" and Safe(UnitIsDeadOrGhost, "player") or false
     local instance = false
     if type(IsInInstance) == "function" then
         instance = Safe(function()
@@ -67,10 +69,11 @@ function ns.RefreshWorld()
     end
     if combat ~= world.combat or group ~= world.group or vehicle ~= world.vehicle
         or target ~= world.target or instance ~= world.instance
-        or hostile ~= world.hostile or friendly ~= world.friendly then
+        or hostile ~= world.hostile or friendly ~= world.friendly or dead ~= world.dead then
         world.combat, world.group, world.vehicle = combat, group, vehicle
         world.target, world.instance = target, instance
         world.hostile, world.friendly = hostile, friendly
+        world.dead = dead
         ns.TouchHud()
     end
 end
@@ -85,6 +88,11 @@ end
 
 function ns.InCombat()
     return world.combat
+end
+
+-- Read from the world state, so the player frame check costs no API call per frame.
+function ns.PlayerIsDead()
+    return world.dead
 end
 
 function ns.InGroup()
