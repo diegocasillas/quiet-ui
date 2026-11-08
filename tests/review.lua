@@ -72,7 +72,7 @@ local function namespace()
     local ns = {}
     loadAddon('Core.lua', ns)
     for _, name in ipairs({ 'InEditMode', 'InCombat', 'InGroup', 'InForcedInstance', 'InVehicle',
-        'HasTarget', 'Glancing', 'Pinned', 'OnlyOnHover', 'RequireLivingTarget', 'ShowAll', 'XPForced' }) do
+        'HasTarget', 'Glancing', 'Pinned', 'OnlyOnHover', 'RequireLivingTarget', 'ShowAll', 'XPForced', 'PlayerIsDead', 'PlayerEating' }) do
         ns[name] = function() return false end
     end
     ns.VisibilityShow = function(name, usual, hovered)

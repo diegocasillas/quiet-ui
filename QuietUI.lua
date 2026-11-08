@@ -132,6 +132,7 @@ local function RestoreAll()
     ns.ClearGlance()
     ns.RestoreCamera()
     ns.RestoreLetterbox()
+    if ns.Faders and ns.Faders.RestoreIgnoredDebuffs then ns.Faders.RestoreIgnoredDebuffs() end
     if ns.Faders and ns.Faders.RestorePet then ns.Faders.RestorePet() end
     ns.HideQuestCatcher()
     ns.HideRangeMark()

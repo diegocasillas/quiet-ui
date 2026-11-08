@@ -47,6 +47,7 @@ local function UpdateAuras(elapsed)
     local useCurve = not ns.OnlyOnHover("auras") and ns.GroupAuras() and Faders.PlayerUsesThresholds()
     Faders.aurasCurved, Faders.auraWeight = Faders.TakeWeight(Faders.aurasCurved, Faders.auraWeight, show, elapsed, useCurve)
     local alpha = useCurve and Faders.EvalPlayerThresholds(Faders.auraWeight) or nil
+    Faders.UpdateIgnoredDebuffs(elapsed, show)
     local keepDebuffs = not ns.OnlyOnHover("auras") and ns.AlwaysShowDebuffs()
     for _, frame in ipairs(Faders.auraFrames) do
         if keepDebuffs and frame == _G.DebuffFrame then
