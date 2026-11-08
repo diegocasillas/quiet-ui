@@ -60,6 +60,27 @@ local function Paint()
     if Setup.frame.combatZoom then
         Setup.PaintBox(Setup.frame.combatZoom.box, Setup.draft.combatZoom)
     end
+    if Setup.frame.combatZoomPercent then
+        local row = Setup.frame.combatZoomPercent
+        if row.edit:GetText() ~= Setup.draft.combatZoomPercent then row.edit:SetText(Setup.draft.combatZoomPercent) end
+        if Setup.draft.combatZoom then row:Show() else row.edit:ClearFocus(); row:Hide() end
+    end
+    if Setup.frame.testZoomPercent then
+        local row = Setup.frame.testZoomPercent
+        local text = Setup.draft.testZoomPercent or ""
+        if row.edit:GetText() ~= text then row.edit:SetText(text) end
+    end
+    if Setup.frame.defaultZoom then
+        Setup.PaintBox(Setup.frame.defaultZoom.box, Setup.draft.defaultZoom)
+    end
+    if Setup.frame.defaultZoomPercent then
+        local row = Setup.frame.defaultZoomPercent
+        if row.edit:GetText() ~= Setup.draft.defaultZoomPercent then row.edit:SetText(Setup.draft.defaultZoomPercent) end
+        if Setup.draft.defaultZoom then row:Show() else row.edit:ClearFocus(); row:Hide() end
+    end
+    if Setup.frame.rememberZoom then
+        Setup.PaintBox(Setup.frame.rememberZoom.box, Setup.draft.rememberZoom)
+    end
     if Setup.frame.chat then
         Setup.PaintBox(Setup.frame.chat.box, Setup.draft.chat)
     end

@@ -3,8 +3,8 @@ local Setup = ns.Setup or {}
 ns.Setup = Setup
 
 local TABS = {
-    { id = "general", label = "General", height = 224 },
-    { id = "visible", label = "Visible", height = 314 },
+    { id = "general", label = "General", height = 334 },
+    { id = "visible", label = "Visible", height = 290 },
     { id = "bars", label = "Bars", height = 308 },
     { id = "groups", label = "Groups", height = 320 },
     { id = "player", label = "Player", height = 292 },
@@ -423,6 +423,63 @@ local function CreateSetup()
     widget.presetHelp:SetWidth(Setup.CONTENT_W)
     widget.presetHelp:SetPoint("TOPLEFT", general, "TOPLEFT", 0, -174)
 
+    widget.camera = Setup.Section(general, "Camera")
+    widget.camera:SetPoint("TOPLEFT", general, "TOPLEFT", 0, -214)
+    widget.combatZoom = Setup.Choice(general, "Combat distance", function()
+        Setup.draft.combatZoom = not Setup.draft.combatZoom
+        Setup.Paint()
+    end)
+    widget.combatZoom:SetPoint("TOPLEFT", general, "TOPLEFT", 0, -260)
+    widget.combatZoomPercent = Setup.PercentField(general, "% of the farthest zoom", "combatZoomPercent")
+    widget.combatZoomPercent:SetSize(220, 22)
+    widget.combatZoomPercent:SetPoint("TOPLEFT", general, "TOPLEFT", 240, -260)
+    widget.combatZoomPercent.edit:SetSize(52, 22)
+    widget.combatZoomPercent.edit:ClearAllPoints()
+    widget.combatZoomPercent.edit:SetPoint("LEFT", 0, 0)
+    widget.combatZoomPercent.label:ClearAllPoints()
+    widget.combatZoomPercent.label:SetPoint("LEFT", widget.combatZoomPercent.edit, "RIGHT", 6, 0)
+    widget.defaultZoom = Setup.Choice(general, "Default distance", function()
+        Setup.draft.defaultZoom = not Setup.draft.defaultZoom
+        Setup.Paint()
+    end)
+    widget.defaultZoom:SetPoint("TOPLEFT", general, "TOPLEFT", 0, -234)
+    widget.defaultZoomPercent = Setup.PercentField(general, "% of the farthest zoom", "defaultZoomPercent")
+    widget.defaultZoomPercent:SetSize(220, 22)
+    widget.defaultZoomPercent:SetPoint("TOPLEFT", general, "TOPLEFT", 240, -234)
+    widget.defaultZoomPercent.edit:SetSize(52, 22)
+    widget.defaultZoomPercent.edit:ClearAllPoints()
+    widget.defaultZoomPercent.edit:SetPoint("LEFT", 0, 0)
+    widget.defaultZoomPercent.label:ClearAllPoints()
+    widget.defaultZoomPercent.label:SetPoint("LEFT", widget.defaultZoomPercent.edit, "RIGHT", 6, 0)
+    widget.rememberZoom = Setup.Choice(general, "After combat, return to my previous distance (off: the default)", function()
+        Setup.draft.rememberZoom = not Setup.draft.rememberZoom
+        Setup.Paint()
+    end)
+    widget.rememberZoom:SetPoint("TOPLEFT", general, "TOPLEFT", 0, -286)
+    widget.testZoomPercent = Setup.PercentField(general, "% of the farthest zoom", "testZoomPercent")
+    widget.testZoomPercent:SetSize(220, 22)
+    widget.testZoomPercent:SetPoint("TOPLEFT", general, "TOPLEFT", 0, -312)
+    widget.testZoomPercent.edit:SetSize(52, 22)
+    widget.testZoomPercent.edit:ClearAllPoints()
+    widget.testZoomPercent.edit:SetPoint("LEFT", 0, 0)
+    widget.testZoomPercent.label:ClearAllPoints()
+    widget.testZoomPercent.label:SetPoint("LEFT", widget.testZoomPercent.edit, "RIGHT", 6, 0)
+    widget.testZoom = Setup.ActionButton(general, "Test zoom", function()
+        local text = (Setup.draft.testZoomPercent or ""):match("^%s*(.-)%s*$")
+        local n = tonumber(text)
+        if not text:match("^%d+$") or not n or n < 1 or n > 100 then
+            ns.Print("Enter a whole percentage from 1 to 100 to test.")
+            return
+        end
+        if ns.TestZoom then ns.TestZoom(n) end
+    end)
+    widget.testZoom:SetPoint("TOPLEFT", general, "TOPLEFT", 250, -311)
+    widget.testZoomBack = Setup.ActionButton(general, "Back", function()
+        if ns.EndZoomTest then ns.EndZoomTest() end
+    end)
+    widget.testZoomBack:SetSize(72, 22)
+    widget.testZoomBack:SetPoint("LEFT", widget.testZoom, "RIGHT", 8, 0)
+
     local visible = widget.pages[2]
     widget.always = Setup.Section(visible, "Visibility")
     widget.always:SetPoint("TOPLEFT", visible, "TOPLEFT", 0, 0)
@@ -467,11 +524,6 @@ local function CreateSetup()
         Setup.Paint()
     end)
     widget.letterbox:SetPoint("TOPLEFT", visible, "TOPLEFT", 0, y - 48)
-    widget.combatZoom = Setup.Choice(visible, "Zoom out in combat", function()
-        Setup.draft.combatZoom = not Setup.draft.combatZoom
-        Setup.Paint()
-    end)
-    widget.combatZoom:SetPoint("TOPLEFT", visible, "TOPLEFT", 0, y - 72)
 
     local bars = widget.pages[3]
     widget.groupHeader = Setup.Section(bars, "Fade together")
@@ -669,6 +721,7 @@ local function CreateSetup()
     widget.save:SetPoint("BOTTOMRIGHT", -metrics.side, metrics.buttonY)
     widget:SetScript("OnHide", function()
         if ns.CancelLayoutPreview then ns.CancelLayoutPreview() end
+        if ns.EndZoomTest then ns.EndZoomTest() end
         for _, key in ipairs({ "presetMenu", "layoutMenu", "presetDialog" }) do
             if widget[key] then widget[key]:Hide() end
         end

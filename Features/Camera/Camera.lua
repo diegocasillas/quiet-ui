@@ -31,8 +31,6 @@ local current
 -- on the way in). Instead one step is sent, the camera is left to settle, and
 -- then the real distance is read again.
 local ZOOM_BASE = 15
--- The combat zoom stops a little short of that limit.
-local ZOOM_SHARE = 0.6
 local ZOOM_GAIN = 0.5   -- share of the remaining distance sent per step
 local ZOOM_MIN_STEP = 0.2
 local ZOOM_DONE = 0.15  -- yards: close enough
@@ -95,7 +93,7 @@ function ns.ZoomOutForCombat()
         return
     end
     local factor = type(GetCVar) == "function" and tonumber(GetCVar("cameraDistanceMaxZoomFactor")) or 1
-    local target = ZOOM_BASE * factor * ZOOM_SHARE
+    local target = ZOOM_BASE * factor * ns.CombatZoomShare()
     local now = ZoomNow()
     if now >= target then
         -- Already out that far: never pull the camera in. A return still
@@ -119,21 +117,46 @@ local function StartPath(target)
     end
 end
 
--- Login and reload also start the camera at a share of the zoom limit.
-local LOGIN_SHARE = 0.3
+-- Distance for the default share of the zoom limit; nil while it is off.
+local function DefaultDistance()
+    local share = ns.DefaultZoomShare()
+    if not share then return nil end
+    local factor = type(GetCVar) == "function" and tonumber(GetCVar("cameraDistanceMaxZoomFactor")) or 1
+    return ZOOM_BASE * factor * share
+end
 
+-- Login and reload also start the camera at the default distance.
 function ns.ApplyDefaultCamera()
     ns.SetCameraMode("action")
-    if current ~= "action" or not ZoomNow() then return end
+    local distance = DefaultDistance()
+    if current ~= "action" or not distance or not ZoomNow() then return end
+    StartPath(distance)
+end
+
+-- Setup's zoom test: glide to a share of the zoom limit, then back to where the
+-- camera was. Works in either camera mode and while Cine is off.
+local testBefore
+function ns.TestZoom(percent)
+    if type(CameraZoomOut) ~= "function" or not ZoomNow() then
+        ns.Print("The camera zoom is not available.")
+        return
+    end
+    testBefore = testBefore or ZoomNow()
     local factor = type(GetCVar) == "function" and tonumber(GetCVar("cameraDistanceMaxZoomFactor")) or 1
-    StartPath(ZOOM_BASE * factor * LOGIN_SHARE)
+    StartPath(ZOOM_BASE * factor * percent / 100)
+end
+
+function ns.EndZoomTest()
+    local before = testBefore
+    testBefore = nil
+    if before and ZoomNow() then StartPath(before) end
 end
 
 function ns.ZoomBackAfterCombat()
     local before = zoomBefore
     zoomBefore = nil
     if not before or not ns.DB().enabled then return end
-    StartPath(before)
+    StartPath(not ns.RememberZoom() and DefaultDistance() or before)
 end
 
 local function FollowPath(move, elapsed, zoom)
