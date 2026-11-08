@@ -39,13 +39,10 @@ local function CursorDegrees(map)
     return angle
 end
 
-local function ApplyGear(icon)
-    if icon.SetAtlas then
-        local ok, result = pcall(icon.SetAtlas, icon, "mechagon-projects")
-        if ok and result then return end
-    end
-    if not icon:SetTexture("Interface\\Icons\\INV_Misc_Gear_01") then
-        icon:SetTexture("Interface\\Icons\\INV_Misc_Wrench_01")
+-- The same spyglass as the addon list icon (QuietUI.toc).
+local function ApplyIcon(icon)
+    if icon:SetTexture("Interface\\Icons\\INV_Misc_Spyglass_03") == false then
+        icon:SetTexture("Interface\\Icons\\INV_Misc_Gear_01")
     end
     icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
 end
@@ -61,7 +58,7 @@ local function CreateMinimap()
     local icon = button:CreateTexture(nil, "BACKGROUND")
     icon:SetSize(20, 20)
     icon:SetPoint("CENTER")
-    ApplyGear(icon)
+    ApplyIcon(icon)
 
     local border = button:CreateTexture(nil, "OVERLAY")
     border:SetSize(53, 53)
