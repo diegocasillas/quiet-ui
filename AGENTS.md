@@ -61,7 +61,7 @@ Opinionated UI for WoW Forever. Modern and quiet: few frames, few buttons, text 
 
 ## Code
 
-- Files load in `QuietUI.toc` order and share the addon table: `local _, ns = ...`. No globals except `QuietUIDB`, `QuietUICharDB`, the slash command, `QuietUISetup` so Escape can close the setup window, `QuietUIGlance`, `QuietUICameraToggle`, `BINDING_CATEGORY_QUIETUI`, `BINDING_NAME_QUIETUI_GLANCE`, and `BINDING_NAME_QUIETUI_CAMERA_TOGGLE` for the Glance and camera keys. Do not add libraries.
+- Files load in `QuietUI.toc` order and share the addon table: `local _, ns = ...`. No globals except `QuietUIDB`, `QuietUICharDB`, the slash command, `QuietUISetup` so Escape can close the setup window, `QuietUIGlance`, `QuietUICameraToggle`, `QuietUI` (the minimap button frame's name), `BINDING_CATEGORY_QUIETUI`, `BINDING_NAME_QUIETUI_GLANCE`, and `BINDING_NAME_QUIETUI_CAMERA_TOGGLE` for the Glance and camera keys. Do not add libraries.
   - `Core/`: `Base.lua` (`DB`, `Print`, `Report`, `Usable`, `IsSecret`), `Hover.lua` (focus tracking, `Hit`), `Alpha.lua` (alpha hooks, held values), `Fade.lua` (fade steps), `Textures.lua` (texture hiding), `Restore.lua` (`RestoreAlpha`), `Frames.lua` (bar / bag / spared classification, `Mute`), `World.lua` (combat, group, instance, target, cursor state).
   - `Settings/`: `Presets.lua` (shared preset CRUD, effective settings, personal snapshots), `Getters.lua` (`CharDB`, `Pinned`, `PlayerStyle`, `GroupAuras`, `AlwaysShowDebuffs`, `ChatFade`, `Range`, ...), `Groups.lua` (bar rows, visibility migration, fade groups).
   - `Features/Bars/`: action bars (`Frames`, `Ownership`, `Buttons`, `Catchers`, `Swing`, `Fade`), `ShowAll`, `BarTarget`.

@@ -48,7 +48,7 @@ local function ApplyIcon(icon)
 end
 
 local function CreateMinimap()
-    local button = CreateFrame("Button", nil, Minimap)
+    local button = CreateFrame("Button", "QuietUI", Minimap)
     button:SetSize(31, 31)
     local level = Minimap:GetFrameLevel()
     button:SetFrameLevel((type(level) == "number" and level or 0) + 8)
