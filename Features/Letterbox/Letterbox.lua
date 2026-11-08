@@ -10,6 +10,7 @@ local CALM, COMBAT = 1, 0.5
 local SLIDE_TIME = 0.6 -- seconds for a full slide
 
 local level = 0 -- 0 hidden, 1 full size; the bar height is eased from it
+local dirty = true -- the bars need a redraw: level moved, or the screen changed
 
 local function Build()
     if Letterbox.frame then return Letterbox.frame end
@@ -51,14 +52,19 @@ local function Target()
     return (ns.InCombat() or ns.Glancing() or ns.BarGroupShowing(1)) and COMBAT or CALM
 end
 
+-- Settled bars cost three cheap reads a frame and no widget writes.
 local function OnUpdate(frame, elapsed)
     local target = Target()
     if level ~= target then
         local step = (elapsed or 0) / SLIDE_TIME
         if level < target then level = math.min(target, level + step)
         else level = math.max(target, level - step) end
+        dirty = true
     end
-    Draw(frame)
+    if dirty then
+        dirty = false
+        Draw(frame)
+    end
     if level == 0 and target == 0 then frame:Hide() end
 end
 
@@ -77,8 +83,12 @@ function Letterbox.Apply()
     if not Letterbox.scripted then
         Letterbox.scripted = true
         frame:SetScript("OnUpdate", OnUpdate)
+        -- The screen's shape changes with resolution and UI scale.
+        frame:SetScript("OnEvent", function() dirty = true end)
+        pcall(frame.RegisterEvent, frame, "DISPLAY_SIZE_CHANGED")
+        pcall(frame.RegisterEvent, frame, "UI_SCALE_CHANGED")
     end
-    Draw(frame)
+    dirty = true
     frame:Show()
 end
 
