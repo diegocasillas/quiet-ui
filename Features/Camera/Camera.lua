@@ -4,10 +4,10 @@ local _, ns = ...
 -- Camera modes, set with console commands. Action is the default at login and
 -- reload; Normal is the way back, and one key toggles between them. Nothing is
 -- saved: a mode picked with the key lasts until the next login or reload.
--- Turning QuietUI off goes back to Normal.
+-- Turning Cine off goes back to Normal.
 -- The binding system calls a global; down and up both arrive.
 ------------------------------------------------------------------------------
-BINDING_NAME_QUIETUI_CAMERA_TOGGLE = "Toggle action camera"
+BINDING_NAME_CINE_CAMERA_TOGGLE = "Toggle action camera"
 
 local MODES = {
     action = {
@@ -22,7 +22,7 @@ local MODES = {
     },
 }
 
--- The mode QuietUI last set; nil until it has changed the camera.
+-- The mode Cine last set; nil until it has changed the camera.
 local current
 
 local function Apply(mode)
@@ -37,7 +37,7 @@ local function Apply(mode)
     end
 end
 
--- Does nothing while QuietUI is off, like Glance.
+-- Does nothing while Cine is off, like Glance.
 function ns.SetCameraMode(mode)
     if not MODES[mode] or not ns.DB().enabled then return end
     Apply(mode)
@@ -57,6 +57,6 @@ function ns.RestoreCamera()
     current = nil
 end
 
-function QuietUICameraToggle(keystate)
+function CineCameraToggle(keystate)
     if keystate == "down" then ns.ToggleCamera() end
 end

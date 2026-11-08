@@ -94,9 +94,9 @@ function ns.RefreshChrome()
         BuildMicroButtons()
         for _, name in ipairs(Menu.MENU_FRAMES) do
             local frame = _G[name]
-            if frame and not frame._quietChrome then
+            if frame and not frame._cineChrome then
                 MuteMenuFrame(frame)
-                frame._quietChrome = true
+                frame._cineChrome = true
             end
         end
     end)
@@ -157,28 +157,28 @@ local function PlaceMicroCatcher()
     local tl, br = MicroCorner()
     if not tl then
         box:Hide()
-        box._quietA, box._quietB = nil, nil
+        box._cineA, box._cineB = nil, nil
         return
     end
-    if box._quietA ~= tl or box._quietB ~= br then
+    if box._cineA ~= tl or box._cineB ~= br then
         box:ClearAllPoints()
         box:SetPoint("TOPLEFT", tl, "TOPLEFT")
         box:SetPoint("BOTTOMRIGHT", br, "BOTTOMRIGHT")
-        box._quietA, box._quietB = tl, br
+        box._cineA, box._cineB = tl, br
     end
     local strata = tl.GetFrameStrata and tl:GetFrameStrata()
-    if type(strata) == "string" and box._quietStrata ~= strata then
+    if type(strata) == "string" and box._cineStrata ~= strata then
         box:SetFrameStrata(strata)
-        box._quietStrata = strata
+        box._cineStrata = strata
     end
     local level = tl.GetFrameLevel and tl:GetFrameLevel() or 1
     if type(level) ~= "number" then level = 1 end
     local other = br.GetFrameLevel and br:GetFrameLevel()
     if type(other) == "number" and other < level then level = other end
     level = math.max(level - 1, 0)
-    if box._quietLevel ~= level then
+    if box._cineLevel ~= level then
         box:SetFrameLevel(level)
-        box._quietLevel = level
+        box._cineLevel = level
     end
     if not box:IsShown() then box:Show() end
 end
@@ -222,7 +222,7 @@ end
 function ns.ResetMenu()
     local function clear(name)
         local frame = _G[name]
-        if frame then frame._quietChrome = nil end
+        if frame then frame._cineChrome = nil end
     end
     for _, name in ipairs(Menu.MICRO_NAMES) do
         clear(name)
@@ -232,7 +232,7 @@ function ns.ResetMenu()
             if type(entry) == "string" then
                 clear(entry)
             elseif entry then
-                entry._quietChrome = nil
+                entry._cineChrome = nil
             end
         end
     end
@@ -241,7 +241,7 @@ function ns.ResetMenu()
     end
     if microCatcher then
         microCatcher:Hide()
-        microCatcher._quietA, microCatcher._quietB = nil, nil
+        microCatcher._cineA, microCatcher._cineB = nil, nil
     end
     BuildMicroButtons()
 end

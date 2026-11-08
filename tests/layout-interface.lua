@@ -12,7 +12,7 @@ EditModePresetLayoutManager = { presetLayoutInfo = {
     { layoutName = 'Gamepad', interfaceStyle = 1 },
 } }
 local info = { activeLayout = 4, layouts = {
-    { layoutName = 'QuietUI', layoutType = 1 },
+    { layoutName = 'Cine', layoutType = 1 },
     { layoutName = 'aaaddd', layoutType = 1, interfaceStyle = 1 },
     { layoutName = 'Same name', layoutType = 1, interfaceStyle = 0 },
     { layoutName = 'Same name', layoutType = 1, interfaceStyle = 1 },
@@ -27,7 +27,7 @@ dofile('tests/addon.lua')('Presets.lua', ns)
 dofile('tests/addon.lua')('Layout.lua', ns)
 local choices = ns.LayoutChoices()
 assert(#choices == 4 and choices[1].name == 'Modern' and choices[2].name == 'Classic')
-assert(choices[3].name == 'QuietUI' and choices[4].ref.interfaceStyle == 0)
+assert(choices[3].name == 'Cine' and choices[4].ref.interfaceStyle == 0)
 local keyboardRef = choices[4].ref
 style = 1
 choices = ns.LayoutChoices()
@@ -51,14 +51,14 @@ assert(ns.LayoutChoices()[1].ref.builtin == 3, 'Use the available mode API on ol
 InputUtil = nil
 assert(ns.LayoutChoices()[1].name == 'Modern', 'Missing mode APIs must use the keyboard layout list')
 InputUtil = { GetCurrentInterfaceStyle = function() return style end }
-local id = ns.SavePreset(nil, 'Test A', { layoutName = 'QuietUI', layoutType = 1 }, { chat = false })
+local id = ns.SavePreset(nil, 'Test A', { layoutName = 'Cine', layoutType = 1 }, { chat = false })
 ns.ActivatePreset(id)
 style = 1
 local before = info.activeLayout
 assert(ns.ValidatePresetInterface() and char.presetId == nil,
     'Startup must detach a legacy keyboard preset in gamepad mode')
 assert(char.chat == false and info.activeLayout == before, 'Detach must preserve settings and the active layout')
-assert(db.presets[id].layout.layoutName == 'QuietUI', 'Detach must not modify the shared preset')
+assert(db.presets[id].layout.layoutName == 'Cine', 'Detach must not modify the shared preset')
 ns.SavePreset(id, 'Test A', { builtin = 3 }, { chatFade = 0 })
 ns.ActivatePreset(id)
 assert(ns.ValidatePresetInterface() and char.presetId == id, 'Matching presets must remain selected')

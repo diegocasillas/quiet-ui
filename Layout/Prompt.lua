@@ -130,8 +130,8 @@ local function CreatePrompt()
     local kind = "flat"
     if ok and frame and PortraitChrome(frame) then
         kind = "portrait"
-        frame._quietGear = true
-        ApplyTitle(frame, "QuietUI")
+        frame._cineGear = true
+        ApplyTitle(frame, "Cine")
         ApplyGearPortrait(frame)
         HideClose(frame)
     else
@@ -148,7 +148,7 @@ local function CreatePrompt()
     frame:EnableMouse(true)
     if kind ~= "portrait" then
         frame.title = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-        frame.title:SetText("|cff8fd4c8QuietUI|r")
+        frame.title:SetText("|cff8fd4c8Cine|r")
         frame.title:SetPoint("TOP", 0, metrics.titleY)
     end
     frame.text = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
@@ -183,7 +183,7 @@ end
 
 local function Ask(text, yesLabel)
     prompt = prompt or CreatePrompt()
-    if prompt._quietGear then ApplyGearPortrait(prompt) end
+    if prompt._cineGear then ApplyGearPortrait(prompt) end
     prompt.text:SetText(text)
     SetButtonLabel(prompt.yes, yesLabel)
     prompt:Show()

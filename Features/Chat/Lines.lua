@@ -148,7 +148,7 @@ local function PushLine(frame, text, r, g, b, animate)
         if ChannelNotice(text) then return end
         text = ShortChannel(text)
     end
-    local lines = frame._quietLines
+    local lines = frame._cineLines
     if not lines then return end
     local now = GetTime()
     local entry = {
@@ -173,6 +173,6 @@ local function PushLine(frame, text, r, g, b, animate)
             lines[i] = nil
         end
     end
-    frame._quietDirty = true
+    frame._cineDirty = true
 end
 Chat.PushLine = PushLine

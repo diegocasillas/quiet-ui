@@ -84,10 +84,10 @@ local function FadeButton(button, show, elapsed)
         end
         return 1
     end
-    if button._quietAlpha ~= nil and not Bars.held[button] then return end
+    if button._cineAlpha ~= nil and not Bars.held[button] then return end
     Watch(button)
     ns.UpdateFaded(button, false, elapsed)
-    return button._quietAlpha
+    return button._cineAlpha
 end
 
 -- Parent stays at full alpha so a nested bar can keep its own.
@@ -124,7 +124,7 @@ end
 
 local function ApplyBar(bar, show, elapsed)
     if Bars.covered[bar] then
-        if bar._quietAlpha ~= nil then
+        if bar._cineAlpha ~= nil then
             ns.ReleaseAlpha(bar)
         end
         return
@@ -138,7 +138,7 @@ local function ApplyBar(bar, show, elapsed)
         end
     else
         ns.UpdateFaded(bar, show, elapsed)
-        alpha = bar._quietAlpha
+        alpha = bar._cineAlpha
     end
     return name, alpha
 end

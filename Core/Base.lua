@@ -7,7 +7,7 @@ ns.Core = Core
 
 local FADE_OUT = 0.3
 Core.FADE_OUT = FADE_OUT
-local PREFIX = "|cff8fd4c8QuietUI|r: "
+local PREFIX = "|cff8fd4c8Cine|r: "
 
 local hooked = {}
 Core.hooked = hooked
@@ -20,13 +20,13 @@ local chatHeld = {}
 Core.chatHeld = chatHeld
 
 function ns.DB()
-    if type(QuietUIDB) ~= "table" then
-        QuietUIDB = {}
+    if type(CineDB) ~= "table" then
+        CineDB = {}
     end
-    if QuietUIDB.enabled == nil then
-        QuietUIDB.enabled = true
+    if CineDB.enabled == nil then
+        CineDB.enabled = true
     end
-    return QuietUIDB
+    return CineDB
 end
 
 function ns.Print(msg)

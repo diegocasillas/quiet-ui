@@ -284,16 +284,16 @@ local function PresetDialog(owner, title, text, accept)
 end
 
 local function CreateSetup()
-    local ok, widget = pcall(CreateFrame, "Frame", "QuietUISetup", UIParent, "PortraitFrameTemplate")
+    local ok, widget = pcall(CreateFrame, "Frame", "CineSetup", UIParent, "PortraitFrameTemplate")
     local kind = "flat"
     if ok and widget and PortraitChrome(widget) then
         kind = "portrait"
-        widget._quietPortrait = true
-        ApplyTitle(widget, "QuietUI")
+        widget._cinePortrait = true
+        ApplyTitle(widget, "Cine")
         ApplyPortrait(widget)
     else
         if not (ok and widget) then
-            widget = Setup.Backdropped("Frame", "QuietUISetup", UIParent)
+            widget = Setup.Backdropped("Frame", "CineSetup", UIParent)
         end
         if GoldWindow(widget) then
             kind = "gold"
@@ -312,7 +312,7 @@ local function CreateSetup()
 
     if kind ~= "portrait" then
         widget.title = widget:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-        widget.title:SetText("QuietUI")
+        widget.title:SetText("Cine")
         widget.title:SetPoint("TOP", 0, metrics.titleY)
         widget.close = CloseButton(widget, metrics)
     end
@@ -414,7 +414,7 @@ local function CreateSetup()
     end)
     widget.layoutSelector:SetSize(Setup.CONTENT_W, 24)
     widget.layoutSelector:SetPoint("TOPLEFT", general, "TOPLEFT", 0, -128)
-    widget.forceLayout = Setup.Choice(general, "Force QuietUI layout", function()
+    widget.forceLayout = Setup.Choice(general, "Force Cine layout", function()
         Setup.draft.forceLayout = not Setup.draft.forceLayout
         Setup.Paint()
     end)
@@ -638,7 +638,7 @@ local function CreateSetup()
     widget.aboutBody:SetPoint("TOPLEFT", widget.about, "BOTTOMLEFT", 0, -4)
     widget.glanceHeader = Setup.Section(info, "Glance")
     widget.glanceHeader:SetPoint("TOPLEFT", widget.aboutBody, "BOTTOMLEFT", 0, -12)
-    widget.glanceBody = Setup.Body(info, "Press ` to show what has faded. Press it again and the choices on the other tabs apply. Change the key under QuietUI in Key Bindings. You can also use /quiet glance in a macro for your controller.")
+    widget.glanceBody = Setup.Body(info, "Press ` to show what has faded. Press it again and the choices on the other tabs apply. Change the key under Cine in Key Bindings. You can also use /cine glance in a macro for your controller.")
     widget.glanceBody:SetPoint("TOPLEFT", widget.glanceHeader, "BOTTOMLEFT", 0, -4)
 
     widget.reset = Setup.ActionButton(widget, "Reset default", function()
@@ -685,7 +685,7 @@ function ns.ShowSetup()
     if ns.CancelLayoutPreview then ns.CancelLayoutPreview() end
     Setup.frame = Setup.frame or CreateSetup()
     Setup.LoadSavedDraft()
-    if Setup.frame._quietPortrait then
+    if Setup.frame._cinePortrait then
         ApplyPortrait(Setup.frame)
     end
     Setup.frame:Show()

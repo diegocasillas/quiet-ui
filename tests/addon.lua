@@ -23,14 +23,14 @@ local GROUPS = {
     ['LayoutString.lua'] = { 'Layout/String.lua' },
     ['Setup.lua'] = { 'Settings/Getters.lua', 'Setup/Style.lua', 'Setup/Paint.lua', 'Setup/Draft.lua',
         'Setup/Widgets.lua', 'Setup/Window.lua', 'Setup/Minimap.lua' },
-    ['QuietUI.lua'] = { 'Features/Glance/Binding.lua', 'Features/Glance/Glance.lua',
-        'Features/Camera/Camera.lua', 'Features/Letterbox/Letterbox.lua', 'QuietUI.lua' },
+    ['Cine.lua'] = { 'Features/Glance/Binding.lua', 'Features/Glance/Glance.lua',
+        'Features/Camera/Camera.lua', 'Features/Letterbox/Letterbox.lua', 'Cine.lua' },
 }
 
 return function(file, ns, root)
     local files = GROUPS[file]
     assert(files, 'Unknown addon file ' .. tostring(file))
     for _, path in ipairs(files) do
-        assert(loadfile((root or '.') .. '/' .. path))('QuietUI', ns)
+        assert(loadfile((root or '.') .. '/' .. path))('Cine', ns)
     end
 end

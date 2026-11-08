@@ -7,15 +7,15 @@ ns.Core = Core
 ------------------------------------------------------------------------------
 function ns.RestoreAlpha()
     for _, frame in ipairs(Core.hooked) do
-        frame._quietAlpha = nil
-        frame._quietSecret = nil
-        frame._quietApplying = true
+        frame._cineAlpha = nil
+        frame._cineSecret = nil
+        frame._cineApplying = true
         frame:SetAlpha(Core.savedAlpha[frame] or 1)
-        frame._quietApplying = false
+        frame._cineApplying = false
     end
     for tex, alpha in pairs(Core.textureAlpha) do
-        tex._quietApplying = true
+        tex._cineApplying = true
         tex:SetAlpha(alpha or 1)
-        tex._quietApplying = false
+        tex._cineApplying = false
     end
 end

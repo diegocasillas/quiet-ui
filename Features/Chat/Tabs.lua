@@ -27,7 +27,7 @@ local function FadeTabs(elapsed)
     local hot = ns.MouseOver(GeneralDockManager)
     for i = 1, Chat.ChatCount() do
         local frame = _G["ChatFrame" .. i]
-        if frame and frame._quietHover then hot = true end
+        if frame and frame._cineHover then hot = true end
     end
     for i = 1, Chat.ChatCount() do
         local tab = _G["ChatFrame" .. i .. "Tab"]
@@ -43,7 +43,7 @@ Chat.FadeTabs = FadeTabs
 local function RestoreTabs()
     for i = 1, Chat.ChatCount() do
         local tab = _G["ChatFrame" .. i .. "Tab"]
-        if tab and tab._quietAlpha ~= nil then ns.ReleaseAlpha(tab) end
+        if tab and tab._cineAlpha ~= nil then ns.ReleaseAlpha(tab) end
     end
 end
 Chat.RestoreTabs = RestoreTabs

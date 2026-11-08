@@ -12,12 +12,12 @@ local function Backdropped(kind, name, parent)
 end
 Chat.Backdropped = Backdropped
 
-local ROUND_TEX = "Interface\\AddOns\\QuietUI\\Media\\round"
+local ROUND_TEX = "Interface\\AddOns\\Cine\\Media\\round"
 local ROUND_CUT = 10 / 32
 local ROUND_PX = 6
 
 local function MakeRound(parent)
-    if parent._quietRound then return end
+    if parent._cineRound then return end
     local c = ROUND_CUT
     local s = ROUND_PX
     local function piece(x0, x1, y0, y1)
@@ -53,13 +53,13 @@ local function MakeRound(parent)
     right:SetPoint("BOTTOMRIGHT", br, "TOPRIGHT")
     mid:SetPoint("TOPLEFT", tl, "BOTTOMRIGHT")
     mid:SetPoint("BOTTOMRIGHT", br, "TOPLEFT")
-    parent._quietRound = { tl, tr, bl, br, top, bottom, left, right, mid }
+    parent._cineRound = { tl, tr, bl, br, top, bottom, left, right, mid }
 end
 
 local function TintRound(parent, r, g, b, a)
     MakeRound(parent)
-    for i = 1, #parent._quietRound do
-        parent._quietRound[i]:SetVertexColor(r, g, b, a)
+    for i = 1, #parent._cineRound do
+        parent._cineRound[i]:SetVertexColor(r, g, b, a)
     end
 end
 Chat.TintRound = TintRound
@@ -78,12 +78,12 @@ local function Flat(widget, alpha)
         end)
         return
     end
-    if widget.CreateTexture and not widget._quietFill then
+    if widget.CreateTexture and not widget._cineFill then
         local fill = widget:CreateTexture(nil, "BACKGROUND")
         fill:SetAllPoints()
         fill:SetTexture("Interface\\Buttons\\WHITE8X8")
         fill:SetVertexColor(0.05, 0.05, 0.05, alpha or 0.92)
-        widget._quietFill = fill
+        widget._cineFill = fill
     end
 end
 Chat.Flat = Flat
@@ -99,8 +99,8 @@ local function HideEditChrome(edit)
     for _, key in ipairs(Chat.EDIT_PARTS) do
         ns.ForceTextureHidden(edit[key])
     end
-    if edit._quietHeader then
-        ns.HideTextures(edit._quietHeader)
+    if edit._cineHeader then
+        ns.HideTextures(edit._cineHeader)
     end
     if edit.SetBackdropColor then
         pcall(edit.SetBackdropColor, edit, 0, 0, 0, 0)
@@ -111,14 +111,14 @@ local function HideEditChrome(edit)
 end
 
 local function PadEdit(edit)
-    if edit._quietPadded or not edit.SetTextInsets then return end
-    if not edit._quietInsets and edit.GetTextInsets then
+    if edit._cinePadded or not edit.SetTextInsets then return end
+    if not edit._cineInsets and edit.GetTextInsets then
         local ok, left, right, top, bottom = pcall(edit.GetTextInsets, edit)
         if ok then
-            edit._quietInsets = { left or 0, right or 0, top or 0, bottom or 0 }
+            edit._cineInsets = { left or 0, right or 0, top or 0, bottom or 0 }
         end
     end
-    edit._quietPadded = true
+    edit._cinePadded = true
     pcall(edit.SetTextInsets, edit, 4, 4, 0, 0)
 end
 
@@ -128,9 +128,9 @@ end
 
 -- One point only: a second corner on the edit box stretches the height.
 local function PlacePlate(edit)
-    local plate = edit._quietPlate
+    local plate = edit._cinePlate
     if not plate then return end
-    local header = edit._quietHeader
+    local header = edit._cineHeader
     local line = (header and header ~= edit and header.GetBottom) and header or edit
     local fontSize = 14
     if edit.GetFont then
@@ -157,7 +157,7 @@ local function PlacePlate(edit)
 end
 
 local function EnsurePlate(edit)
-    if edit._quietPlate then return edit._quietPlate end
+    if edit._cinePlate then return edit._cinePlate end
     local parent = edit.GetParent and edit:GetParent()
     if not parent then return nil end
     local plate = Backdropped("Frame", nil, parent)
@@ -167,7 +167,7 @@ local function EnsurePlate(edit)
     ns.Remember(plate)
     ns.EnsureAlphaHook(plate)
     ns.NoteChat(plate)
-    edit._quietPlate = plate
+    edit._cinePlate = plate
     return plate
 end
 
@@ -183,7 +183,7 @@ end
 
 -- Focused field sits above the bubbles. The plate stays just behind the field.
 local function StackPlate(edit, focused)
-    local plate = edit._quietPlate
+    local plate = edit._cinePlate
     if not plate then return end
     local chat = ChatOf(edit)
     if not chat then return end
@@ -191,57 +191,57 @@ local function StackPlate(edit, focused)
     local editLevel = focused and (base + 5) or base
     pcall(plate.SetFrameLevel, plate, focused and (base + 4) or base)
     pcall(edit.SetFrameLevel, edit, editLevel)
-    if edit._quietHeader and edit._quietHeader.SetFrameLevel then
-        pcall(edit._quietHeader.SetFrameLevel, edit._quietHeader, editLevel)
+    if edit._cineHeader and edit._cineHeader.SetFrameLevel then
+        pcall(edit._cineHeader.SetFrameLevel, edit._cineHeader, editLevel)
     end
 end
 
 -- The unfocused field is invisible but shown; it lets clicks through to the tabs.
 local function HoldEditMouse(edit, focused)
     if not edit.EnableMouse then return end
-    if edit._quietMouse == nil and edit.IsMouseEnabled then
-        edit._quietMouse = edit:IsMouseEnabled() and true or false
+    if edit._cineMouse == nil and edit.IsMouseEnabled then
+        edit._cineMouse = edit:IsMouseEnabled() and true or false
     end
     pcall(edit.EnableMouse, edit, focused and true or false)
 end
 
 local function ReleaseEditMouse(edit)
-    if edit._quietMouse == nil then return end
-    pcall(edit.EnableMouse, edit, edit._quietMouse)
-    edit._quietMouse = nil
+    if edit._cineMouse == nil then return end
+    pcall(edit.EnableMouse, edit, edit._cineMouse)
+    edit._cineMouse = nil
 end
 
 local function SyncEdit(edit)
     if not ns.DB().enabled or not ns.ModernChat() then
         ReleaseEditMouse(edit)
-        edit._quietAlpha = nil
-        if edit._quietPlate then
-            edit._quietPlate._quietAlpha = nil
-            edit._quietPlate:SetAlpha(0)
+        edit._cineAlpha = nil
+        if edit._cinePlate then
+            edit._cinePlate._cineAlpha = nil
+            edit._cinePlate:SetAlpha(0)
         end
         return
     end
-    local focused = edit._quietFocus or (edit.HasFocus and edit:HasFocus())
-    edit._quietWant = focused and 1 or 0
+    local focused = edit._cineFocus or (edit.HasFocus and edit:HasFocus())
+    edit._cineWant = focused and 1 or 0
     HoldEditMouse(edit, focused)
     PadEdit(edit)
     HideEditChrome(edit)
     EnsurePlate(edit)
     PlacePlate(edit)
     StackPlate(edit, focused)
-    if edit._quietPlate then
-        edit._quietPlate._quietWant = edit._quietWant
+    if edit._cinePlate then
+        edit._cinePlate._cineWant = edit._cineWant
     end
 end
 
 local function SetFocus(edit, focused)
-    edit._quietFocus = focused
+    edit._cineFocus = focused
     SyncEdit(edit)
 end
 
 local function BindEdit(edit)
-    if not edit or edit._quietEdit or not edit.HookScript then return end
-    edit._quietEdit = true
+    if not edit or edit._cineEdit or not edit.HookScript then return end
+    edit._cineEdit = true
     ns.Remember(edit)
     ns.EnsureAlphaHook(edit)
     ns.NoteChat(edit)
@@ -257,7 +257,7 @@ local function BindEdit(edit)
         ns.Remember(header)
         ns.EnsureAlphaHook(header)
         ns.NoteChat(header)
-        edit._quietHeader = header
+        edit._cineHeader = header
     end
     SyncEdit(edit)
 end
@@ -268,16 +268,16 @@ function ns.SyncVisibleEdits()
     if not ns.DB().enabled or not ns.ModernChat() then return end
     for i = 1, Chat.ChatCount() do
         local edit = _G["ChatFrame" .. i .. "EditBox"]
-        if edit and edit._quietEdit and edit:IsShown() then
+        if edit and edit._cineEdit and edit:IsShown() then
             local focused = edit.HasFocus and edit:HasFocus() and true or false
             if focused then
-                if not edit._quietFocus or edit._quietWant ~= 1 then
-                    edit._quietFocus = true
+                if not edit._cineFocus or edit._cineWant ~= 1 then
+                    edit._cineFocus = true
                     SyncEdit(edit)
                 end
                 StackPlate(edit, true)
                 PlacePlate(edit)
-            elseif edit._quietFocus or edit._quietWant ~= 0 then
+            elseif edit._cineFocus or edit._cineWant ~= 0 then
                 SetFocus(edit, false)
             else
                 StackPlate(edit, false)
@@ -290,21 +290,21 @@ local function RestoreEdits()
     for i = 1, Chat.ChatCount() do
         local edit = _G["ChatFrame" .. i .. "EditBox"]
         if edit then
-            if edit._quietInsets and edit.SetTextInsets then
-                pcall(edit.SetTextInsets, edit, edit._quietInsets[1], edit._quietInsets[2], edit._quietInsets[3], edit._quietInsets[4])
+            if edit._cineInsets and edit.SetTextInsets then
+                pcall(edit.SetTextInsets, edit, edit._cineInsets[1], edit._cineInsets[2], edit._cineInsets[3], edit._cineInsets[4])
             end
-            edit._quietPadded = nil
-            edit._quietFocus = nil
+            edit._cinePadded = nil
+            edit._cineFocus = nil
             ReleaseEditMouse(edit)
             ns.ReleaseAlpha(edit)
-            if edit._quietHeader then
-                ns.ReleaseAlpha(edit._quietHeader)
+            if edit._cineHeader then
+                ns.ReleaseAlpha(edit._cineHeader)
             end
-            if edit._quietPlate then
-                edit._quietPlate._quietAlpha = nil
-                edit._quietPlate._quietApplying = true
-                edit._quietPlate:SetAlpha(0)
-                edit._quietPlate._quietApplying = false
+            if edit._cinePlate then
+                edit._cinePlate._cineAlpha = nil
+                edit._cinePlate._cineApplying = true
+                edit._cinePlate:SetAlpha(0)
+                edit._cinePlate._cineApplying = false
             end
         end
     end

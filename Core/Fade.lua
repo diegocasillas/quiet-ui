@@ -35,20 +35,20 @@ local function StepAlpha(frame, target, elapsed, current)
 end
 
 function ns.UpdateFaded(frame, show, elapsed)
-    if frame._quietTick == fadeTick then return end
-    frame._quietTick = fadeTick
+    if frame._cineTick == fadeTick then return end
+    frame._cineTick = fadeTick
     local target = show and 1 or 0
     -- Already there. A fade still runs while the value is between 0 and 1.
-    if frame._quietAlpha == target then return end
-    StepAlpha(frame, target, elapsed, frame._quietAlpha)
+    if frame._cineAlpha == target then return end
+    StepAlpha(frame, target, elapsed, frame._cineAlpha)
 end
 
 -- Appears at once and fades out. Same rule as UpdateFaded, without the tick guard.
 function ns.EaseAlpha(frame, show, elapsed)
     if not frame or not frame.SetAlpha then return end
     local target = show and 1 or 0
-    if frame._quietSecret == nil and frame._quietAlpha == target then return end
+    if frame._cineSecret == nil and frame._cineAlpha == target then return end
     -- A held secret alpha is stale; read the frame instead.
-    local current = frame._quietSecret == nil and frame._quietAlpha or nil
+    local current = frame._cineSecret == nil and frame._cineAlpha or nil
     StepAlpha(frame, target, elapsed, current)
 end
