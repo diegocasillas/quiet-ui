@@ -54,6 +54,9 @@ local function Paint()
     if Setup.frame.forceFramesInInstance then
         Setup.PaintBox(Setup.frame.forceFramesInInstance.box, Setup.draft.forceFramesInInstance)
     end
+    if Setup.frame.letterbox then
+        Setup.PaintBox(Setup.frame.letterbox.box, Setup.draft.letterbox)
+    end
     if Setup.frame.chat then
         Setup.PaintBox(Setup.frame.chat.box, Setup.draft.chat)
     end

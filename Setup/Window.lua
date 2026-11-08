@@ -4,7 +4,7 @@ ns.Setup = Setup
 
 local TABS = {
     { id = "general", label = "General", height = 224 },
-    { id = "visible", label = "Visible", height = 262 },
+    { id = "visible", label = "Visible", height = 290 },
     { id = "bars", label = "Bars", height = 308 },
     { id = "groups", label = "Groups", height = 320 },
     { id = "player", label = "Player", height = 292 },
@@ -462,6 +462,11 @@ local function CreateSetup()
         Setup.Paint()
     end)
     widget.forceFramesInInstance:SetPoint("TOPLEFT", visible, "TOPLEFT", 0, y - 24)
+    widget.letterbox = Setup.Choice(visible, "Letterbox", function()
+        Setup.draft.letterbox = not Setup.draft.letterbox
+        Setup.Paint()
+    end)
+    widget.letterbox:SetPoint("TOPLEFT", visible, "TOPLEFT", 0, y - 48)
 
     local bars = widget.pages[3]
     widget.groupHeader = Setup.Section(bars, "Fade together")

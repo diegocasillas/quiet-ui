@@ -131,6 +131,7 @@ local function RestoreAll()
     if ns.CancelLayoutPreview then ns.CancelLayoutPreview() end
     ns.ClearGlance()
     ns.RestoreCamera()
+    ns.RestoreLetterbox()
     ns.HideQuestCatcher()
     ns.HideRangeMark()
     -- Target and action bar events stop while off.
@@ -171,6 +172,7 @@ local function ApplyAll()
     end
     ns.EnsureLayout()
     ns.RefreshChrome()
+    ns.ApplyLetterbox()
     if ns.ModernChat() then
         ns.StripAllChat()
     else

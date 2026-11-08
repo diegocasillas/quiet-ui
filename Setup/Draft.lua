@@ -26,6 +26,7 @@ local function ReadDraft(source)
     Setup.draft.showPlayerFrameInParty = source.showPlayerFrameInParty == true
     Setup.draft.forceFramesInInstance = source.forceFramesInInstance ~= false
     Setup.draft.chat = source.chat ~= false
+    Setup.draft.letterbox = source.letterbox == true
     local fade = source.chatFade
     Setup.draft.chatFade = type(fade) == "number" and fade == fade and math.floor(math.max(0, math.min(60, fade)) / 5) * 5 or 10
     local range = type(source.range) == "table" and source.range or {}
@@ -124,6 +125,7 @@ local function DraftSettings()
     if not Setup.draft.alwaysShowDebuffs then db.alwaysShowDebuffs = false end
     if Setup.draft.showPlayerFrameInParty then db.showPlayerFrameInParty = true end
     if not Setup.draft.forceFramesInInstance then db.forceFramesInInstance = false end
+    db.letterbox = Setup.draft.letterbox and true or nil
     if Setup.draft.chat then
         db.chat = nil
     else
