@@ -156,6 +156,12 @@ end
 local showGroup = {}
 local barShow = {}
 local haveBarShow = false
+local shownGroups = {}
+
+-- True while a bar of that fade group is on screen and kept up (read by the letterbox).
+function ns.BarGroupShowing(group)
+    return shownGroups[group] == true
+end
 
 -- Hover groups skip automatic triggers; explicit HUD and bar editing still show them.
 local function RowForced(id, showAllForced)
@@ -202,10 +208,12 @@ function ns.UpdateBars(showAll, elapsed, rescan)
         haveBarShow = true
     end
     local mainAlpha, gamepadAlpha
+    ns.Wipe(shownGroups)
     for _, entry in ipairs(Bars.resolved) do
         local show = RowForced(entry.id, showAllForced) or barShow[entry.id]
         for _, bar in ipairs(entry.frames) do
             if ns.Usable(bar) and bar:IsShown() then
+                if show then shownGroups[ns.BarGroup(entry.id)] = true end
                 local name, alpha = ApplyBar(bar, show, elapsed)
                 if type(alpha) == "number" then
                     if Bars.MAIN_BAR[name] then

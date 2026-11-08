@@ -3,7 +3,7 @@ local Letterbox = ns.Letterbox or {}
 ns.Letterbox = Letterbox
 
 -- Black bars at the top and bottom of the screen. At full size each bar is half
--- of what a 2.39:1 frame leaves over; in combat or while Glance is on they shrink to half of that.
+-- of what a 2.39:1 frame leaves over; in combat, while Glance is on or while fade group 1 shows they shrink to half of that.
 -- They sit under the UI (BACKGROUND strata), so frames draw over them.
 local ASPECT = 2.39
 local CALM, COMBAT = 1, 0.5
@@ -48,7 +48,7 @@ end
 
 local function Target()
     if not Letterbox.wanted then return 0 end
-    return (ns.InCombat() or ns.Glancing()) and COMBAT or CALM
+    return (ns.InCombat() or ns.Glancing() or ns.BarGroupShowing(1)) and COMBAT or CALM
 end
 
 local function OnUpdate(frame, elapsed)
@@ -63,7 +63,7 @@ local function OnUpdate(frame, elapsed)
 end
 
 function Letterbox.Wanted()
-    return (ns.Settings and ns.Settings() or ns.CharDB()).letterbox == true
+    return (ns.Settings and ns.Settings() or ns.CharDB()).letterbox ~= false
 end
 
 function Letterbox.Apply()
