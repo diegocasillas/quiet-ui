@@ -43,11 +43,13 @@ local function AurasShouldShow()
 end
 
 local function UpdateAuras(elapsed)
-    local show = AurasShouldShow() and true or false
+    local usual = AurasShouldShow() and true or false
+    -- A new buff shows the auras for a few seconds. Only on hover overrides it.
+    local show = usual or (not ns.OnlyOnHover("auras") and ns.BuffPeek()) or false
     local useCurve = not ns.OnlyOnHover("auras") and ns.GroupAuras() and Faders.PlayerUsesThresholds()
     Faders.aurasCurved, Faders.auraWeight = Faders.TakeWeight(Faders.aurasCurved, Faders.auraWeight, show, elapsed, useCurve)
     local alpha = useCurve and Faders.EvalPlayerThresholds(Faders.auraWeight) or nil
-    Faders.UpdateIgnoredDebuffs(elapsed, show)
+    Faders.UpdateIgnoredDebuffs(elapsed, usual)
     local keepDebuffs = not ns.OnlyOnHover("auras") and ns.AlwaysShowDebuffs()
     for _, frame in ipairs(Faders.auraFrames) do
         if keepDebuffs and frame == _G.DebuffFrame then
