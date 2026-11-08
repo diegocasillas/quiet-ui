@@ -36,6 +36,7 @@ Faders.playerCurved = false
 Faders.auraWeight = 0
 Faders.aurasCurved = false
 Faders.resourceWeight = 0
+Faders.resourceCurved = false
 Faders.samplingPower = false
 -- sampledKind: state lives in Faders
 -- sampledPlayerShow: state lives in Faders
@@ -73,6 +74,8 @@ local function PlayerShouldShow()
         or ns.HasTarget()
         or ns.Hit(PlayerFrame)
         or ns.Hit(PetFrame)
+        -- Linked: whatever shows the personal resource bar shows the player frame.
+        or (not ns.OnlyOnHover("resource") and Faders.ResourceForced())
 end
 Faders.PlayerShouldShow = PlayerShouldShow
 
@@ -81,6 +84,15 @@ local function ResourceForced()
         or ns.Glancing()
 end
 Faders.ResourceForced = ResourceForced
+
+-- With the player frame on, the personal resource bar and the player frame show and
+-- hide together, the way grouped buffs follow the player frame. The resource row on
+-- Only on hover keeps its own rules, and so does the bar while a dead target is
+-- hiding the player frame.
+local function ResourceLinked()
+    return ns.PlayerStyle() == "classic" and not ns.OnlyOnHover("resource") and not DeadTargetBlocked()
+end
+Faders.ResourceLinked = ResourceLinked
 
 -- Mana, focus and energy. Rage and the rest stay out even when the type number
 -- is hidden, as long as the token is still a plain string.

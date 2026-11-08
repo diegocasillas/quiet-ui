@@ -95,6 +95,19 @@ local function UpdateResource(elapsed)
         return
     end
     Faders.ParkHover("resource")
+    if Faders.ResourceLinked() then
+        -- One show decision and the player threshold, like buffs grouped with the player frame.
+        local linkedShow = Faders.PlayerShouldShow() and true or false
+        local useCurve = Faders.PlayerUsesThresholds()
+        Faders.resourceCurved, Faders.resourceWeight = Faders.TakeWeight(Faders.resourceCurved,
+            Faders.resourceWeight, linkedShow, elapsed, useCurve)
+        local alpha = useCurve and Faders.EvalPlayerThresholds(Faders.resourceWeight) or nil
+        for _, frame in ipairs(Faders.resourceFrames) do
+            PaintResource(frame, linkedShow, elapsed, alpha, alpha)
+        end
+        return
+    end
+    Faders.resourceCurved = false
     local show = Faders.ResourceForced() and true or false
     Faders.resourceWeight = Faders.NextWeight(Faders.resourceWeight, show, elapsed)
     local powerAlpha = Faders.EvalPower(Faders.resourceWeight)

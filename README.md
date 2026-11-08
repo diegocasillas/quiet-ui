@@ -165,9 +165,14 @@ arranging it. Elements appear immediately and fade out over 0.3 seconds.
 - **Cooldowns and damage meter:** Combat, an instance, or a group. The meter stays
   for 10 seconds after combat. Hover does not reveal either.
 - **Personal resource:** Combat, an instance, or mana, focus, or energy below 70%.
-  Its health bar also appears when health is not full.
+  Its health bar also appears when health is not full. While the player frame is
+  on, the bar and the player frame show and hide together: either one's triggers
+  show both, and the player threshold (health below 70% by default) drives both,
+  replacing the bar's own power and health rules. With the player frame off, or the
+  row on **Only on hover**, the bar keeps its own rules.
 - **Player and pet:** A target, combat, an instance, a group, a vehicle, hover, or
-  low mana, focus, or energy. Having a pet out alone does not reveal them.
+  health (or resource) below the threshold you set. The personal resource bar shows
+  and hides with them. Having a pet out alone does not reveal them.
   **Require a living target** overrides these rules and Glance for a dead target,
   fading player, pet, and target frames; Edit Mode still reveals them.
 - **Buffs and debuffs:** Combat, an instance, a group, or hover. Grouping is on by
