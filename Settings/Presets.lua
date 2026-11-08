@@ -3,7 +3,8 @@ local _, ns = ...
 local snapshotChar, snapshotPreset
 
 local KEYS = { "visible", "hoverOnly", "groupVisibility", "forceLayout", "player", "playerThresholdKind", "playerThresholdPercent", "requireLivingTarget", "groupAuras", "alwaysShowDebuffs", "showPlayerFrameInParty",
-    "chat", "chatFade", "groups", "hostile", "friendly", "range", "forceFramesInInstance", "letterbox" }
+    "chat", "chatFade", "groups", "hostile", "friendly", "range", "forceFramesInInstance", "letterbox", "combatZoom",
+    "combatZoomPercent", "defaultZoom", "defaultZoomPercent", "rememberZoom" }
 
 function ns.Copy(value)
     if type(value) ~= "table" then return value end

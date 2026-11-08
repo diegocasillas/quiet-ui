@@ -93,6 +93,34 @@ function ns.ShowPlayerFrameInParty()
     return (ns.Settings and ns.Settings() or ns.CharDB()).showPlayerFrameInParty == true
 end
 
+-- Missing means on. Only an explicit false stops the combat zoom.
+function ns.CombatZoom()
+    return (ns.Settings and ns.Settings() or ns.CharDB()).combatZoom ~= false
+end
+
+-- Share (0-1) of the farthest zoom for the combat zoom; missing means 0.6.
+function ns.CombatZoomShare()
+    local value = (ns.Settings and ns.Settings() or ns.CharDB()).combatZoomPercent
+    if type(value) == "number" and value >= 1 and value <= 100 then return value / 100 end
+    return 0.6
+end
+
+-- Share for the default distance (login, and after combat when the previous
+-- distance is not remembered); missing means 0.3, and nil means it is off
+-- (defaultZoom false).
+function ns.DefaultZoomShare()
+    local settings = ns.Settings and ns.Settings() or ns.CharDB()
+    if settings.defaultZoom == false then return nil end
+    local value = settings.defaultZoomPercent
+    if type(value) == "number" and value >= 1 and value <= 100 then return value / 100 end
+    return 0.3
+end
+
+-- Missing means on. Only an explicit false returns to the default distance.
+function ns.RememberZoom()
+    return (ns.Settings and ns.Settings() or ns.CharDB()).rememberZoom ~= false
+end
+
 -- Missing means on. Only an explicit false keeps frames hidden in instance.
 function ns.ForceFramesInInstance()
     return (ns.Settings and ns.Settings() or ns.CharDB()).forceFramesInInstance ~= false

@@ -27,6 +27,19 @@ local function ReadDraft(source)
     Setup.draft.forceFramesInInstance = source.forceFramesInInstance ~= false
     Setup.draft.chat = source.chat ~= false
     Setup.draft.letterbox = source.letterbox ~= false
+    Setup.draft.combatZoom = source.combatZoom ~= false
+    local combat = source.combatZoomPercent
+    Setup.draft.combatZoomPercent = type(combat) == "number" and combat >= 1 and combat <= 100
+        and combat == math.floor(combat) and tostring(combat) or "60"
+    local default = source.defaultZoomPercent
+    Setup.draft.defaultZoomPercent = type(default) == "number" and default >= 1 and default <= 100
+        and default == math.floor(default) and tostring(default) or "30"
+    Setup.draft.defaultZoom = source.defaultZoom ~= false
+    Setup.draft.rememberZoom = source.rememberZoom ~= false
+    if Setup.frame and Setup.frame.combatZoomPercent then Setup.frame.combatZoomPercent.edit:ClearFocus() end
+    -- Only for the zoom test; never saved.
+    Setup.draft.testZoomPercent = Setup.draft.testZoomPercent or "60"
+    if Setup.frame and Setup.frame.defaultZoomPercent then Setup.frame.defaultZoomPercent.edit:ClearFocus() end
     local fade = source.chatFade
     Setup.draft.chatFade = type(fade) == "number" and fade == fade and math.floor(math.max(0, math.min(60, fade)) / 5) * 5 or 10
     local range = type(source.range) == "table" and source.range or {}
@@ -126,6 +139,21 @@ local function DraftSettings()
     if Setup.draft.showPlayerFrameInParty then db.showPlayerFrameInParty = true end
     if not Setup.draft.forceFramesInInstance then db.forceFramesInInstance = false end
     if not Setup.draft.letterbox then db.letterbox = false end
+    if not Setup.draft.combatZoom then db.combatZoom = false end
+    local combatText = Setup.draft.combatZoomPercent:match("^%s*(.-)%s*$")
+    local combatN = tonumber(combatText)
+    if not combatText:match("^%d+$") or not combatN or combatN < 1 or combatN > 100 then
+        return nil, "Enter a whole percentage from 1 to 100 for the combat zoom."
+    end
+    if combatN ~= 60 then db.combatZoomPercent = combatN end
+    if not Setup.draft.defaultZoom then db.defaultZoom = false end
+    local defaultText = Setup.draft.defaultZoomPercent:match("^%s*(.-)%s*$")
+    local defaultN = tonumber(defaultText)
+    if not defaultText:match("^%d+$") or not defaultN or defaultN < 1 or defaultN > 100 then
+        return nil, "Enter a whole percentage from 1 to 100 for the default distance."
+    end
+    if defaultN ~= 30 then db.defaultZoomPercent = defaultN end
+    if not Setup.draft.rememberZoom then db.rememberZoom = false end
     if Setup.draft.chat then
         db.chat = nil
     else
