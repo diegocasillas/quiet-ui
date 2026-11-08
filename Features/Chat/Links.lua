@@ -81,13 +81,13 @@ local function BindBubbleLinks(bubble)
             end
         end)
     end)
-    bubble._quietNativeLinks = ok
+    bubble._cineNativeLinks = ok
 end
 Chat.BindBubbleLinks = BindBubbleLinks
 
 local function PlaceLinks(bubble, msg, inner)
     local links = bubble.links
-    if bubble._quietNativeLinks then
+    if bubble._cineNativeLinks then
         pcall(bubble.SetHyperlinksEnabled, bubble, msg ~= nil and not msg.secret)
         for i = 1, #links do links[i]:Hide() end
         return

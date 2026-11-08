@@ -53,7 +53,7 @@ local function UpdateAuras(elapsed)
     local keepDebuffs = not ns.OnlyOnHover("auras") and ns.AlwaysShowDebuffs()
     for _, frame in ipairs(Faders.auraFrames) do
         if keepDebuffs and frame == _G.DebuffFrame then
-            if frame._quietSecret ~= nil or frame._quietAlpha ~= 1 then
+            if frame._cineSecret ~= nil or frame._cineAlpha ~= 1 then
                 Faders.PaintNumeric(frame, true, elapsed)
             end
         elseif alpha ~= nil then

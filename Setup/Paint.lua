@@ -128,7 +128,7 @@ local function Paint()
     if Setup.frame.tabs then
         for _, tab in ipairs(Setup.frame.tabs) do
             local on = tab.id == Setup.frame.page
-            if tab._quietGold and tab.SetBackdropBorderColor then
+            if tab._cineGold and tab.SetBackdropBorderColor then
                 if on then
                     tab:SetBackdropBorderColor(1, 0.86, 0.4, 1)
                 else
@@ -144,7 +144,7 @@ local function Paint()
             if tab.label and tab.label.SetTextColor then
                 if on then
                     tab.label:SetTextColor(1, 0.86, 0.35)
-                elseif tab._quietGold then
+                elseif tab._cineGold then
                     tab.label:SetTextColor(0.85, 0.8, 0.65)
                 else
                     tab.label:SetTextColor(0.85, 0.85, 0.85)

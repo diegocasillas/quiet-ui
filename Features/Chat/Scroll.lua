@@ -16,7 +16,7 @@ local function ScrollOffset(frame)
     if type(frame.scrollOffset) == "number" then
         return frame.scrollOffset
     end
-    return frame._quietScroll or 0
+    return frame._cineScroll or 0
 end
 Chat.ScrollOffset = ScrollOffset
 
@@ -31,23 +31,23 @@ Chat.AtBottom = AtBottom
 
 local function ClampScroll(frame, value)
     if value < 0 then return 0 end
-    local max = frame._quietLines and #frame._quietLines or 0
+    local max = frame._cineLines and #frame._cineLines or 0
     if value > max then return max end
     return value
 end
 Chat.ClampScroll = ClampScroll
 
 local function TrackScroll(frame)
-    if frame._quietScrollHook then return end
-    frame._quietScrollHook = true
+    if frame._cineScrollHook then return end
+    frame._cineScrollHook = true
     local native = type(frame.GetScrollOffset) == "function"
     if not native then
-        frame._quietScroll = 0
+        frame._cineScroll = 0
     end
     local function hook(name, fn)
         if type(frame[name]) ~= "function" then return end
         pcall(hooksecurefunc, frame, name, function(self)
-            self._quietDirty = true
+            self._cineDirty = true
             if fn then fn(self) end
         end)
     end
@@ -59,24 +59,24 @@ local function TrackScroll(frame)
         hook("ScrollToBottom")
     else
         hook("ScrollUp", function(self)
-            self._quietScroll = ClampScroll(self, (self._quietScroll or 0) + 1)
+            self._cineScroll = ClampScroll(self, (self._cineScroll or 0) + 1)
         end)
         hook("ScrollDown", function(self)
-            self._quietScroll = ClampScroll(self, (self._quietScroll or 0) - 1)
+            self._cineScroll = ClampScroll(self, (self._cineScroll or 0) - 1)
         end)
         hook("PageUp", function(self)
-            self._quietScroll = ClampScroll(self, (self._quietScroll or 0) + 10)
+            self._cineScroll = ClampScroll(self, (self._cineScroll or 0) + 10)
         end)
         hook("PageDown", function(self)
-            self._quietScroll = ClampScroll(self, (self._quietScroll or 0) - 10)
+            self._cineScroll = ClampScroll(self, (self._cineScroll or 0) - 10)
         end)
         hook("ScrollToBottom", function(self)
-            self._quietScroll = 0
+            self._cineScroll = 0
         end)
     end
     if frame.HookScript then
         frame:HookScript("OnSizeChanged", function(self)
-            self._quietDirty = true
+            self._cineDirty = true
         end)
     end
 end

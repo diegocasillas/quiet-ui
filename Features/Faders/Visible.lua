@@ -39,22 +39,22 @@ local function HoverFrames(name, frames, active)
                 end
             end
             if box then
-                if box._quietHoverTarget ~= target then
+                if box._cineHoverTarget ~= target then
                     box:ClearAllPoints()
                     box:SetAllPoints(target)
-                    box._quietHoverTarget = target
+                    box._cineHoverTarget = target
                 end
                 local strata = target.GetFrameStrata and target:GetFrameStrata()
-                if type(strata) == "string" and not ns.IsSecret(strata) and box._quietStrata ~= strata then
+                if type(strata) == "string" and not ns.IsSecret(strata) and box._cineStrata ~= strata then
                     box:SetFrameStrata(strata)
-                    box._quietStrata = strata
+                    box._cineStrata = strata
                 end
                 local level = target.GetFrameLevel and target:GetFrameLevel() or 1
                 if type(level) ~= "number" or ns.IsSecret(level) then level = 1 end
                 level = math.max(0, level - 1)
-                if box._quietLevel ~= level then
+                if box._cineLevel ~= level then
                     box:SetFrameLevel(level)
-                    box._quietLevel = level
+                    box._cineLevel = level
                 end
                 if not box:IsShown() then box:Show() end
                 if ns.Hit(box) then hovered = true end

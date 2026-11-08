@@ -5,23 +5,23 @@ local _, ns = ...
 local accountMoved = false
 
 function ns.CharDB()
-    if type(QuietUICharDB) ~= "table" then
-        QuietUICharDB = {}
+    if type(CineCharDB) ~= "table" then
+        CineCharDB = {}
     end
     if not accountMoved then
         accountMoved = true
         local account = ns.DB()
         if account.visible ~= nil or account.player ~= nil then
-            if QuietUICharDB.visible == nil and QuietUICharDB.player == nil then
-                QuietUICharDB.visible = account.visible
-                QuietUICharDB.player = account.player
+            if CineCharDB.visible == nil and CineCharDB.player == nil then
+                CineCharDB.visible = account.visible
+                CineCharDB.player = account.player
             end
             account.visible = nil
             account.player = nil
         end
     end
-    if ns.MigrateOnce then ns.MigrateOnce(QuietUICharDB) end
-    return QuietUICharDB
+    if ns.MigrateOnce then ns.MigrateOnce(CineCharDB) end
+    return CineCharDB
 end
 
 -- These rows show only on hover until setup says otherwise.
@@ -103,8 +103,8 @@ function ns.ModernChat()
     return (ns.Settings and ns.Settings() or ns.CharDB()).chat ~= false
 end
 
--- Missing means off. Only an explicit true selects the QuietUI layout when the addon turns on.
-function ns.ForceQuietLayout()
+-- Missing means off. Only an explicit true selects the Cine layout when the addon turns on.
+function ns.ForceCineLayout()
     return (ns.ActivePreset and ns.ActivePreset()) ~= nil
         or (ns.Settings and ns.Settings() or ns.CharDB()).forceLayout == true
 end

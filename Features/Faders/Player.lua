@@ -21,7 +21,7 @@ local function IsolatePet(pet, on)
     if Faders.petIsolated == on or not pet then return end
     Faders.petIsolated = on
     if type(pet.SetIgnoreParentAlpha) == "function" then pet:SetIgnoreParentAlpha(on) end
-    if not on and (pet._quietAlpha ~= nil or pet._quietSecret ~= nil) then ns.ReleaseAlpha(pet) end
+    if not on and (pet._cineAlpha ~= nil or pet._cineSecret ~= nil) then ns.ReleaseAlpha(pet) end
 end
 
 -- Restore: the pet follows its parent's alpha again.
@@ -42,7 +42,7 @@ local function UpdatePlayer(elapsed)
     if Faders.IsFadeable(target) then
         if blocked then
             ns.EaseAlpha(target, false, elapsed)
-        elseif target._quietAlpha ~= nil or target._quietSecret ~= nil then
+        elseif target._cineAlpha ~= nil or target._cineSecret ~= nil then
             ns.ReleaseAlpha(target)
         end
     end

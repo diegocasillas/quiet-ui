@@ -32,15 +32,15 @@ end
 
 local function MatchLevel(box, bar)
     local strata = bar.GetFrameStrata and bar:GetFrameStrata()
-    if type(strata) == "string" and box._quietStrata ~= strata then
+    if type(strata) == "string" and box._cineStrata ~= strata then
         box:SetFrameStrata(strata)
-        box._quietStrata = strata
+        box._cineStrata = strata
     end
     local level = bar.GetFrameLevel and bar:GetFrameLevel() or 1
     if type(level) ~= "number" then level = 1 end
-    if box._quietLevel ~= level then
+    if box._cineLevel ~= level then
         box:SetFrameLevel(level)
-        box._quietLevel = level
+        box._cineLevel = level
     end
 end
 
@@ -75,21 +75,21 @@ local function PlaceCatcher(bar)
         local tl, br = SlotCorner(bar)
         if not tl then
             box:Hide()
-            box._quietSpan = nil
+            box._cineSpan = nil
             return
         end
-        if box._quietSlotA ~= tl or box._quietSlotB ~= br then
+        if box._cineSlotA ~= tl or box._cineSlotB ~= br then
             box:ClearAllPoints()
             box:SetPoint("TOPLEFT", tl, "TOPLEFT")
             box:SetPoint("BOTTOMRIGHT", br, "BOTTOMRIGHT")
-            box._quietSlotA, box._quietSlotB = tl, br
+            box._cineSlotA, box._cineSlotB = tl, br
         end
-        box._quietSpan = "slots"
-    elseif box._quietSpan ~= bar then
+        box._cineSpan = "slots"
+    elseif box._cineSpan ~= bar then
         box:ClearAllPoints()
         box:SetAllPoints(bar)
-        box._quietSpan = bar
-        box._quietSlotA, box._quietSlotB = nil, nil
+        box._cineSpan = bar
+        box._cineSlotA, box._cineSlotB = nil, nil
     end
     MatchLevel(box, bar)
     if not box:IsShown() then box:Show() end

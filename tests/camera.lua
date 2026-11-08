@@ -9,12 +9,12 @@ local ACTION = 'actioncam full|camerakeepcharactercentered 0|actioncam noheadmov
 local NORMAL = 'actioncam off|camerakeepcharactercentered 1'
 local function boot(enabled)
     local ns = {}
-    QuietUIDB = { enabled = enabled }
+    CineDB = { enabled = enabled }
     local sent, reports = {}, {}
     ConsoleExec = function(line) sent[#sent + 1] = line end
-    ns.DB = function() return QuietUIDB end
+    ns.DB = function() return CineDB end
     ns.Report = function(name, err) reports[#reports + 1] = name .. ': ' .. tostring(err) end
-    assert(loadfile('Features/Camera/Camera.lua'))('QuietUI', ns)
+    assert(loadfile('Features/Camera/Camera.lua'))('Cine', ns)
     local function take()
         local text = table.concat(sent, '|')
         for i = #sent, 1, -1 do sent[i] = nil end
@@ -27,41 +27,41 @@ test('The default runs the first macro and one key toggles between the two', fun
     local ns, take = boot(true)
     ns.ApplyDefaultCamera()
     assert(take() == ACTION, 'Default is not the action camera')
-    QuietUICameraToggle('down')
+    CineCameraToggle('down')
     assert(take() == NORMAL, 'First press did not go to normal')
-    QuietUICameraToggle('down')
+    CineCameraToggle('down')
     assert(take() == ACTION, 'Second press did not go back to action')
 end)
 
 test('Before any default the first press goes to action', function()
     local ns, take = boot(true)
-    QuietUICameraToggle('down')
+    CineCameraToggle('down')
     assert(take() == ACTION)
-    QuietUICameraToggle('down')
+    CineCameraToggle('down')
     assert(take() == NORMAL)
 end)
 
-test('Key up is ignored and nothing runs while QuietUI is off', function()
+test('Key up is ignored and nothing runs while Cine is off', function()
     local ns, take = boot(true)
-    QuietUICameraToggle('up')
+    CineCameraToggle('up')
     assert(take() == '', 'Key up changed the camera')
-    QuietUIDB.enabled = false
-    QuietUICameraToggle('down'); ns.ApplyDefaultCamera()
-    assert(take() == '', 'The camera changed while QuietUI is off')
+    CineDB.enabled = false
+    CineCameraToggle('down'); ns.ApplyDefaultCamera()
+    assert(take() == '', 'The camera changed while Cine is off')
 end)
 
-test('Turning QuietUI off restores normal only after QuietUI changed the camera', function()
+test('Turning Cine off restores normal only after Cine changed the camera', function()
     local ns, take = boot(true)
     ns.RestoreCamera()
     assert(take() == '', 'Restore ran without a change')
     ns.ApplyDefaultCamera(); take()
-    QuietUIDB.enabled = false
+    CineDB.enabled = false
     ns.RestoreCamera()
     assert(take() == NORMAL)
     ns.RestoreCamera()
     assert(take() == '', 'Restore ran twice')
-    QuietUIDB.enabled = true
-    QuietUICameraToggle('down')
+    CineDB.enabled = true
+    CineCameraToggle('down')
     assert(take() == ACTION, 'The toggle forgot the restore')
 end)
 

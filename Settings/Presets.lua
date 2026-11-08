@@ -138,7 +138,7 @@ function ns.PresetCommand(name)
     end
     if name:sub(1, 1) == '"' then
         if #name < 2 or name:sub(-1) ~= '"' then
-            ns.Print('Use /quiet preset "name".')
+            ns.Print('Use /cine preset "name".')
             return
         end
         name = name:sub(2, -2):match("^%s*(.-)%s*$")
@@ -147,14 +147,14 @@ function ns.PresetCommand(name)
     for id, preset in pairs(ns.Presets()) do
         if preset.name:lower() == name:lower() then
             if selected then
-                ns.Print('More than one preset is named "' .. name .. '". Rename it in /quiet setup.')
+                ns.Print('More than one preset is named "' .. name .. '". Rename it in /cine setup.')
                 return
             end
             selected = id
         end
     end
     if not selected then
-        ns.Print('Preset "' .. name .. '" was not found. Use /quiet preset to list presets.')
+        ns.Print('Preset "' .. name .. '" was not found. Use /cine preset to list presets.')
         return
     end
     if not ns.PresetCompatible(ns.Presets()[selected]) then

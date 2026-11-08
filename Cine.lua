@@ -1,6 +1,6 @@
 local ADDON, ns = ...
 
--- Wiring: apply / restore, events, the per-frame update, and /quiet.
+-- Wiring: apply / restore, events, the per-frame update, and /cine.
 
 local booted = false
 local hookedGlobal = {}
@@ -22,7 +22,7 @@ local function StartCPUProfile()
         return
     end
     cpuProfile = { started = GetTime(), sections = {}, frames = 0 }
-    ns.Print("Measuring QuietUI for 10 seconds. Keep playing in the same situation.")
+    ns.Print("Measuring Cine for 10 seconds. Keep playing in the same situation.")
 end
 
 local function FinishCPUProfile()
@@ -71,7 +71,7 @@ local function UpdateFades(elapsed, rescan)
 end
 
 -- Select once per enable, restore on disable. Both wait out combat and login.
--- With Force QuietUI layout off, the active Edit Mode layout stays as it is.
+-- With Force Cine layout off, the active Edit Mode layout stays as it is.
 local function CheckStartupPreset()
     if not presetCheckPending then return true end
     if ns.ValidatePresetInterface and not ns.ValidatePresetInterface() then return false end
@@ -83,14 +83,14 @@ local function FinishLayout()
     if not CheckStartupPreset() then return end
     if finishingLayout then return end
     if ns.UpdateLayoutPreview and ns.UpdateLayoutPreview() then return end
-    if layoutPending == "select" and not ns.ForceQuietLayout() then
+    if layoutPending == "select" and not ns.ForceCineLayout() then
         layoutPending = nil
         return
     end
     if layoutPending ~= "select" and layoutPending ~= "restore" then return end
     finishingLayout = true
     local job = layoutPending
-    local select = ns.ActivePreset and ns.ActivePreset() and ns.SelectPresetLayout or ns.SelectQuietLayout
+    local select = ns.ActivePreset and ns.ActivePreset() and ns.SelectPresetLayout or ns.SelectCineLayout
     local fn = job == "select" and select or ns.RestorePreviousLayout
     local ok, done = pcall(fn)
     finishingLayout = false
@@ -106,7 +106,7 @@ end
 
 -- A new character applies the default preset after login. Keep selecting until that settles.
 local function ArmLayoutSettle()
-    if not ns.DB().enabled or not ns.ForceQuietLayout() then return end
+    if not ns.DB().enabled or not ns.ForceCineLayout() then return end
     settleToken = settleToken + 1
     local token = settleToken
     layoutChosen = false
@@ -117,7 +117,7 @@ local function ArmLayoutSettle()
     if not (C_Timer and C_Timer.After) then return end
     for _, delay in ipairs({ 1, 3, 6 }) do
         C_Timer.After(delay, function()
-            if token ~= settleToken or not ns.DB().enabled or not ns.ForceQuietLayout() then return end
+            if token ~= settleToken or not ns.DB().enabled or not ns.ForceCineLayout() then return end
             if type(GetTime) == "function" and GetTime() > settleUntil then return end
             layoutChosen = false
             layoutPending = "select"
@@ -146,7 +146,7 @@ local function RestoreAll()
     settleToken = settleToken + 1
     settleUntil = 0
     layoutChosen = false
-    if ns.ForceQuietLayout() or ns.CharDB().presetLayoutManaged then
+    if ns.ForceCineLayout() or ns.CharDB().presetLayoutManaged then
         layoutPending = "restore"
         FinishLayout()
     else
@@ -162,7 +162,7 @@ local function ApplyAll()
     end
     if ns.ForgetBarButtons then ns.ForgetBarButtons() end
     ns.RefreshWorld()
-    if ns.ForceQuietLayout() then
+    if ns.ForceCineLayout() then
         if not layoutChosen then
             layoutPending = "select"
             FinishLayout()
@@ -229,10 +229,10 @@ local function Boot()
     ns.CharDB()
     if ns.Settings then ns.Settings() end
     if first then
-        local state = ns.DB().enabled and "on, enjoy the quiet" or "off for now"
+        local state = ns.DB().enabled and "on, enjoy the view" or "off for now"
         ns.Print("is " .. state .. ".")
-        print("   |cffffffff/quiet|r  switch it on or off")
-        print("   |cffffffff/quiet setup|r  choose what stays visible")
+        print("   |cffffffff/cine|r  switch it on or off")
+        print("   |cffffffff/cine setup|r  choose what stays visible")
     end
     Rescan()
     ns.EnsureGlanceBinding()
@@ -314,7 +314,7 @@ end
 function handlers.EDIT_MODE_LAYOUTS_UPDATED()
     if ns.ForgetBarButtons then ns.ForgetBarButtons() end
     ns.EnsureLayout()
-    if not ns.DB().enabled or not ns.ForceQuietLayout() then return end
+    if not ns.DB().enabled or not ns.ForceCineLayout() then return end
     if type(GetTime) == "function" and GetTime() > settleUntil then return end
     layoutChosen = false
     layoutPending = "select"
@@ -508,11 +508,10 @@ HookGlobal("FCF_DockUpdate", function() ns.StripAllChat() end)
 HookGlobal("FCF_OpenTemporaryWindow", function() ns.StripAllChat() end)
 
 ------------------------------------------------------------------------------
--- /quiet on | off | setup | glance | preset, no argument toggles.
+-- /cine on | off | setup | glance | preset, no argument toggles.
 ------------------------------------------------------------------------------
-SLASH_QUIETUI1 = "/quiet"
-SLASH_QUIETUI2 = "/quietui"
-SlashCmdList["QUIETUI"] = function(msg)
+SLASH_CINE1 = "/cine"
+SlashCmdList["CINE"] = function(msg)
     msg = (msg or ""):match("^%s*(.-)%s*$")
     local command, argument = msg:match("^(%S+)%s*(.-)$")
     if command and command:lower() == "preset" then

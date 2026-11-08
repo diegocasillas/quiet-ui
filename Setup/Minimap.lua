@@ -39,7 +39,7 @@ local function CursorDegrees(map)
     return angle
 end
 
--- The same spyglass as the addon list icon (QuietUI.toc).
+-- The same spyglass as the addon list icon (Cine.toc).
 local function ApplyIcon(icon)
     if icon:SetTexture("Interface\\Icons\\INV_Misc_Spyglass_03") == false then
         icon:SetTexture("Interface\\Icons\\INV_Misc_Gear_01")
@@ -48,7 +48,7 @@ local function ApplyIcon(icon)
 end
 
 local function CreateMinimap()
-    local button = CreateFrame("Button", "QuietUI", Minimap)
+    local button = CreateFrame("Button", "Cine", Minimap)
     button:SetSize(31, 31)
     local level = Minimap:GetFrameLevel()
     button:SetFrameLevel((type(level) == "number" and level or 0) + 8)
@@ -90,7 +90,7 @@ local function CreateMinimap()
     button:SetScript("OnEnter", function(self)
         if not GameTooltip then return end
         GameTooltip:SetOwner(self, "ANCHOR_LEFT")
-        GameTooltip:SetText("QuietUI", 1, 1, 1)
+        GameTooltip:SetText("Cine", 1, 1, 1)
         GameTooltip:AddLine("Left click: open setup", 0.85, 0.85, 0.85)
         GameTooltip:AddLine("Drag: move", 0.6, 0.6, 0.6)
         GameTooltip:Show()
