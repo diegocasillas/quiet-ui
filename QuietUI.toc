@@ -30,6 +30,7 @@ Features\Faders\Resource.lua
 Features\Faders\Player.lua
 Features\Faders\Party.lua
 Features\Faders\Auras.lua
+Features\Faders\Ignored.lua
 Features\Faders\Quest.lua
 Features\Faders\Smooth.lua
 Features\Faders\Range.lua

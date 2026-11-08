@@ -38,12 +38,60 @@ local world = {
     hostile = false,
     friendly = false,
     dead = false,
+    eating = false,
 }
 Bars.world = world
 
 function ns.InEditMode()
     local frame = EditModeManagerFrame
     return frame and frame.IsShown and frame:IsShown() and true or false
+end
+
+-- Names of the Food and Drink auras (English client). Scanned out of combat only,
+-- where aura names are readable.
+local EATING = { ["food"] = true, ["drink"] = true, ["food & drink"] = true, ["refreshment"] = true }
+local EATING_NAMES = { "Food", "Drink", "Food & Drink", "Refreshment" }
+
+local function ScanEating()
+    if world.combat or not C_UnitAuras then return false end
+    -- Four direct lookups: no table per aura, and nothing when there is no match.
+    if C_UnitAuras.GetAuraDataBySpellName then
+        for i = 1, #EATING_NAMES do
+            local ok, data = pcall(C_UnitAuras.GetAuraDataBySpellName, "player", EATING_NAMES[i], "HELPFUL")
+            if ok and data then return true end
+        end
+        return false
+    end
+    if not C_UnitAuras.GetAuraDataByIndex then return false end
+    for i = 1, 40 do
+        local ok, data = pcall(C_UnitAuras.GetAuraDataByIndex, "player", i, "HELPFUL")
+        if not ok or not data then return false end
+        local name = data.name
+        if type(name) == "string" and not ns.IsSecret(name) and EATING[name:lower()] then return true end
+    end
+    return false
+end
+
+-- Cheap enough for the player's own aura event, which only runs out of combat.
+function ns.RefreshEating()
+    local eating = ScanEating()
+    if eating ~= world.eating then
+        world.eating = eating
+        ns.TouchHud()
+    end
+end
+
+function ns.PlayerEating()
+    return world.eating
+end
+
+if type(CreateFrame) == "function" then
+    local auraEvents = CreateFrame("Frame")
+    if pcall(auraEvents.RegisterUnitEvent, auraEvents, "UNIT_AURA", "player") then
+        auraEvents:SetScript("OnEvent", function()
+            if not world.combat and ns.DB().enabled then ns.RefreshEating() end
+        end)
+    end
 end
 
 function ns.RefreshWorld()
@@ -57,6 +105,7 @@ function ns.RefreshWorld()
     local target = type(UnitExists) == "function" and Safe(UnitExists, "target") or false
     local hostile = target and HostileTarget()
     local friendly = target and FriendlyTarget()
+    ns.RefreshEating()
     local dead = type(UnitIsDeadOrGhost) == "function" and Safe(UnitIsDeadOrGhost, "player") or false
     local instance = false
     if type(IsInInstance) == "function" then

@@ -10,7 +10,7 @@ local GROUPS = {
         'Features/Bars/Swing.lua', 'Features/Bars/Fade.lua' },
     ['Faders.lua'] = { 'Features/Faders/Discovery.lua', 'Features/Faders/Visible.lua',
         'Features/Faders/Curves.lua', 'Features/Faders/Resource.lua', 'Features/Faders/Player.lua',
-        'Features/Faders/Party.lua', 'Features/Faders/Auras.lua', 'Features/Faders/Quest.lua',
+        'Features/Faders/Party.lua', 'Features/Faders/Auras.lua', 'Features/Faders/Ignored.lua', 'Features/Faders/Quest.lua',
         'Features/Faders/Smooth.lua', 'Features/Faders/Range.lua', 'Features/Faders/RangeMark.lua' },
     ['Menu.lua'] = { 'Features/Menu/Bags.lua', 'Features/Menu/Micro.lua' },
     ['Chat.lua'] = { 'Features/Chat/Base.lua', 'Features/Chat/Input.lua', 'Features/Chat/Scroll.lua',
