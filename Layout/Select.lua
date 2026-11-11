@@ -42,7 +42,7 @@ end
 Layout.Write = Write
 
 -- True when the switch has been applied. False asks the caller to try again.
-function ns.SelectCineLayout()
+function ns.SelectPuroCineLayout()
     if InCombatLockdown() or not Layout.EditModeReady() then return false end
     local info = Layout.LoadLayouts()
     if not info then return false end
@@ -68,17 +68,17 @@ end
 function ns.SelectPresetLayout()
     if InCombatLockdown() or not Layout.EditModeReady() then return false end
     local preset = ns.ActivePreset()
-    if not preset then return ns.SelectCineLayout() end
+    if not preset then return ns.SelectPuroCineLayout() end
     local info = Layout.LoadLayouts()
     if not info then return false end
     local absolute = Layout.ResolveLayout(info, preset.layout)
     if not absolute then
-        if not ns.SelectCineLayout() then return false end
+        if not ns.SelectPuroCineLayout() then return false end
         if ns.CharDB().previousLayout then ns.CharDB().presetLayoutManaged = true end
         local id = ns.CharDB().presetId
         if not Layout.missingWarned[id] then
             ns.Print('Preset "' .. preset.name .. '" refers to missing Edit Mode layout "'
-                .. (preset.layout and preset.layout.layoutName or "Unknown") .. '". Using "Cine" instead.')
+                .. (preset.layout and preset.layout.layoutName or "Unknown") .. '". Using "Puro Cine" instead.')
             Layout.missingWarned[id] = true
         end
         return true

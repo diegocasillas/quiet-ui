@@ -99,9 +99,9 @@ end
 Setup.GoldEdge = GoldEdge
 
 local function SkinSmall(button)
-    button._cineGold = GoldEdge(button) and true or false
-    if not button._cineGold then Flat(button, 0.9) end
-    if button._cineGold and button.label and button.label.SetTextColor then
+    button._puroCineGold = GoldEdge(button) and true or false
+    if not button._puroCineGold then Flat(button, 0.9) end
+    if button._puroCineGold and button.label and button.label.SetTextColor then
         button.label:SetTextColor(1, 0.82, 0.35)
     end
 end

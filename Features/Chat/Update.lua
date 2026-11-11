@@ -37,12 +37,12 @@ local function SeedFromRegions(frame)
 end
 
 local function BindBubbles(frame)
-    if not frame or frame._cineBubbles or type(frame.AddMessage) ~= "function" then return end
+    if not frame or frame._puroCineBubbles or type(frame.AddMessage) ~= "function" then return end
     if not ns.Usable(frame) then return end
-    frame._cineBubbles = true
-    frame._cineLines = {}
-    frame._cinePool = {}
-    frame._cineByMsg = {}
+    frame._puroCineBubbles = true
+    frame._puroCineLines = {}
+    frame._puroCinePool = {}
+    frame._puroCineByMsg = {}
     if type(frame.GetNumMessages) == "function" and type(frame.GetMessageInfo) == "function" then
         local ok, n = pcall(frame.GetNumMessages, frame)
         if ok and type(n) == "number" then
@@ -53,33 +53,33 @@ local function BindBubbles(frame)
             end
         end
     end
-    if #frame._cineLines == 0 then
+    if #frame._puroCineLines == 0 then
         pcall(SeedFromRegions, frame)
     end
     Chat.TrackScroll(frame)
     local ok, err = pcall(hooksecurefunc, frame, "AddMessage", function(self, text, r, g, b)
         local bottom = Chat.AtBottom(self)
-        if self._cineScrollHook and not bottom then
-            self._cineScroll = (self._cineScroll or 0) + 1
+        if self._puroCineScrollHook and not bottom then
+            self._puroCineScroll = (self._puroCineScroll or 0) + 1
         end
         Chat.PushLine(self, text, r, g, b, ns.DB().enabled and ns.ModernChat() and bottom)
         Chat.HideNativeText(self)
-        if self._cineScrollHook then
-            self._cineScroll = Chat.ClampScroll(self, self._cineScroll or 0)
+        if self._puroCineScrollHook then
+            self._puroCineScroll = Chat.ClampScroll(self, self._puroCineScroll or 0)
         end
     end)
     if not ok then ns.Report("chat line", err) end
     if type(frame.Clear) == "function" then
         pcall(hooksecurefunc, frame, "Clear", function(self)
-            if self._cineLines then ns.Wipe(self._cineLines) end
-            self._cineScroll = 0
-            self._cineDirty = true
+            if self._puroCineLines then ns.Wipe(self._puroCineLines) end
+            self._puroCineScroll = 0
+            self._puroCineDirty = true
         end)
     end
     Chat.EnsureCatcher(frame)
     if frame.EnableMouseWheel then frame:EnableMouseWheel(true) end
-    if frame.HookScript and not frame._cineWheel then
-        frame._cineWheel = true
+    if frame.HookScript and not frame._puroCineWheel then
+        frame._puroCineWheel = true
         frame:HookScript("OnMouseWheel", function(self, delta)
             if not ns.DB().enabled or not ns.ModernChat() then return end
             Chat.Wheel(self, delta)
@@ -89,14 +89,14 @@ end
 Chat.BindBubbles = BindBubbles
 
 local function EaseEdit(edit, elapsed)
-    if not edit or not edit._cineEdit or edit._cineWant == nil then return end
-    local show = edit._cineWant == 1
+    if not edit or not edit._puroCineEdit or edit._puroCineWant == nil then return end
+    local show = edit._puroCineWant == 1
     ns.EaseAlpha(edit, show, elapsed)
-    if edit._cineHeader then
-        ns.EaseAlpha(edit._cineHeader, show, elapsed)
+    if edit._puroCineHeader then
+        ns.EaseAlpha(edit._puroCineHeader, show, elapsed)
     end
-    if edit._cinePlate then
-        ns.EaseAlpha(edit._cinePlate, show, elapsed)
+    if edit._puroCinePlate then
+        ns.EaseAlpha(edit._puroCinePlate, show, elapsed)
     end
 end
 
@@ -106,39 +106,39 @@ function ns.UpdateChat(elapsed)
     for i = 1, Chat.ChatCount() do
         EaseEdit(_G["ChatFrame" .. i .. "EditBox"], elapsed)
         local frame = _G["ChatFrame" .. i]
-        if frame and frame._cineBubbles then
+        if frame and frame._puroCineBubbles then
             if not ns.Usable(frame) or not frame.IsShown or not frame:IsShown() then
-                if frame._cineShown ~= false then
+                if frame._puroCineShown ~= false then
                     Chat.HideActive(frame)
-                    if frame._cineCatcher then frame._cineCatcher:Hide() end
-                    frame._cineShown, frame._cineHover = false, false
-                    frame._cineCatcherAt = nil
-                    frame._cineNativeAt = nil
+                    if frame._puroCineCatcher then frame._puroCineCatcher:Hide() end
+                    frame._puroCineShown, frame._puroCineHover = false, false
+                    frame._puroCineCatcherAt = nil
+                    frame._puroCineNativeAt = nil
                 end
             else
-                if frame._cineShown == false then
-                    frame._cineDirty = true
+                if frame._puroCineShown == false then
+                    frame._puroCineDirty = true
                     -- A tab that was hidden has its lines built when it shows, with no
                     -- AddMessage to hide them, so look again at once.
-                    frame._cineTextSig = nil
-                    frame._cineNativeAt = nil
+                    frame._puroCineTextSig = nil
+                    frame._puroCineNativeAt = nil
                 end
-                if not frame._cineNativeAt or now >= frame._cineNativeAt then
-                    frame._cineNativeAt = now + 0.25
+                if not frame._puroCineNativeAt or now >= frame._puroCineNativeAt then
+                    frame._puroCineNativeAt = now + 0.25
                     Chat.HideNativeText(frame)
                 end
                 -- Anchors follow the chat automatically; only stacking needs a periodic refresh.
-                if frame._cineDirty or not frame._cineCatcherAt or now >= frame._cineCatcherAt then
+                if frame._puroCineDirty or not frame._puroCineCatcherAt or now >= frame._puroCineCatcherAt then
                     Chat.PlaceCatcher(frame)
-                    frame._cineCatcherAt = now + 0.1
+                    frame._puroCineCatcherAt = now + 0.1
                 end
                 local hot = Chat.FrameHot(frame) or Chat.TabRowHot(frame, i)
-                if hot ~= frame._cineHover then
-                    frame._cineHover = hot
-                    frame._cineDirty = true
+                if hot ~= frame._puroCineHover then
+                    frame._puroCineHover = hot
+                    frame._puroCineDirty = true
                 end
-                local wake = frame._cineNext
-                if frame._cineDirty or wake == 0 or (type(wake) == "number" and wake > 0 and now >= wake) then
+                local wake = frame._puroCineNext
+                if frame._puroCineDirty or wake == 0 or (type(wake) == "number" and wake > 0 and now >= wake) then
                     Chat.LayoutFrame(frame, elapsed)
                 end
             end
@@ -155,17 +155,17 @@ function ns.RestoreChat()
     Chat.chromeStripped = false
     for i = 1, Chat.ChatCount() do
         local frame = _G["ChatFrame" .. i]
-        if frame and frame._cineBubbles then
-            frame._cineStripped = nil
-            frame._cineHover = false
-            frame._cineCatcherAt = nil
-            frame._cineNativeAt = nil
-            frame._cineTextSig = nil
-            if frame._cineCatcher then frame._cineCatcher:Hide() end
+        if frame and frame._puroCineBubbles then
+            frame._puroCineStripped = nil
+            frame._puroCineHover = false
+            frame._puroCineCatcherAt = nil
+            frame._puroCineNativeAt = nil
+            frame._puroCineTextSig = nil
+            if frame._puroCineCatcher then frame._puroCineCatcher:Hide() end
             Chat.HideActive(frame)
             Chat.RestoreFonts(frame)
         elseif frame then
-            frame._cineStripped = nil
+            frame._puroCineStripped = nil
         end
     end
 end

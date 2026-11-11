@@ -16,7 +16,7 @@ local function ScrollOffset(frame)
     if type(frame.scrollOffset) == "number" then
         return frame.scrollOffset
     end
-    return frame._cineScroll or 0
+    return frame._puroCineScroll or 0
 end
 Chat.ScrollOffset = ScrollOffset
 
@@ -31,23 +31,23 @@ Chat.AtBottom = AtBottom
 
 local function ClampScroll(frame, value)
     if value < 0 then return 0 end
-    local max = frame._cineLines and #frame._cineLines or 0
+    local max = frame._puroCineLines and #frame._puroCineLines or 0
     if value > max then return max end
     return value
 end
 Chat.ClampScroll = ClampScroll
 
 local function TrackScroll(frame)
-    if frame._cineScrollHook then return end
-    frame._cineScrollHook = true
+    if frame._puroCineScrollHook then return end
+    frame._puroCineScrollHook = true
     local native = type(frame.GetScrollOffset) == "function"
     if not native then
-        frame._cineScroll = 0
+        frame._puroCineScroll = 0
     end
     local function hook(name, fn)
         if type(frame[name]) ~= "function" then return end
         pcall(hooksecurefunc, frame, name, function(self)
-            self._cineDirty = true
+            self._puroCineDirty = true
             if fn then fn(self) end
         end)
     end
@@ -59,24 +59,24 @@ local function TrackScroll(frame)
         hook("ScrollToBottom")
     else
         hook("ScrollUp", function(self)
-            self._cineScroll = ClampScroll(self, (self._cineScroll or 0) + 1)
+            self._puroCineScroll = ClampScroll(self, (self._puroCineScroll or 0) + 1)
         end)
         hook("ScrollDown", function(self)
-            self._cineScroll = ClampScroll(self, (self._cineScroll or 0) - 1)
+            self._puroCineScroll = ClampScroll(self, (self._puroCineScroll or 0) - 1)
         end)
         hook("PageUp", function(self)
-            self._cineScroll = ClampScroll(self, (self._cineScroll or 0) + 10)
+            self._puroCineScroll = ClampScroll(self, (self._puroCineScroll or 0) + 10)
         end)
         hook("PageDown", function(self)
-            self._cineScroll = ClampScroll(self, (self._cineScroll or 0) - 10)
+            self._puroCineScroll = ClampScroll(self, (self._puroCineScroll or 0) - 10)
         end)
         hook("ScrollToBottom", function(self)
-            self._cineScroll = 0
+            self._puroCineScroll = 0
         end)
     end
     if frame.HookScript then
         frame:HookScript("OnSizeChanged", function(self)
-            self._cineDirty = true
+            self._puroCineDirty = true
         end)
     end
 end

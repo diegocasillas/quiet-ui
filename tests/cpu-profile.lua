@@ -12,12 +12,12 @@ function events:SetScript(key, value) self.scripts[key] = value end
 function events:RegisterEvent() end
 CreateFrame = function() return events end
 SlashCmdList = {}
-dofile('tests/addon.lua')('Cine.lua', ns)
+dofile('tests/addon.lua')('PuroCine.lua', ns)
 for i = 1, 100 do
     local name = debug.getupvalue(events.scripts.OnUpdate, i)
     if name == 'booted' then debug.setupvalue(events.scripts.OnUpdate, i, true); break end
 end
-SlashCmdList.CINE('profile')
+SlashCmdList.PUROCINE('profile')
 assert(not db.enabled, 'Profiling must not toggle the addon')
 for _ = 1, 10 do now = now + 0.1; events.scripts.OnUpdate(events, 0.1) end
 now = 10
@@ -28,7 +28,7 @@ now = 20
 events.scripts.OnUpdate(events, 0.1)
 assert(#messages == 3, 'Completed profiling must not keep reporting')
 debugprofilestop = nil
-SlashCmdList.CINE('profile')
+SlashCmdList.PUROCINE('profile')
 assert(messages[4] == 'CPU timing is not available on this client.')
 assert(not db.enabled)
 print('PASS temporary CPU timing, completion, disabled state and unavailable timer')

@@ -41,19 +41,19 @@ local function PlaceQuestCatcher()
         box:SetAllPoints(target)
         questCatcherTarget = target
         -- SetParent can move strata and level, so write them again.
-        box._cineStrata, box._cineLevel = nil, nil
+        box._puroCineStrata, box._puroCineLevel = nil, nil
     end
     local strata = target.GetFrameStrata and target:GetFrameStrata()
-    if type(strata) == "string" and not ns.IsSecret(strata) and box._cineStrata ~= strata then
+    if type(strata) == "string" and not ns.IsSecret(strata) and box._puroCineStrata ~= strata then
         box:SetFrameStrata(strata)
-        box._cineStrata = strata
+        box._puroCineStrata = strata
     end
     local level = target.GetFrameLevel and target:GetFrameLevel() or 1
     if type(level) ~= "number" or ns.IsSecret(level) then level = 1 end
     level = math.max(level - 1, 0)
-    if box._cineLevel ~= level then
+    if box._puroCineLevel ~= level then
         box:SetFrameLevel(level)
-        box._cineLevel = level
+        box._puroCineLevel = level
     end
     if not box:IsShown() then box:Show() end
 end

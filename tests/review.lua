@@ -57,8 +57,8 @@ local function frame(parent)
     return obj
 end
 local function namespace()
-    CineDB = { enabled = true }
-    CineCharDB = {}
+    PuroCineDB = { enabled = true }
+    PuroCineCharDB = {}
     UIParent = frame()
     GetTime = function() return 100 end
     hooksecurefunc = function(obj, method, hook)
@@ -78,8 +78,8 @@ local function namespace()
     ns.VisibilityShow = function(name, usual, hovered)
         return ns.InEditMode() or ns.Glancing() or usual or hovered or false
     end
-    ns.CharDB = function() return CineCharDB end
-    ns.ModernChat = function() return CineCharDB.chat ~= false end
+    ns.CharDB = function() return PuroCineCharDB end
+    ns.ModernChat = function() return PuroCineCharDB.chat ~= false end
     ns.GroupAuras = function() return true end
     ns.PlayerStyle = function() return 'classic' end
     ns.TouchHud = function() end
@@ -104,20 +104,20 @@ test('Native chat stays visible after addon or Modern chat is disabled', functio
     assert(scrolls == 1, 'Active chat wheel must work')
     chat:AddMessage('enabled')
     assert(font.alpha == 0)
-    CineCharDB.chat = false
+    PuroCineCharDB.chat = false
     font.alpha = 1
     chat:AddMessage('modern chat off')
     chat.scripts.OnMouseWheel(chat, 1)
     assert(scrolls == 1, 'Wheel hook remained active with Modern chat off')
     assert(font.alpha == 1, 'AddMessage hid native text with Modern chat off')
-    CineCharDB.chat = nil
-    CineDB.enabled = false
+    PuroCineCharDB.chat = nil
+    PuroCineDB.enabled = false
     font.alpha = 1
     chat:AddMessage('addon off')
     chat.scripts.OnMouseWheel(chat, 1)
     assert(scrolls == 1, 'Wheel hook remained active with addon off')
     assert(font.alpha == 1, 'AddMessage hid native text with addon off')
-    assert(#chat._cineLines == 3, 'History must still be collected while disabled')
+    assert(#chat._puroCineLines == 3, 'History must still be collected while disabled')
 end)
 
 test('A custom chat window hides its native text when its tab is shown', function()
@@ -136,7 +136,7 @@ test('A custom chat window hides its native text when its tab is shown', functio
     ChatFrame3 = chat
     chat.shown = false
     ns.StripAllChat(true)
-    assert(chat._cineBubbles, 'The window was not bound ' .. table.concat(reports, '; '))
+    assert(chat._puroCineBubbles, 'The window was not bound ' .. table.concat(reports, '; '))
     chat:AddMessage('hello')
     ns.UpdateChat(0.1)
     -- Selecting the tab shows the window, and the client builds its lines then.
@@ -220,22 +220,22 @@ test('Chat verifies wrapped history and resized bubbles before going idle', func
         function chat:GetWidth() return self.width end
         function chat:GetHeight() return 200 end
         function chat:GetFont() return 'test', 14, '' end
-        chat._cineLines = scenario == 'scroll' and { msg, {} } or { msg }
-        chat._cineByMsg = { [msg] = bubble }
-        chat._cineDirty = true
-        chat._cineHover = scenario == 'hover'
-        chat._cineScroll = scenario == 'scroll' and 1 or 0
+        chat._puroCineLines = scenario == 'scroll' and { msg, {} } or { msg }
+        chat._puroCineByMsg = { [msg] = bubble }
+        chat._puroCineDirty = true
+        chat._puroCineHover = scenario == 'hover'
+        chat._puroCineScroll = scenario == 'scroll' and 1 or 0
         layout(chat, 1/60)
         if scenario == 'resize' then
-            assert(bubble._cineSizeKey, 'Single row should be cached')
+            assert(bubble._puroCineSizeKey, 'Single row should be cached')
             chat.width = 118
             layout(chat, 1/60)
         end
-        assert(chat._cineNext == 0, scenario .. ': missing follow-up measurement')
+        assert(chat._puroCineNext == 0, scenario .. ': missing follow-up measurement')
         layout(chat, 1/60)
         if scenario == 'secret' then
-            assert(not bubble._cineSizeKey, 'Zero height must not be cached')
-            assert(chat._cineNext == 0, 'Unavailable height needs another measurement')
+            assert(not bubble._puroCineSizeKey, 'Zero height must not be cached')
+            assert(chat._puroCineNext == 0, 'Unavailable height needs another measurement')
             layout(chat, 1/60)
         end
         assert(bubble.height >= 52, scenario .. ': last row remains clipped')
@@ -245,8 +245,8 @@ test('Chat verifies wrapped history and resized bubbles before going idle', func
             print('Idle wrapped chat, 600 frames: extra height reads=' .. (fs.reads - reads))
             assert(fs.reads == reads, 'Line spacing kept remeasuring settled chat every frame')
         end
-        assert(bubble._cineSizeKey, scenario .. ': measured size was not cached')
-        assert(chat._cineNext == nil, scenario .. ': settled chat keeps waking')
+        assert(bubble._puroCineSizeKey, scenario .. ': measured size was not cached')
+        assert(chat._puroCineNext == nil, scenario .. ': settled chat keeps waking')
         local reads = fs.reads
         layout(chat, 1/60)
         assert(fs.reads == reads, scenario .. ': idle chat remeasured text')
@@ -314,7 +314,7 @@ test('Always show debuffs defaults on and survives saves, presets and reset', fu
     assert(draft.alwaysShowDebuffs)
     draft.alwaysShowDebuffs = false
     ns.ActivatePreset(nil, saved())
-    assert(CineCharDB.alwaysShowDebuffs == false and not ns.AlwaysShowDebuffs())
+    assert(PuroCineCharDB.alwaysShowDebuffs == false and not ns.AlwaysShowDebuffs())
     local id = assert(ns.SavePreset(nil, 'Debuffs fade', {}, saved()))
     ns.ActivatePreset(id)
     assert(not ns.AlwaysShowDebuffs(), 'Preset did not retain opt-out')
@@ -322,7 +322,7 @@ test('Always show debuffs defaults on and survives saves, presets and reset', fu
     assert(not ns.AlwaysShowDebuffs(), 'Deleting preset lost personal snapshot')
     read({})
     ns.ActivatePreset(nil, saved())
-    assert(ns.AlwaysShowDebuffs() and CineCharDB.alwaysShowDebuffs == nil,
+    assert(ns.AlwaysShowDebuffs() and PuroCineCharDB.alwaysShowDebuffs == nil,
         'Reset must restore default without storing an explicit true')
     read({ alwaysShowDebuffs = false })
     draft.alwaysShowDebuffs = true
@@ -345,7 +345,7 @@ test('Debuffs stay visible alone and opt-out restores aura fading and alpha', fu
     assert(BuffFrame.alpha == 0 and TemporaryEnchantFrame.alpha == 0, 'Debuffs revealed buffs')
     DebuffFrame:SetAlpha(0)
     assert(DebuffFrame.alpha == 1, 'Blizzard alpha overwrite was not held')
-    CineCharDB.alwaysShowDebuffs = false
+    PuroCineCharDB.alwaysShowDebuffs = false
     update(0.15)
     assert(DebuffFrame.alpha > 0 and DebuffFrame.alpha < 1, 'Opt-out did not fade smoothly')
     update(1)
@@ -353,9 +353,9 @@ test('Debuffs stay visible alone and opt-out restores aura fading and alpha', fu
     ns.InCombat = function() return true end
     update(1)
     assert(DebuffFrame.alpha == 1 and BuffFrame.alpha == 1, 'Opt-out broke normal combat visibility')
-    CineCharDB.alwaysShowDebuffs = nil
+    PuroCineCharDB.alwaysShowDebuffs = nil
     ns.RestoreAlpha()
-    CineDB.enabled = false
+    PuroCineDB.enabled = false
     assert(DebuffFrame.alpha == 0.8, 'Disable did not restore original alpha')
     DebuffFrame:SetAlpha(0.4)
     assert(DebuffFrame.alpha == 0.4, 'Disabled addon still held debuff alpha')
@@ -444,7 +444,7 @@ test('Always visible debuffs override the shared power alpha curve', function()
     ns.FindFaders(false)
     update(1)
     assert(BuffFrame.alpha == 0.25 and DebuffFrame.alpha == 1)
-    CineCharDB.alwaysShowDebuffs = false
+    PuroCineCharDB.alwaysShowDebuffs = false
     update(1)
     assert(DebuffFrame.alpha == 0.25, 'Opt-out did not rejoin the power curve')
     BuffFrame, DebuffFrame = nil, nil
@@ -521,7 +521,7 @@ test('Target death invalidates cached bars without pointer movement', function()
     CreateFrame = function() return frame(UIParent) end
     ns.Glancing = function() return false end
     ns.BagsShouldShow = function() return false end
-    CineCharDB.friendly = { ['1'] = true }
+    PuroCineCharDB.friendly = { ['1'] = true }
     local dead = false
     UnitExists = function() return true end
     UnitIsFriend = function() return true end
@@ -546,7 +546,7 @@ test('Show-all transitions recalculate bars even with a stationary pointer', fun
     local events
     CreateFrame = function() events = frame(); function events:RegisterEvent() end; return events end
     SlashCmdList = {}
-    loadAddon('Cine.lua', ns)
+    loadAddon('PuroCine.lua', ns)
     local update = events.scripts.OnUpdate
     for i = 1, 100 do
         local name = debug.getupvalue(update, i)
@@ -575,39 +575,39 @@ test('Show-all transitions recalculate bars even with a stationary pointer', fun
     force = false
     update(events, 0.01)
     assert(scans == 1, 'Leaving edit mode did not recalculate bars')
-    CineGlance('up')
+    PuroCineGlance('up')
     assert(not ns.Glancing(), 'Key-up toggled Glance')
-    CineGlance('down')
+    PuroCineGlance('down')
     assert(ns.Glancing(), 'Key-down did not toggle Glance')
-    CineGlance('down')
+    PuroCineGlance('down')
     assert(not ns.Glancing(), 'Second key-down did not clear Glance')
-    SlashCmdList.CINE('  GlAnCe  ')
+    SlashCmdList.PUROCINE('  GlAnCe  ')
     assert(ns.Glancing(), 'Slash command did not toggle Glance')
-    assert(CineDB.enabled, 'Glance command disabled the addon')
+    assert(PuroCineDB.enabled, 'Glance command disabled the addon')
     scans = 0
     update(events, 0.01)
     assert(scans == 1, 'Glance command did not recalculate bars')
-    CineGlance('down')
+    PuroCineGlance('down')
     assert(not ns.Glancing(), 'Key binding did not clear command Glance')
-    SlashCmdList.CINE('glance')
-    SlashCmdList.CINE('glance')
+    SlashCmdList.PUROCINE('glance')
+    SlashCmdList.PUROCINE('glance')
     assert(not ns.Glancing(), 'Second Glance command did not clear Glance')
-    CineDB.enabled = false
-    CineGlance('down')
+    PuroCineDB.enabled = false
+    PuroCineGlance('down')
     assert(not ns.Glancing(), 'Glance toggled while addon was disabled')
-    SlashCmdList.CINE('glance')
+    SlashCmdList.PUROCINE('glance')
     assert(not ns.Glancing(), 'Glance command toggled while addon was disabled')
-    assert(not CineDB.enabled, 'Glance command enabled the addon')
-    CineDB.enabled = true
-    SlashCmdList.CINE('glance')
+    assert(not PuroCineDB.enabled, 'Glance command enabled the addon')
+    PuroCineDB.enabled = true
+    SlashCmdList.PUROCINE('glance')
     for _, name in ipairs({ 'HideQuestCatcher', 'HideRangeMark', 'HideBarCatchers',
         'ResetMenu', 'RestoreChat', 'RestoreAlpha' }) do
         ns[name] = function() end
     end
-    ns.ForceCineLayout = function() return false end
-    SlashCmdList.CINE('off')
+    ns.ForcePuroCineLayout = function() return false end
+    SlashCmdList.PUROCINE('off')
     assert(not ns.Glancing(), 'Disabling the addon did not clear command Glance')
-    assert(not CineDB.enabled, 'Off command did not disable the addon')
+    assert(not PuroCineDB.enabled, 'Off command did not disable the addon')
 end)
 
 test('Group visibility overrides automatic triggers and keeps hover exceptions', function()
@@ -623,9 +623,9 @@ test('Group visibility overrides automatic triggers and keeps hover exceptions',
     ns.Glancing = function() return false end
     local explicit = false
     ns.XPForced = function() return explicit end
-    CineCharDB.groups = { swing = 1 }
-    CineCharDB.groupVisibility = { [1] = 'hover' }
-    CineCharDB.friendly = { ['1'] = true }
+    PuroCineCharDB.groups = { swing = 1 }
+    PuroCineCharDB.groupVisibility = { [1] = 'hover' }
+    PuroCineCharDB.friendly = { ['1'] = true }
     UnitExists = function() return true end
     UnitIsFriend = function() return true end
     UnitIsDeadOrGhost = function() return false end
@@ -649,12 +649,12 @@ test('Group visibility overrides automatic triggers and keeps hover exceptions',
     ns.Glancing = function() return true end; tick(false)
     assert(MainActionBar.alpha == 1, 'Glance exception failed')
     ns.Glancing = function() return false end
-    CineCharDB.groupVisibility[1] = 'always'; tick(false)
+    PuroCineCharDB.groupVisibility[1] = 'always'; tick(false)
     assert(MainActionBar.alpha == 1 and SwingTimer.alpha == 1)
-    CineCharDB.groupVisibility = nil; tick(false)
+    PuroCineCharDB.groupVisibility = nil; tick(false)
     assert(MainActionBar.alpha == 1 and MultiBarBottomLeft.alpha == 0,
         'Usual Enemy/Friend rule must show one bar only')
-    ns.RestoreAlpha(); CineDB.enabled = false
+    ns.RestoreAlpha(); PuroCineDB.enabled = false
     assert(MultiBarBottomLeft.alpha == 1, 'Disable did not restore the bar alpha')
     MainActionBar, MultiBarBottomLeft, SwingTimer = nil, nil, nil
 end)
@@ -667,14 +667,14 @@ test('Legacy pins split mixed groups without changing which bars stay up', funct
     local source = { visible = { bars = true, quests = true }, groups = { swing = 1 } }
     ns.MigrateVisibility(source)
     assert(source.visible.quests and not source.visible.bars and not source.visible.swing)
-    CineCharDB = source
+    PuroCineCharDB = source
     assert(ns.GroupVisibility(ns.BarGroup('1')) == 'always')
     assert(not ns.GroupVisibility(ns.BarGroup('swing')), 'Migration pinned the unpinned swing timer')
     local oldGroup = source.groups['1']
     ns.MigrateVisibility(source)
     assert(source.groups['1'] == oldGroup, 'Migration must be idempotent')
     source = { visible = { swing = true }, groups = { swing = 1 } }
-    ns.MigrateVisibility(source); CineCharDB = source
+    ns.MigrateVisibility(source); PuroCineCharDB = source
     assert(ns.GroupVisibility(ns.BarGroup('swing')) == 'always')
     assert(not ns.GroupVisibility(ns.BarGroup('1')), 'Migration pinned unpinned action bars')
     source.hoverOnly = { meter = true }
@@ -689,7 +689,7 @@ test('Visible hover mode suppresses combat, grace, XP rewards and grouped auras'
     local ns = namespace()
     loadAddon('Setup.lua', ns)
     loadAddon('Faders.lua', ns)
-    CineCharDB.hoverOnly = { xp = true, cooldowns = true, meter = true, auras = true }
+    PuroCineCharDB.hoverOnly = { xp = true, cooldowns = true, meter = true, auras = true }
     MainStatusTrackingBarContainer, EssentialCooldownViewer, DamageMeter = frame(UIParent), frame(UIParent), frame(UIParent)
     BuffFrame, DebuffFrame = frame(UIParent), frame(UIParent)
     CreateFrame = function() return frame(UIParent) end
@@ -732,7 +732,7 @@ test('Resource hover bypasses secret curves and restores both child and root alp
     local ns = namespace()
     loadAddon('Setup.lua', ns)
     loadAddon('Faders.lua', ns)
-    CineCharDB.hoverOnly = { resource = true }
+    PuroCineCharDB.hoverOnly = { resource = true }
     ns.InCombat = function() return true end
     ns.Hit = function(obj) return obj.hot == true end
     PersonalResourceDisplayFrame = frame(UIParent)
@@ -754,7 +754,7 @@ test('Resource hover bypasses secret curves and restores both child and root alp
     ns.Glancing = function() return true end
     update(0.01); assert(health.alpha == 1 and power.alpha == 1)
     ns.Glancing = function() return false end
-    root.children = {}; root._cineKids = nil
+    root.children = {}; root._puroCineKids = nil
     update(0.15); update(0.15)
     assert(root.alpha == 0, 'Childless resource root never finished fading')
     ns.RestoreAlpha()
@@ -831,7 +831,7 @@ test('XP defaults to hover and unchecking persists usual combat visibility', fun
     read({}); assert(draft.hoverOnly.xp and not draft.xp)
     draft.hoverOnly.xp = false
     ns.ActivatePreset(nil, saved())
-    assert(CineCharDB.hoverOnly.xp == false and not ns.OnlyOnHover('xp'), 'Unchecking did not persist')
+    assert(PuroCineCharDB.hoverOnly.xp == false and not ns.OnlyOnHover('xp'), 'Unchecking did not persist')
     read(); assert(not draft.hoverOnly.xp)
     local id = assert(ns.SavePreset(nil, 'Normal XP', {}, saved()))
     ns.ActivatePreset(id); assert(not ns.OnlyOnHover('xp'))

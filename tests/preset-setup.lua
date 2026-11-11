@@ -1,5 +1,5 @@
 local ns = {}
-CineDB = {}; CineCharDB = { chatFade = 20 }
+PuroCineDB = {}; PuroCineCharDB = { chatFade = 20 }
 local function widget(parent)
     local obj = { parent = parent, scripts = {}, shown = true, text = '', width = 100, height = 10, scrollOffset = 0 }
     return setmetatable(obj, { __index = function(self, key)
@@ -31,7 +31,7 @@ end
 UIParent = widget()
 CreateFrame = function(_, name, parent) local obj = widget(parent); obj.name = name; if name then _G[name] = obj end; return obj end
 UISpecialFrames = {}
-ns.DB = function() return CineDB end
+ns.DB = function() return PuroCineDB end
 ns.IsSecret = function() return false end
 ns.Print = function(message) ns.message = message end
 dofile('tests/addon.lua')('Bars.lua', ns)
@@ -52,16 +52,16 @@ local id = ns.SavePreset(nil, 'Healer', ns.CurrentLayoutRef(), { chat = false, c
     groups = { ['1'] = 2 }, hostile = { ['1'] = true }, friendly = { ['2'] = true },
     range = { yards = 'spell', kind = 'friendly', spell = 'Heal' } })
 ns.ShowSetup()
-local ui = CineSetup
+local ui = PuroCineSetup
 assert(ui.presetSelector, 'General has no preset selector')
 ui.presetSelector.scripts.OnClick()
 assert(ui.presetMenu, 'Preset selector must open a menu')
 ui.presetMenu.items[2].scripts.OnClick()
-assert(not CineCharDB.presetId and CineCharDB.chatFade == 20, 'Selection must remain a draft')
+assert(not PuroCineCharDB.presetId and PuroCineCharDB.chatFade == 20, 'Selection must remain a draft')
 ui:Hide(); ns.ShowSetup(); ui.save.scripts.OnClick()
-assert(not CineCharDB.presetId and CineCharDB.chatFade == 20, 'Closing discards selection')
+assert(not PuroCineCharDB.presetId and PuroCineCharDB.chatFade == 20, 'Closing discards selection')
 ui.presetSelector.scripts.OnClick(); ui.presetMenu.items[2].scripts.OnClick(); ui.save.scripts.OnClick()
-assert(CineCharDB.presetId == id and CineCharDB.chat == false and CineCharDB.chatFade == 0)
+assert(PuroCineCharDB.presetId == id and PuroCineCharDB.chat == false and PuroCineCharDB.chatFade == 0)
 ui.layoutSelector.scripts.OnClick(); ui.layoutMenu.items[1].scripts.OnClick()
 assert(preview == 'Other', 'Layout selection must preview immediately')
 assert(ns.Presets()[id].layout.layoutName == 'Raid', 'Preview must not save the shared preset')
@@ -69,24 +69,24 @@ ui:Hide(); ns.ShowSetup()
 assert(cancelled and preview == nil and ns.Presets()[id].layout.layoutName == 'Raid')
 ui.layoutSelector.scripts.OnClick(); ui.layoutMenu.items[1].scripts.OnClick(); ui.save.scripts.OnClick()
 assert(committed and ns.Presets()[id].layout.layoutName == 'Other', 'Save must commit the preview')
-assert(CineCharDB.groupAuras == false and CineCharDB.player == 'resource')
-assert(CineCharDB.requireLivingTarget and (not CineCharDB.visible
-    or (not CineCharDB.visible.bars and not CineCharDB.visible.swing)))
-assert(CineCharDB.groupVisibility[1] == 'always' and CineCharDB.groupVisibility[2] == 'always'
-    and CineCharDB.groupVisibility[10] == 'always', 'Legacy bar pins were not migrated')
-assert(CineCharDB.groups['1'] == 2 and CineCharDB.hostile['1'] and CineCharDB.friendly['2'])
-assert(CineCharDB.range.spell == 'Heal' and CineCharDB.range.kind == 'friendly')
+assert(PuroCineCharDB.groupAuras == false and PuroCineCharDB.player == 'resource')
+assert(PuroCineCharDB.requireLivingTarget and (not PuroCineCharDB.visible
+    or (not PuroCineCharDB.visible.bars and not PuroCineCharDB.visible.swing)))
+assert(PuroCineCharDB.groupVisibility[1] == 'always' and PuroCineCharDB.groupVisibility[2] == 'always'
+    and PuroCineCharDB.groupVisibility[10] == 'always', 'Legacy bar pins were not migrated')
+assert(PuroCineCharDB.groups['1'] == 2 and PuroCineCharDB.hostile['1'] and PuroCineCharDB.friendly['2'])
+assert(PuroCineCharDB.range.spell == 'Heal' and PuroCineCharDB.range.kind == 'friendly')
 ui.presetSelector.scripts.OnClick(); ui.presetMenu.items[1].scripts.OnClick(); ui.save.scripts.OnClick()
-assert(not CineCharDB.presetId and CineCharDB.chat == false, 'Detach preserves settings')
+assert(not PuroCineCharDB.presetId and PuroCineCharDB.chat == false, 'Detach preserves settings')
 ns.ActivatePreset(id); ns.ShowSetup(); ui.reset.scripts.OnClick()
-assert(not CineCharDB.presetId and CineCharDB.chat == nil)
+assert(not PuroCineCharDB.presetId and PuroCineCharDB.chat == nil)
 assert(ns.Presets()[id].settings.chat == false, 'Reset must not mutate shared preset')
 ui.newPreset.scripts.OnClick()
 ui.presetDialog.edit:SetText('  Tank  ')
 ui.presetDialog.yes.scripts.OnClick()
 assert(#ns.PresetList() == 1, 'New preset stays a draft')
 ui.save.scripts.OnClick()
-local tank = CineCharDB.presetId
+local tank = PuroCineCharDB.presetId
 assert(tank and tank ~= id and ns.Presets()[tank].name == 'Tank')
 ui.renamePreset.scripts.OnClick()
 ui.presetDialog.edit:SetText('Healing')
@@ -97,21 +97,21 @@ ui.renamePreset.scripts.OnClick()
 ui.presetDialog.edit:SetText('Defender')
 ui.presetDialog.yes.scripts.OnClick()
 ui.save.scripts.OnClick()
-assert(CineCharDB.presetId == tank and ns.Presets()[tank].name == 'Defender')
+assert(PuroCineCharDB.presetId == tank and ns.Presets()[tank].name == 'Defender')
 ui.deletePreset.scripts.OnClick()
 ui.presetDialog.no.scripts.OnClick()
 assert(ns.Presets()[tank], 'Cancelling deletion must preserve the preset')
 ui.deletePreset.scripts.OnClick()
 ui.presetDialog.yes.scripts.OnClick()
-assert(not ns.Presets()[tank] and not CineCharDB.presetId)
+assert(not ns.Presets()[tank] and not PuroCineCharDB.presetId)
 ui.newPreset.scripts.OnClick()
 ui.presetDialog.edit:SetText('Unsaved')
 ns.PresetCommand('healer')
-assert(CineCharDB.presetId == id and ui:IsShown())
+assert(PuroCineCharDB.presetId == id and ui:IsShown())
 assert(ui.presetSelector.text == 'Healer', 'Preset command must refresh the open setup')
 assert(not ui.presetDialog:IsShown(), 'Preset command must close a stale draft dialog')
 ui.save.scripts.OnClick()
-assert(#ns.PresetList() == 1 and CineCharDB.presetId == id,
+assert(#ns.PresetList() == 1 and PuroCineCharDB.presetId == id,
     'Saving after a preset command must preserve its selection instead of the old draft')
 print('PASS General draft selection, cancel, save, detach and reset')
 assert(ui.width >= 592 and ui.width <= 636 and ui.height <= 474, 'Setup is not compact')
@@ -138,7 +138,7 @@ first.plus.scripts.OnClick()
 assert(ui.visibilityRows[3].members.text:find('Bar 1'), 'Group membership did not refresh')
 assert(not first.hostile.disabled, 'Moved bar retained old group control')
 ui.save.scripts.OnClick()
-assert(CineCharDB.groups['1'] == 3)
+assert(PuroCineCharDB.groups['1'] == 3)
 local visible = ui.rows[1]
 assert(visible.hover.box.checked, "XP must default to Only on hover")
 visible.hover.scripts.OnClick()
@@ -147,7 +147,7 @@ assert(visible.hover.box.checked and not visible.always.box.checked)
 visible.always.scripts.OnClick()
 assert(visible.always.box.checked and not visible.hover.box.checked)
 visible.hover.scripts.OnClick(); ui.save.scripts.OnClick()
-assert(CineCharDB.hoverOnly.xp and (not CineCharDB.visible or not CineCharDB.visible.xp))
+assert(PuroCineCharDB.hoverOnly.xp and (not PuroCineCharDB.visible or not PuroCineCharDB.visible.xp))
 -- Every possible group is reachable, and regrouping clamps a stale scroll offset.
 for index, row in ipairs(ui.groupRows) do
     for i = 1, 12 do row.plus.scripts.OnClick() end
@@ -161,6 +161,6 @@ end
 assert(ui.groupScroll.scrollOffset == 0 and ui.visibilityRows[1].shown and not ui.visibilityRows[2].shown)
 ui:Hide(); ns.ShowSetup()
 ui.reset.scripts.OnClick()
-assert(not CineCharDB.groupVisibility and not CineCharDB.hoverOnly and ns.OnlyOnHover("xp"))
+assert(not PuroCineCharDB.groupVisibility and not PuroCineCharDB.hoverOnly and ns.OnlyOnHover("xp"))
 assert(ns.Presets()[id].settings.groupVisibility[2] == 'hover', 'Reset changed shared modes')
 print('PASS Compact seven-tab setup, group modes, membership, mutual exclusion, scrolling and reset')

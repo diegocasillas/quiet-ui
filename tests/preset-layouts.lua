@@ -1,7 +1,7 @@
 local ns = {}
-CineDB = {}; CineCharDB = {}
-ns.DB = function() return CineDB end
-ns.CharDB = function() return CineCharDB end
+PuroCineDB = {}; PuroCineCharDB = {}
+ns.DB = function() return PuroCineDB end
+ns.CharDB = function() return PuroCineCharDB end
 ns.Print = function(message) ns.messages[#ns.messages + 1] = message end
 ns.messages = {}
 ns.Report = function(_, err) error(err) end
@@ -11,7 +11,7 @@ InCombatLockdown = function() return combat end
 local info = { activeLayout = 3, layouts = {
     { layoutName = 'Original', layoutType = 1 },
     { layoutName = 'Raid', layoutType = 1 },
-    { layoutName = 'Cine', layoutType = 1 },
+    { layoutName = 'Puro Cine', layoutType = 1 },
 } }
 C_EditMode = {
     GetLayouts = function() return info end,
@@ -25,7 +25,7 @@ assert(type(ns.SelectPresetLayout) == 'function', 'Preset layout selection is no
 local id = ns.SavePreset(nil, 'Healer', { layoutName = 'Raid', layoutType = 1 }, {})
 ns.ActivatePreset(id)
 assert(ns.SelectPresetLayout())
-assert(info.activeLayout == 4 and CineCharDB.previousLayout == 3)
+assert(info.activeLayout == 4 and PuroCineCharDB.previousLayout == 3)
 info.layouts[1], info.layouts[2] = info.layouts[2], info.layouts[1]
 assert(ns.SelectPresetLayout() and info.activeLayout == 3, 'Resolve layout by identity, not index')
 combat = true
@@ -39,15 +39,15 @@ assert(ns.Presets()[id].layout.layoutName == 'Raid', 'Keep invalid reference for
 assert(ns.RestorePreviousLayout() and info.activeLayout == 4, 'Restore original by name after reorder')
 info.layouts[3] = nil
 assert(ns.SelectPresetLayout())
-assert(info.layouts[3].layoutName == 'Cine', 'Create missing fallback')
+assert(info.layouts[3].layoutName == 'Puro Cine', 'Create missing fallback')
 print('PASS preset layouts, combat, fallback, warning and restore')
 info.layouts[1] = { layoutName = 'Raid', layoutType = 1 }
 info.activeLayout = 4
-local before = CineCharDB.previousLayout
+local before = PuroCineCharDB.previousLayout
 assert(type(ns.PreviewLayout) == 'function', 'Immediate layout preview is not implemented')
 ns.PreviewLayout({ layoutName = 'Raid', layoutType = 1 })
 assert(info.activeLayout == 3, 'Preview must switch immediately without Save')
-assert(CineCharDB.previousLayout == before, 'Preview must not overwrite restore metadata')
+assert(PuroCineCharDB.previousLayout == before, 'Preview must not overwrite restore metadata')
 ns.CancelLayoutPreview()
 assert(info.activeLayout == 4, 'Closing without Save must restore the original layout')
 combat = true
@@ -79,16 +79,16 @@ assert(switches == 1 and info.activeLayout == 4)
 ns.CommitLayoutPreview()
 print('PASS preview reentrancy protection')
 C_EditMode.SetActiveLayout = function(index) info.activeLayout = index end
-CineCharDB.previousLayout = nil
-CineCharDB.previousLayoutRef = nil
-CineDB.enabled = true
+PuroCineCharDB.previousLayout = nil
+PuroCineCharDB.previousLayoutRef = nil
+PuroCineDB.enabled = true
 ns.PreviewLayout({ layoutName = 'Raid', layoutType = 1 })
 ns.CommitLayoutPreview(true)
-assert(CineCharDB.previousLayoutRef.layoutName == 'Original', 'Save must remember layout before preview')
+assert(PuroCineCharDB.previousLayoutRef.layoutName == 'Original', 'Save must remember layout before preview')
 assert(ns.RestorePreviousLayout() and info.activeLayout == 4)
-CineDB.enabled = false
+PuroCineDB.enabled = false
 ns.PreviewLayout({ layoutName = 'Raid', layoutType = 1 })
-assert(info.activeLayout == 3, 'Preview must work while Cine is disabled')
+assert(info.activeLayout == 3, 'Preview must work while Puro Cine is disabled')
 ns.CommitLayoutPreview(true)
-assert(CineCharDB.previousLayout == nil, 'Disabled previews must not take ownership of the layout')
+assert(PuroCineCharDB.previousLayout == nil, 'Disabled previews must not take ownership of the layout')
 print('PASS preview save restore metadata and disabled preview')

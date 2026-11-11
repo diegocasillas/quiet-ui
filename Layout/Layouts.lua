@@ -2,15 +2,17 @@ local _, ns = ...
 local Layout = ns.Layout or {}
 ns.Layout = Layout
 
--- Offers the Cine Edit Mode layout from LayoutString.lua. Each new version
+-- Offers the Puro Cine Edit Mode layout from LayoutString.lua. Each new version
 -- of that string is offered once; an update still waits for consent.
--- With Force Cine layout on, turning the addon on selects the layout
+-- With Force Puro Cine layout on, turning the addon on selects the layout
 -- (creating it when missing) and remembers the previous one. Turning it off
 -- selects that layout again. With force off, the active layout stays as it is.
 -- Only C_EditMode is used: calling EditModeManagerFrame methods would taint it.
 
-local LAYOUT_NAME = "Cine"
+local LAYOUT_NAME = "Puro Cine"
 Layout.LAYOUT_NAME = LAYOUT_NAME
+-- The layout was called Cine before the addon was renamed; it is still found by that name.
+local LEGACY_LAYOUT_NAME = "Cine"
 
 -- Blizzard ships Modern and Classic presets ahead of saved layouts.
 local FALLBACK_PRESETS = { { layoutName = "Modern" }, { layoutName = "Classic" } }
@@ -103,7 +105,7 @@ end
 
 local function FindLayout(layouts)
     for i, layout in ipairs(layouts) do
-        if layout.layoutName == LAYOUT_NAME then return i end
+        if layout.layoutName == LAYOUT_NAME or layout.layoutName == LEGACY_LAYOUT_NAME then return i end
     end
 end
 Layout.FindLayout = FindLayout

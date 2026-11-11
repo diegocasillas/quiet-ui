@@ -6,8 +6,8 @@ local _, ns = ...
 -- pressing one while the other is on swaps to it; pressing the same one clears it.
 -- The binding system calls a global; down and up both arrive.
 ------------------------------------------------------------------------------
-BINDING_NAME_CINE_GLANCE = "Glance"
-BINDING_NAME_CINE_GLANCE_FULL = "Full glance"
+BINDING_NAME_PURO_CINE_GLANCE = "Glance"
+BINDING_NAME_PURO_CINE_GLANCE_FULL = "Full glance"
 
 -- false, "glance" or "full".
 local mode = false
@@ -25,11 +25,11 @@ function ns.ToggleFullGlance()
     Toggle("full")
 end
 
-function CineGlance(keystate)
+function PuroCineGlance(keystate)
     if keystate == "down" then ns.ToggleGlance() end
 end
 
-function CineGlanceFull(keystate)
+function PuroCineGlanceFull(keystate)
     if keystate == "down" then ns.ToggleFullGlance() end
 end
 

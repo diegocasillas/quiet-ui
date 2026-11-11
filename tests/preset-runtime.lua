@@ -2,11 +2,11 @@ local ns = {}
 local enabled, combat, ready = true, false, true
 ns.DB = function() return { enabled = enabled } end
 ns.CharDB = function() return { previousLayout = 3, presetLayoutManaged = true } end
-ns.ForceCineLayout = function() return true end
+ns.ForcePuroCineLayout = function() return true end
 ns.ActivePreset = function() return { name = 'Healer' } end
 ns.ModernChat = function() return false end
 local selected, quiet, restored = 0, 0, 0
-ns.SelectCineLayout = function() quiet = quiet + 1; return true end
+ns.SelectPuroCineLayout = function() quiet = quiet + 1; return true end
 ns.SelectPresetLayout = function() if combat or not ready then return false end; selected = selected + 1; return true end
 ns.RestorePreviousLayout = function() if combat then return false end; restored = restored + 1; return true end
 for _, key in ipairs({ 'UpdateRange', 'UpdateSmooth', 'UpdateCameraZoom', 'ForgetCursor', 'BeginTick', 'NextFadeTick', 'RefreshWorld', 'EnsureLayout', 'RefreshChrome', 'RestoreChat', 'UpdateBars',
@@ -21,7 +21,7 @@ function events:SetScript(key, value) self.scripts[key] = value end
 function events:RegisterEvent() end
 CreateFrame = function() return events end
 SlashCmdList = {}
-dofile('tests/addon.lua')('Cine.lua', ns)
+dofile('tests/addon.lua')('PuroCine.lua', ns)
 for i = 1, 100 do
     local name = debug.getupvalue(events.scripts.OnEvent, i)
     if name == 'booted' then debug.setupvalue(events.scripts.OnEvent, i, true); break end
@@ -35,10 +35,10 @@ assert(selected == 2)
 combat = false; events.scripts.OnEvent(events, 'PLAYER_REGEN_ENABLED')
 assert(selected == 3, 'Combat must defer selection')
 combat = true; enabled = false; ns.ApplyAll()
-ns.ForceCineLayout = function() return false end
+ns.ForcePuroCineLayout = function() return false end
 combat = false; events.scripts.OnEvent(events, 'PLAYER_REGEN_ENABLED')
 assert(restored == 1, 'Restore must finish while disabled, even after detaching the preset')
-enabled = true; ns.ForceCineLayout = function() return true end
+enabled = true; ns.ForcePuroCineLayout = function() return true end
 ready = false; ns.LayoutSettingsChanged(); ns.ApplyAll()
 assert(selected == 3)
 ready = true; events.scripts.OnUpdate(events, 0.1)

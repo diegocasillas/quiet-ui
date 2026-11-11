@@ -7,11 +7,11 @@ ns.Chat = Chat
 ------------------------------------------------------------------------------
 local function MarkStripped(frame)
     if not frame then return end
-    if frame._cineLines and #frame._cineLines > 0 then
+    if frame._puroCineLines and #frame._puroCineLines > 0 then
         Chat.HideNativeText(frame, true)
     end
-    frame._cineStripped = true
-    frame._cineDirty = true
+    frame._puroCineStripped = true
+    frame._puroCineDirty = true
 end
 
 local function StripChat(frame)
@@ -56,7 +56,7 @@ function ns.StripAllChat(force)
     local ok, err = pcall(function()
         for i = 1, Chat.ChatCount() do
             local frame = _G["ChatFrame" .. i]
-            if frame and (force or not frame._cineStripped) then
+            if frame and (force or not frame._puroCineStripped) then
                 StripChat(frame)
             end
         end

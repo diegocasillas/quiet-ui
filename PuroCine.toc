@@ -1,12 +1,12 @@
 ## Interface: 16001
-## Title: Cine
-## Notes: Cine for WoW Forever. Bars, XP, meter and cooldowns show on hover, in combat and in instances. One button for bags. Chat without chrome. /cine setup chooses what stays visible.
-## Author: Cine
+## Title: Puro Cine
+## Notes: Puro Cine for WoW Forever. Bars, XP, meter and cooldowns show on hover, in combat and in instances. One button for bags. Chat without chrome. /purocine setup chooses what stays visible.
+## Author: Puro Cine
 ## Category: UI
 ## IconTexture: Interface\Icons\INV_Misc_Spyglass_03
 ## Version: 0.7.0
-## SavedVariables: CineDB
-## SavedVariablesPerCharacter: CineCharDB
+## SavedVariables: PuroCineDB, CineDB
+## SavedVariablesPerCharacter: PuroCineCharDB, CineCharDB
 
 Core\Base.lua
 Core\Hover.lua
@@ -67,4 +67,4 @@ Setup\Draft.lua
 Setup\Widgets.lua
 Setup\Window.lua
 Setup\Minimap.lua
-Cine.lua
+PuroCine.lua

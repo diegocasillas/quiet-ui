@@ -7,7 +7,7 @@ ns.Print = function() end
 InCombatLockdown = function() return false end
 local info = { activeLayout = 4, layouts = {
     { layoutName = 'Original', layoutType = 1 },
-    { layoutName = 'Cine', layoutType = 1 },
+    { layoutName = 'Puro Cine', layoutType = 1 },
 } }
 EditModePresetLayoutManager = {
     GetCopyOfPresetLayouts = function()
