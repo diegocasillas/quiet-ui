@@ -21,7 +21,9 @@ what stays visible, with personal settings or shared presets across characters.
 - **Bags with the micro menu.** The native bag bar (backpack and bag slots) fades
   in and out with the micro menu, and shows while you hold an item.
 - **Glance.** Press `` ` `` to reveal the faded HUD at once. Press again to return
-  to your usual visibility rules. Chat stays unchanged.
+  to your usual visibility rules. Chat stays unchanged. **Full glance** (bind it
+  under **Cine** in **Key Bindings**) also shows what is set to Only on hover;
+  pressing one glance while the other is on swaps to it.
 - **Camera modes.** Action camera is applied at login and reload. Bind **Toggle
   action camera** under **Cine** in **Key Bindings** to switch between it and
   the normal camera.
@@ -146,7 +148,7 @@ enabling or disabling Cine leaves your active layout alone.
 **Only on hover** overrides automatic triggers, including combat, instances,
 groups, target rules, low resources, XP rewards, and post-combat meter time.
 For buffs and debuffs it also overrides aura grouping and **Always show debuffs**.
-Glance and Edit Mode still reveal these elements. Bars and XP also stay up with
+Edit Mode and Full glance still reveal these elements. Bars and XP also stay up with
 an open spell flyout or an item on the cursor.
 Cooldowns, the meter, and the resource bar gain hover detection in this mode.
 Existing Action bars and Swing timer pins move to group settings automatically;

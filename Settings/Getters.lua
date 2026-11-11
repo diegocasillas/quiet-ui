@@ -48,7 +48,7 @@ end
 
 function ns.VisibilityShow(name, usual, hovered)
     if ns.InEditMode() then return true end
-    if ns.OnlyOnHover(name) then return hovered and true or false end
+    if ns.OnlyOnHover(name) then return (hovered or ns.FullGlancing()) and true or false end
     if ns.Glancing() then return true end
     return ns.Pinned(name) or usual or hovered or false
 end

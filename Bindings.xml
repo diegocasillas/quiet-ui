@@ -2,6 +2,9 @@
 	<Binding name="CINE_GLANCE" category="CINE" runOnUp="true">
 		CineGlance(keystate)
 	</Binding>
+	<Binding name="CINE_GLANCE_FULL" category="CINE" runOnUp="true">
+		CineGlanceFull(keystate)
+	</Binding>
 	<Binding name="CINE_CAMERA_TOGGLE" category="CINE" runOnUp="true">
 		CineCameraToggle(keystate)
 	</Binding>

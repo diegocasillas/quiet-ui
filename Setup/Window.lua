@@ -609,7 +609,7 @@ local function CreateSetup()
         row.hover:SetPoint("CENTER", row, "TOPLEFT", 484, -16)
         widget.visibilityRows[group] = row
     end
-    local help = Setup.Body(groups, "Both unchecked: usual rules. Glance and Edit Mode still show hover-only frames.")
+    local help = Setup.Body(groups, "Both unchecked: usual rules. Edit Mode and Full glance still show hover-only frames.")
     help:SetPoint("TOPLEFT", groups, "TOPLEFT", 0, -24 - Setup.GROUP_VIEW_H - 10)
 
     local player = widget.pages[5]
@@ -695,7 +695,7 @@ local function CreateSetup()
     widget.aboutBody:SetPoint("TOPLEFT", widget.about, "BOTTOMLEFT", 0, -4)
     widget.glanceHeader = Setup.Section(info, "Glance")
     widget.glanceHeader:SetPoint("TOPLEFT", widget.aboutBody, "BOTTOMLEFT", 0, -12)
-    widget.glanceBody = Setup.Body(info, "Press ` to show what has faded. Press it again and the choices on the other tabs apply. Change the key under Cine in Key Bindings. You can also use /cine glance in a macro for your controller.")
+    widget.glanceBody = Setup.Body(info, "Press ` to show what has faded. Press it again and the choices on the other tabs apply. Full glance (no default key) also shows what is set to Only on hover; pressing one while the other is on swaps to it. Change the keys under Cine in Key Bindings. You can also use /cine glance and /cine glance full in a macro for your controller.")
     widget.glanceBody:SetPoint("TOPLEFT", widget.glanceHeader, "BOTTOMLEFT", 0, -4)
 
     widget.reset = Setup.ActionButton(widget, "Reset default", function()
