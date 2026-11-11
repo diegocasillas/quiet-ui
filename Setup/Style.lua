@@ -2,7 +2,7 @@ local _, ns = ...
 local Setup = ns.Setup or {}
 ns.Setup = Setup
 
--- One window: layout, HUD visibility, bars, group visibility, player, chat and Glance.
+-- One window: presets, HUD visibility, bars, group visibility, player, chat and Glance.
 -- The frame is named so UISpecialFrames can close it on Escape.
 -- The window keeps the tallest page, so switching tabs does not resize it.
 
@@ -28,7 +28,7 @@ Setup.MINIMAP_ANGLE = MINIMAP_ANGLE
 
 local draft = {}
 Setup.draft = draft
--- selectedPresetId, presetName, presetLayout: state lives in Setup
+-- selectedPresetId, presetName: state lives in Setup
 -- LoadSavedDraft: state lives in Setup
 -- frame: state lives in Setup
 -- minimapButton: state lives in Setup

@@ -137,12 +137,6 @@ function ns.ModernChat()
     return (ns.Settings and ns.Settings() or ns.CharDB()).chat ~= false
 end
 
--- Missing means off. Only an explicit true selects the Puro Cine layout when the addon turns on.
-function ns.ForcePuroCineLayout()
-    return (ns.ActivePreset and ns.ActivePreset()) ~= nil
-        or (ns.Settings and ns.Settings() or ns.CharDB()).forceLayout == true
-end
-
 -- Seconds a line stays at the bottom. Missing means 10. 0 keeps the line.
 function ns.ChatFade()
     local n = (ns.Settings and ns.Settings() or ns.CharDB()).chatFade

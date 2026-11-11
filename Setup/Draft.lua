@@ -11,7 +11,6 @@ local function ReadDraft(source)
         Setup.draft.hoverOnly[row.key] = ns.HoverSetting(source, row.key)
         Setup.draft[row.key] = type(source.visible) == "table" and source.visible[row.key] == true and not Setup.draft.hoverOnly[row.key]
     end
-    Setup.draft.forceLayout = source.forceLayout == true
     Setup.draft.player = source.player ~= "resource"
     Setup.draft.playerThresholdKind = source.playerThresholdKind == "resource" and "resource" or "health"
     local value = source.playerThresholdPercent
@@ -66,7 +65,6 @@ Setup.LoadSavedDraft = function()
     local preset = ns.ActivePreset()
     Setup.selectedPresetId = preset and ns.CharDB().presetId or nil
     Setup.presetName = preset and preset.name or nil
-    Setup.presetLayout = preset and ns.Copy(preset.layout) or nil
 end
 
 -- Checked bar ids are stored. An unchecked box that is on by default is stored
@@ -108,11 +106,6 @@ local function DraftSettings()
             db.groupVisibility = db.groupVisibility or {}
             db.groupVisibility[group] = mode
         end
-    end
-    if Setup.draft.forceLayout then
-        db.forceLayout = true
-    else
-        db.forceLayout = nil
     end
     if Setup.draft.player then
         db.player = nil
@@ -185,7 +178,6 @@ local function DraftSettings()
     db.groups = groups
     db.hostile = SavedFlags(Setup.draft.hostile, "hostile")
     db.friendly = SavedFlags(Setup.draft.friendly, "friendly")
-    if Setup.presetName then db.forceLayout = nil end
     return db
 end
 
@@ -193,18 +185,14 @@ local function Write()
     local settings, err = DraftSettings()
     if not settings then ns.Print(err); return end
     if Setup.presetName then
-        if not Setup.presetLayout then ns.Print("Choose an Edit Mode layout before saving."); return end
-        local id, err = ns.SavePreset(Setup.selectedPresetId, Setup.presetName, Setup.presetLayout, settings)
+        local id, err = ns.SavePreset(Setup.selectedPresetId, Setup.presetName, settings)
         if not id then ns.Print(err); return end
-        if ns.CommitLayoutPreview then ns.CommitLayoutPreview(true) end
         ns.ActivatePreset(id)
     else
-        if ns.CancelLayoutPreview then ns.CancelLayoutPreview() end
         ns.ActivatePreset(nil, settings)
     end
     Setup.LoadSavedDraft()
     Setup.Paint()
-    if ns.LayoutSettingsChanged then ns.LayoutSettingsChanged() end
     if ns.ApplyAll then ns.ApplyAll() end
 end
 Setup.Write = Write

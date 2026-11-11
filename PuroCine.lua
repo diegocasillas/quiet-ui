@@ -5,13 +5,6 @@ local ADDON, ns = ...
 local booted = false
 local hookedGlobal = {}
 local chromeAcc = 0
-local layoutPending = nil
-local layoutChosen = false
-local presetCheckPending = false
-local finishingLayout = false
-local settleUntil = 0
-local settleToken = 0
-local settleArmed = false
 local rescanPending = false
 local rescanMissed = false
 local cpuProfile
@@ -35,10 +28,8 @@ local function FinishCPUProfile()
         rows[#rows + 1] = { name = name, ms = section.ms, calls = section.calls }
     end
     table.sort(rows, function(a, b) return a.ms > b.ms end)
-    ns.Print(string.format("CPU timing: %.1f seconds, %d frames, preset %s; pending layout: %s.", duration,
-        cpuProfile.frames, ns.ActivePreset and ns.ActivePreset() and ns.ActivePreset().name or "<no preset>",
-        tostring(layoutPending or "none")))
-    if ns.LayoutStatus then ns.Print(ns.LayoutStatus()) end
+    ns.Print(string.format("CPU timing: %.1f seconds, %d frames, preset %s.", duration,
+        cpuProfile.frames, ns.ActivePreset and ns.ActivePreset() and ns.ActivePreset().name or "<no preset>"))
     for i = 1, math.min(8, #rows) do
         local row = rows[i]
         ns.Print(string.format("%s: %.3f ms/s, %.3f ms/call (%d calls).",
@@ -70,65 +61,8 @@ local function UpdateFades(elapsed, rescan)
     Run("menu", ns.UpdateMenuButton, elapsed)
 end
 
--- Select once per enable, restore on disable. Both wait out combat and login.
--- With Force Puro Cine layout off, the active Edit Mode layout stays as it is.
-local function CheckStartupPreset()
-    if not presetCheckPending then return true end
-    if ns.ValidatePresetInterface and not ns.ValidatePresetInterface() then return false end
-    presetCheckPending = false
-    return true
-end
-
-local function FinishLayout()
-    if not CheckStartupPreset() then return end
-    if finishingLayout then return end
-    if ns.UpdateLayoutPreview and ns.UpdateLayoutPreview() then return end
-    if layoutPending == "select" and not ns.ForcePuroCineLayout() then
-        layoutPending = nil
-        return
-    end
-    if layoutPending ~= "select" and layoutPending ~= "restore" then return end
-    finishingLayout = true
-    local job = layoutPending
-    local select = ns.ActivePreset and ns.ActivePreset() and ns.SelectPresetLayout or ns.SelectPuroCineLayout
-    local fn = job == "select" and select or ns.RestorePreviousLayout
-    local ok, done = pcall(fn)
-    finishingLayout = false
-    if not ok then
-        layoutPending = nil
-        if job == "select" then layoutChosen = true end
-        ns.Report("layout", done)
-    elseif done then
-        layoutPending = nil
-        if job == "select" then layoutChosen = true end
-    end
-end
-
--- A new character applies the default preset after login. Keep selecting until that settles.
-local function ArmLayoutSettle()
-    if not ns.DB().enabled or not ns.ForcePuroCineLayout() then return end
-    settleToken = settleToken + 1
-    local token = settleToken
-    layoutChosen = false
-    layoutPending = "select"
-    local now = type(GetTime) == "function" and GetTime() or 0
-    settleUntil = now + 10
-    FinishLayout()
-    if not (C_Timer and C_Timer.After) then return end
-    for _, delay in ipairs({ 1, 3, 6 }) do
-        C_Timer.After(delay, function()
-            if token ~= settleToken or not ns.DB().enabled or not ns.ForcePuroCineLayout() then return end
-            if type(GetTime) == "function" and GetTime() > settleUntil then return end
-            layoutChosen = false
-            layoutPending = "select"
-            FinishLayout()
-        end)
-    end
-end
-
 local function RestoreAll()
     if ns.HideHoverCatchers then ns.HideHoverCatchers() end
-    if ns.CancelLayoutPreview then ns.CancelLayoutPreview() end
     ns.ClearGlance()
     ns.RestoreCamera()
     ns.RestoreLetterbox()
@@ -143,19 +77,9 @@ local function RestoreAll()
     ns.ResetMenu()
     ns.RestoreChat()
     ns.RestoreAlpha()
-    settleToken = settleToken + 1
-    settleUntil = 0
-    layoutChosen = false
-    if ns.ForcePuroCineLayout() or ns.CharDB().presetLayoutManaged then
-        layoutPending = "restore"
-        FinishLayout()
-    else
-        layoutPending = nil
-    end
 end
 
 local function ApplyAll()
-    if not CheckStartupPreset() then return end
     if not ns.DB().enabled then
         RestoreAll()
         return
@@ -163,17 +87,6 @@ local function ApplyAll()
     if ns.ForgetBarButtons then ns.ForgetBarButtons() end
     if ns.FollowGlowButtons then ns.FollowGlowButtons() end
     ns.RefreshWorld()
-    if ns.ForcePuroCineLayout() then
-        if not layoutChosen then
-            layoutPending = "select"
-            FinishLayout()
-        end
-    else
-        -- A later Save with force on selects again. previousLayout stays.
-        layoutChosen = false
-        layoutPending = nil
-    end
-    ns.EnsureLayout()
     ns.RefreshChrome()
     ns.ApplyLetterbox()
     if ns.ModernChat() then
@@ -185,13 +98,6 @@ local function ApplyAll()
 end
 
 ns.ApplyAll = ApplyAll
-
-function ns.LayoutSettingsChanged()
-    settleToken = settleToken + 1
-    settleUntil = 0
-    layoutChosen = false
-    if layoutPending ~= "restore" then layoutPending = nil end
-end
 
 local function Rescan()
     ns.RefreshWorld()
@@ -226,7 +132,6 @@ end
 local function Boot()
     local first = not booted
     booted = true
-    if first then presetCheckPending = true end
     ns.CharDB()
     if ns.Settings then ns.Settings() end
     if first then
@@ -238,10 +143,6 @@ local function Boot()
     Rescan()
     ns.EnsureGlanceBinding()
     ns.EnsureMinimap()
-    if first and ns.DB().enabled then
-        settleArmed = true
-        ArmLayoutSettle()
-    end
     if first and C_Timer and C_Timer.After then
         C_Timer.After(0.5, function()
             ApplyAll()
@@ -281,17 +182,12 @@ function handlers.PLAYER_LOGIN()
     Boot()
 end
 
-function handlers.PLAYER_ENTERING_WORLD(isInitialLogin, isReloading)
+function handlers.PLAYER_ENTERING_WORLD()
     ns.DB()
     if booted then
         ns.RequestRescan()
     else
         Boot()
-    end
-    -- Boot usually armed it already; arm once if it was skipped.
-    if ns.DB().enabled and (isInitialLogin or isReloading) and not settleArmed then
-        settleArmed = true
-        ArmLayoutSettle()
     end
 end
 
@@ -307,7 +203,6 @@ function handlers.PLAYER_REGEN_ENABLED()
     ns.ZoomBackAfterCombat()
     UpdateFades(0)
     ns.RefreshChrome()
-    ns.EnsureLayout()
 end
 
 function handlers.UNIT_SPELLCAST_SUCCEEDED(_, _, spellID)
@@ -336,12 +231,6 @@ end
 
 function handlers.EDIT_MODE_LAYOUTS_UPDATED()
     if ns.ForgetBarButtons then ns.ForgetBarButtons() end
-    ns.EnsureLayout()
-    if not ns.DB().enabled or not ns.ForcePuroCineLayout() then return end
-    if type(GetTime) == "function" and GetTime() > settleUntil then return end
-    layoutChosen = false
-    layoutPending = "select"
-    FinishLayout()
 end
 
 function handlers.UPDATE_CHAT_WINDOWS()
@@ -425,28 +314,16 @@ function ns.PointerMoved()
 end
 
 events:SetScript("OnEvent", function(_, event, ...)
-    if booted and (event == "PLAYER_REGEN_ENABLED" or event == "EDIT_MODE_LAYOUTS_UPDATED") then
-        Run("layout", FinishLayout)
-    end
     local handler = handlers[event]
     if not handler then return end
     if not ALWAYS[event] and (not booted or not ns.DB().enabled) then return end
     Run(event, handler, ...)
 end)
 
-local disabledLayoutAcc = 0
-
 events:SetScript("OnUpdate", function(_, elapsed)
     if not booted then return end
     FinishCPUProfile()
-    if not ns.DB().enabled then
-        disabledLayoutAcc = disabledLayoutAcc + (elapsed or 0)
-        if disabledLayoutAcc >= 0.1 then
-            disabledLayoutAcc = 0
-            Run("layout", FinishLayout)
-        end
-        return
-    end
+    if not ns.DB().enabled then return end
     elapsed = elapsed or 0
     local flyout = ns.FlyoutOpen and ns.FlyoutOpen() and true or false
     local glance = ns.GlanceMode()
@@ -456,9 +333,6 @@ events:SetScript("OnUpdate", function(_, elapsed)
     slowAcc = slowAcc + elapsed
     local slow = slowAcc >= 0.1
     if slow then
-        if layoutPending or (ns.LayoutPreviewActive and ns.LayoutPreviewActive()) then
-            Run("layout", FinishLayout)
-        end
         slowAcc = 0
         ns.ForgetCursor()
     end
