@@ -159,15 +159,33 @@ local peeks = {}
 local PEEK_SECONDS = 2
 local peekCount = 0
 
+-- The spell an item casts when used (a hearthstone, a potion).
+local function ItemSpell(itemID)
+    local read = C_Item and C_Item.GetItemSpell or GetItemSpell
+    if type(read) ~= "function" or type(itemID) ~= "number" then return end
+    local ok, first, second = pcall(read, itemID)
+    if not ok then return end
+    return type(second) == "number" and second or (type(first) == "number" and first or nil)
+end
+
 local function ActionSpell(slot)
     if type(GetActionInfo) ~= "function" then return end
     local ok, kind, id = pcall(GetActionInfo, slot)
     if not ok or ns.IsSecret(kind) or ns.IsSecret(id) then return end
-    if kind == "macro" and type(GetMacroSpell) == "function" then
-        local okMacro, spell = pcall(GetMacroSpell, id)
-        return okMacro and spell or nil
+    if kind == "macro" then
+        if type(GetMacroSpell) == "function" then
+            local okMacro, spell = pcall(GetMacroSpell, id)
+            if okMacro and spell then return spell end
+        end
+        if type(GetMacroItem) == "function" then
+            local okItem, _, link = pcall(GetMacroItem, id)
+            local itemID = okItem and type(link) == "string" and tonumber(link:match("item:(%d+)"))
+            return itemID and ItemSpell(itemID) or nil
+        end
+        return
     end
     if kind == "spell" then return id end
+    if kind == "item" then return ItemSpell(id) end
 end
 
 local function BaseSpell(id)
