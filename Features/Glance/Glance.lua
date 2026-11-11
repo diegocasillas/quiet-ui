@@ -6,7 +6,6 @@ local _, ns = ...
 -- pressing one while the other is on swaps to it; pressing the same one clears it.
 -- The binding system calls a global; down and up both arrive.
 ------------------------------------------------------------------------------
-BINDING_CATEGORY_CINE = "Puro Cine"
 BINDING_NAME_CINE_GLANCE = "Glance"
 BINDING_NAME_CINE_GLANCE_FULL = "Full glance"
 

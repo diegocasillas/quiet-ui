@@ -1,11 +1,11 @@
 <Bindings>
-	<Binding name="CINE_GLANCE" category="CINE" runOnUp="true">
+	<Binding name="CINE_GLANCE" category="Puro Cine" runOnUp="true">
 		CineGlance(keystate)
 	</Binding>
-	<Binding name="CINE_GLANCE_FULL" category="CINE" runOnUp="true">
+	<Binding name="CINE_GLANCE_FULL" category="Puro Cine" runOnUp="true">
 		CineGlanceFull(keystate)
 	</Binding>
-	<Binding name="CINE_CAMERA_TOGGLE" category="CINE" runOnUp="true">
+	<Binding name="CINE_CAMERA_TOGGLE" category="Puro Cine" runOnUp="true">
 		CineCameraToggle(keystate)
 	</Binding>
 </Bindings>
