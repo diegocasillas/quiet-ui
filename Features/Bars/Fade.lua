@@ -180,7 +180,7 @@ end
 
 -- A cast out of combat holds the fade groups whose buttons carry that spell for a moment.
 -- Hover groups peek too; a group under Always visible is up already.
-function ns.PeekBarsForCast(spellID)
+function ns.PeekBarsForCast(spellID, extra)
     if type(spellID) ~= "number" or ns.IsSecret(spellID) or ns.InCombat() then return end
     if type(GetTime) ~= "function" then return end
     local base
@@ -202,8 +202,13 @@ function ns.PeekBarsForCast(spellID)
                             found = true
                         end
                         if found then
-                            if not peeks[group] then peekCount = peekCount + 1 end
-                            peeks[group] = GetTime() + PEEK_SECONDS
+                            local untilTime = GetTime() + PEEK_SECONDS + (extra or 0)
+                            if not peeks[group] then
+                                peekCount = peekCount + 1
+                            elseif peeks[group] > untilTime then
+                                untilTime = peeks[group]
+                            end
+                            peeks[group] = untilTime
                             ns.TouchHud()
                             break
                         end
