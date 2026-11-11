@@ -157,6 +157,7 @@ local showGroup = {}
 -- Fade group to the time its cast peek ends.
 local peeks = {}
 local PEEK_SECONDS = 2
+local peekCount = 0
 
 local function ActionSpell(slot)
     if type(GetActionInfo) ~= "function" then return end
@@ -182,19 +183,29 @@ end
 function ns.PeekBarsForCast(spellID)
     if type(spellID) ~= "number" or ns.IsSecret(spellID) or ns.InCombat() then return end
     if type(GetTime) ~= "function" then return end
-    local base = BaseSpell(spellID)
+    local base
     for _, entry in ipairs(Bars.resolved) do
         local group = ns.BarGroup(entry.id)
-        if ns.GroupVisibility(group) ~= "always" then
-            for _, bar in ipairs(entry.frames) do
-                if ns.Usable(bar) then
-                    local list = Bars.ButtonsFor(bar, true)
-                    for i = 1, #list do
-                        local slot = list[i].action
-                        local spell = type(slot) == "number" and ActionSpell(slot)
-                        if spell and (spell == spellID or BaseSpell(spell) == base) then
+        local found = ns.GroupVisibility(group) == "always"
+        for _, bar in ipairs(entry.frames) do
+            if found then break end
+            if ns.Usable(bar) then
+                local list = Bars.ButtonsFor(bar, true)
+                for i = 1, #list do
+                    local slot = list[i].action
+                    local spell = type(slot) == "number" and ActionSpell(slot)
+                    if spell then
+                        if spell ~= spellID then
+                            base = base or BaseSpell(spellID)
+                            found = BaseSpell(spell) == base
+                        else
+                            found = true
+                        end
+                        if found then
+                            if not peeks[group] then peekCount = peekCount + 1 end
                             peeks[group] = GetTime() + PEEK_SECONDS
                             ns.TouchHud()
+                            break
                         end
                     end
                 end
@@ -205,11 +216,12 @@ end
 
 -- True once when a peek has just run out, so the bars get one more pass to fade.
 function ns.BarPeekEnded()
-    if type(GetTime) ~= "function" then return false end
+    if peekCount == 0 or type(GetTime) ~= "function" then return false end
     local now, ended = GetTime(), false
     for group, untilTime in pairs(peeks) do
         if now >= untilTime then
             peeks[group] = nil
+            peekCount = peekCount - 1
             ended = true
         end
     end
