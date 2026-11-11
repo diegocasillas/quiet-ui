@@ -34,9 +34,8 @@ what stays visible, with personal settings or shared presets across characters.
 
 1. Download the zip from the [latest release](https://github.com/rdurica/quiet-ui/releases/latest).
 2. Extract it into `World of Warcraft/_classic_beta_/Interface/AddOns/`.
-   The addon file should end up at `AddOns/PuroCine/Puro Cine.toc`.
-3. Start the game or type `/reload`. Accept the optional Puro Cine layout, or choose
-   **Not now** to keep your current layout.
+   The addon file should end up at `AddOns/PuroCine/PuroCine.toc`.
+3. Start the game or type `/reload`.
 
 ## Controls
 
@@ -66,18 +65,9 @@ the two until the next login or reload, and turning Puro Cine off restores the n
 camera.
 
 Preset names ignore letter case. Use quotes for names with spaces. Selecting a
-preset saves the choice for this character and applies its settings and linked
-layout while Puro Cine is enabled; combat delays the layout change. While Puro Cine
+preset saves the choice for this character and applies its settings. While Puro Cine
 is off, the selection is saved for the next enable. If settings are open, the
-command cancels the pending draft and layout preview and shows the selected preset.
-The layout list shows only layouts for your current interface mode, including
-custom layouts: keyboard and mouse layouts normally, Gamepad layouts in Gamepad mode.
-On login or reload, a preset linked to a layout for another mode detaches to
-your personal settings. Its shared settings and layout link stay intact.
-Shared presets are also tagged for keyboard and mouse or Gamepad mode based on
-their linked layout. The preset menu and `/purocine preset` list only presets for
-the current mode; commands cannot select a preset for another mode. Existing
-presets acquire their tag automatically from their layout.
+command cancels the pending draft and shows the selected preset.
 
 ## Make it yours
 
@@ -87,9 +77,7 @@ open. **X** or **Escape** closes it without saving pending changes.
 ![Puro Cine setup](docs/images/img007.png)
 
 - **General:** Choose a shared preset or keep `<no preset>` for personal settings.
-  Create, rename, or delete presets here, and choose the existing Edit Mode layout
-  each preset uses. Without a preset, **Force Puro Cine layout** switches to the
-  bundled layout when Puro Cine turns on; it is off by default.
+  Create, rename, or delete presets here.
 - **Visible:** Choose **Always visible** or **Only on hover** for each HUD element.
   Both unchecked keeps its usual rules. The two choices are mutually exclusive.
   XP, the quest tracker, the damage meter, the micro menu, and the raid manager
@@ -116,31 +104,20 @@ open. **X** or **Escape** closes it without saving pending changes.
 
 With a preset selected, **Save** updates its settings for every character using
 it. Other characters load the changes on their next login. Selecting, creating,
-and renaming take effect after **Save**. Choosing a preset's layout previews it
-immediately; **Save** stores the link, while **X** or **Escape** restores the layout
-used before the preview. Deletion takes
+and renaming take effect after **Save**. Deletion takes
 effect immediately after confirmation. New characters start with `<no preset>`.
 Leaving a preset, or losing it because it was deleted on another character, keeps
 the last settings used as a personal copy.
 
-A preset selects its linked layout when you log in, enable Puro Cine, or save it.
-Turning Puro Cine off restores your previous layout. If the linked layout is missing,
-Puro Cine uses its bundled layout and reports the missing link once per login. Choose
-a replacement in General and save to repair it. Layout changes wait until combat
-ends. Presets can also be managed while Puro Cine is off.
+Presets can also be managed while Puro Cine is off.
 
 **Reset default** disconnects this character from its preset without changing the
 shared preset, then applies and saves the defaults immediately: Always visible off,
 Only on hover on for XP, quest tracker, damage meter, micro menu and raid manager
 and off for other elements, default bar groups (group 2 on Only on hover), Enemy
 on for bars 1–3, player frame, grouped buffs, and Always show debuffs on,
-modern chat with a 10-second fade, and Force layout, living-target requirement, and
+modern chat with a 10-second fade, and living-target requirement and
 In range off.
-
-**Import layout** adds or updates the bundled Edit Mode layout immediately,
-including after choosing Not now. Each bundled layout version is offered once;
-updates require your agreement. Without a preset and with Force layout off,
-enabling or disabling Puro Cine leaves your active layout alone.
 
 <details>
 <summary><strong>Visibility rules in detail</strong></summary>

@@ -3,7 +3,7 @@ local Setup = ns.Setup or {}
 ns.Setup = Setup
 
 local TABS = {
-    { id = "general", label = "General", height = 334 },
+    { id = "general", label = "General", height = 264 },
     { id = "visible", label = "Visible", height = 290 },
     { id = "bars", label = "Bars", height = 308 },
     { id = "groups", label = "Groups", height = 320 },
@@ -53,7 +53,6 @@ end
 
 local function ShowPage(widget, id)
     if widget.presetMenu then widget.presetMenu:Hide() end
-    if widget.layoutMenu then widget.layoutMenu:Hide() end
     widget.page = id
     for _, page in ipairs(widget.pages) do
         if page.id == id then page:Show() else page:Hide() end
@@ -277,7 +276,6 @@ local function PresetDialog(owner, title, text, accept)
         if ok then dialog:Hide(); Setup.Paint() else dialog.body:SetText(err) end
     end)
     if owner.presetMenu then owner.presetMenu:Hide() end
-    if owner.layoutMenu then owner.layoutMenu:Hide() end
     dialog.blocker:Show()
     dialog:Show()
     if text ~= nil then dialog.edit:SetFocus(); dialog.edit:HighlightText() end
@@ -340,10 +338,8 @@ local function CreateSetup()
     widget.presetHeader = Setup.Section(general, "Shared preset")
     widget.presetHeader:SetPoint("TOPLEFT", general, "TOPLEFT", 0, 0)
     widget.presetSelector = Setup.ActionButton(general, "<no preset>", function()
-        if widget.layoutMenu then widget.layoutMenu:Hide() end
         local entries = { { name = "<no preset>", selected = Setup.presetName == nil, select = function()
-            if ns.CancelLayoutPreview then ns.CancelLayoutPreview() end
-            Setup.selectedPresetId, Setup.presetName, Setup.presetLayout = nil, nil, nil
+            Setup.selectedPresetId, Setup.presetName = nil, nil
             Setup.Paint()
         end } }
         for _, item in ipairs(ns.PresetList()) do
@@ -351,9 +347,8 @@ local function CreateSetup()
             entries[#entries + 1] = { name = item.name, selected = Setup.selectedPresetId == id, select = function()
                 local preset = ns.Presets()[id]
                 if not preset then return end
-                if ns.CancelLayoutPreview then ns.CancelLayoutPreview() end
                 Setup.ReadDraft(preset.settings)
-                Setup.selectedPresetId, Setup.presetName, Setup.presetLayout = id, preset.name, ns.Copy(preset.layout)
+                Setup.selectedPresetId, Setup.presetName = id, preset.name
                 Setup.Paint()
             end }
         end
@@ -366,7 +361,6 @@ local function CreateSetup()
             local valid, err = ns.PresetName(name)
             if not valid then return false, err end
             Setup.selectedPresetId, Setup.presetName = nil, valid
-            Setup.presetLayout = ns.CurrentLayoutRef()
             return true
         end)
     end)
@@ -384,55 +378,27 @@ local function CreateSetup()
         local id = Setup.selectedPresetId
         if not id then return end
         PresetDialog(widget, 'Delete "' .. Setup.presetName .. '" for all characters? They will keep their last settings.', nil, function()
-            if ns.CancelLayoutPreview then ns.CancelLayoutPreview() end
             ns.DeletePreset(id)
             Setup.LoadSavedDraft()
-            if ns.LayoutSettingsChanged then ns.LayoutSettingsChanged() end
             if ns.ApplyAll then ns.ApplyAll() end
             return true
         end)
     end)
     widget.deletePreset:SetPoint("TOPRIGHT", general, "TOPRIGHT", 0, -58)
-    widget.layoutHeader = Setup.Section(general, "Layout")
-    widget.layoutHeader:SetPoint("TOPLEFT", general, "TOPLEFT", 0, -104)
-    widget.layoutSelector = Setup.ActionButton(general, "Choose layout", function()
-        if widget.presetMenu then widget.presetMenu:Hide() end
-        local entries = {}
-        for _, choice in ipairs(ns.LayoutChoices()) do
-            local ref = choice.ref
-            entries[#entries + 1] = { name = choice.name, selected = Setup.presetLayout and (
-                ref.builtin and ref.builtin == Setup.presetLayout.builtin
-                or not ref.builtin and ref.layoutName == Setup.presetLayout.layoutName
-                    and ref.layoutType == Setup.presetLayout.layoutType), select = function()
-                Setup.presetLayout = ns.Copy(ref)
-                if ns.PreviewLayout then ns.PreviewLayout(Setup.presetLayout) end
-                Setup.Paint()
-            end }
-        end
-        if #entries == 0 then ns.Print("Edit Mode layouts are not available yet."); return end
-        SelectMenu(widget, "layoutMenu", widget.layoutSelector, entries)
-    end)
-    widget.layoutSelector:SetSize(Setup.CONTENT_W, 24)
-    widget.layoutSelector:SetPoint("TOPLEFT", general, "TOPLEFT", 0, -128)
-    widget.forceLayout = Setup.Choice(general, "Force Puro Cine layout", function()
-        Setup.draft.forceLayout = not Setup.draft.forceLayout
-        Setup.Paint()
-    end)
-    widget.forceLayout:SetPoint("TOPLEFT", general, "TOPLEFT", 0, -128)
     widget.presetHelp = Setup.Body(general, "Save updates the selected preset for every character. Without a preset, settings belong to this character.")
     widget.presetHelp:SetWidth(Setup.CONTENT_W)
-    widget.presetHelp:SetPoint("TOPLEFT", general, "TOPLEFT", 0, -174)
+    widget.presetHelp:SetPoint("TOPLEFT", general, "TOPLEFT", 0, -104)
 
     widget.camera = Setup.Section(general, "Camera")
-    widget.camera:SetPoint("TOPLEFT", general, "TOPLEFT", 0, -214)
+    widget.camera:SetPoint("TOPLEFT", general, "TOPLEFT", 0, -144)
     widget.combatZoom = Setup.Choice(general, "Combat distance", function()
         Setup.draft.combatZoom = not Setup.draft.combatZoom
         Setup.Paint()
     end)
-    widget.combatZoom:SetPoint("TOPLEFT", general, "TOPLEFT", 0, -260)
+    widget.combatZoom:SetPoint("TOPLEFT", general, "TOPLEFT", 0, -190)
     widget.combatZoomPercent = Setup.PercentField(general, "% of the farthest zoom", "combatZoomPercent")
     widget.combatZoomPercent:SetSize(220, 22)
-    widget.combatZoomPercent:SetPoint("TOPLEFT", general, "TOPLEFT", 240, -260)
+    widget.combatZoomPercent:SetPoint("TOPLEFT", general, "TOPLEFT", 240, -190)
     widget.combatZoomPercent.edit:SetSize(52, 22)
     widget.combatZoomPercent.edit:ClearAllPoints()
     widget.combatZoomPercent.edit:SetPoint("LEFT", 0, 0)
@@ -442,10 +408,10 @@ local function CreateSetup()
         Setup.draft.defaultZoom = not Setup.draft.defaultZoom
         Setup.Paint()
     end)
-    widget.defaultZoom:SetPoint("TOPLEFT", general, "TOPLEFT", 0, -234)
+    widget.defaultZoom:SetPoint("TOPLEFT", general, "TOPLEFT", 0, -164)
     widget.defaultZoomPercent = Setup.PercentField(general, "% of the farthest zoom", "defaultZoomPercent")
     widget.defaultZoomPercent:SetSize(220, 22)
-    widget.defaultZoomPercent:SetPoint("TOPLEFT", general, "TOPLEFT", 240, -234)
+    widget.defaultZoomPercent:SetPoint("TOPLEFT", general, "TOPLEFT", 240, -164)
     widget.defaultZoomPercent.edit:SetSize(52, 22)
     widget.defaultZoomPercent.edit:ClearAllPoints()
     widget.defaultZoomPercent.edit:SetPoint("LEFT", 0, 0)
@@ -455,10 +421,10 @@ local function CreateSetup()
         Setup.draft.rememberZoom = not Setup.draft.rememberZoom
         Setup.Paint()
     end)
-    widget.rememberZoom:SetPoint("TOPLEFT", general, "TOPLEFT", 0, -286)
+    widget.rememberZoom:SetPoint("TOPLEFT", general, "TOPLEFT", 0, -216)
     widget.testZoomPercent = Setup.PercentField(general, "% of the farthest zoom", "testZoomPercent")
     widget.testZoomPercent:SetSize(220, 22)
-    widget.testZoomPercent:SetPoint("TOPLEFT", general, "TOPLEFT", 0, -312)
+    widget.testZoomPercent:SetPoint("TOPLEFT", general, "TOPLEFT", 0, -242)
     widget.testZoomPercent.edit:SetSize(52, 22)
     widget.testZoomPercent.edit:ClearAllPoints()
     widget.testZoomPercent.edit:SetPoint("LEFT", 0, 0)
@@ -473,7 +439,7 @@ local function CreateSetup()
         end
         if ns.TestZoom then ns.TestZoom(n) end
     end)
-    widget.testZoom:SetPoint("TOPLEFT", general, "TOPLEFT", 250, -311)
+    widget.testZoom:SetPoint("TOPLEFT", general, "TOPLEFT", 250, -241)
     widget.testZoomBack = Setup.ActionButton(general, "Back", function()
         if ns.EndZoomTest then ns.EndZoomTest() end
     end)
@@ -699,30 +665,22 @@ local function CreateSetup()
     widget.glanceBody:SetPoint("TOPLEFT", widget.glanceHeader, "BOTTOMLEFT", 0, -4)
 
     widget.reset = Setup.ActionButton(widget, "Reset default", function()
-        if ns.CancelLayoutPreview then ns.CancelLayoutPreview() end
         ns.ActivatePreset(nil, {})
         Setup.LoadSavedDraft()
         Setup.Paint()
-        if ns.LayoutSettingsChanged then ns.LayoutSettingsChanged() end
         if ns.ApplyAll then ns.ApplyAll() end
-    end)
-    widget.import = Setup.ActionButton(widget, "Import layout", function()
-        ns.ForceLayout()
     end)
     widget.save = Setup.ActionButton(widget, "Save", function()
         Setup.Write()
     end)
     widget.reset:SetFrameLevel(widget:GetFrameLevel() + 20)
-    widget.import:SetFrameLevel(widget:GetFrameLevel() + 20)
     widget.save:SetFrameLevel(widget:GetFrameLevel() + 20)
 
     widget.reset:SetPoint("BOTTOMLEFT", metrics.side, metrics.buttonY)
-    widget.import:SetPoint("BOTTOM", 0, metrics.buttonY)
     widget.save:SetPoint("BOTTOMRIGHT", -metrics.side, metrics.buttonY)
     widget:SetScript("OnHide", function()
-        if ns.CancelLayoutPreview then ns.CancelLayoutPreview() end
         if ns.EndZoomTest then ns.EndZoomTest() end
-        for _, key in ipairs({ "presetMenu", "layoutMenu", "presetDialog" }) do
+        for _, key in ipairs({ "presetMenu", "presetDialog" }) do
             if widget[key] then widget[key]:Hide() end
         end
     end)
@@ -732,7 +690,7 @@ end
 
 function ns.RefreshSetup()
     if not Setup.frame or not Setup.frame:IsShown() then return end
-    for _, key in ipairs({ "presetMenu", "layoutMenu", "presetDialog" }) do
+    for _, key in ipairs({ "presetMenu", "presetDialog" }) do
         if Setup.frame[key] then Setup.frame[key]:Hide() end
     end
     Setup.LoadSavedDraft()
@@ -740,7 +698,6 @@ function ns.RefreshSetup()
 end
 
 function ns.ShowSetup()
-    if ns.CancelLayoutPreview then ns.CancelLayoutPreview() end
     Setup.frame = Setup.frame or CreateSetup()
     Setup.LoadSavedDraft()
     if Setup.frame._puroCinePortrait then

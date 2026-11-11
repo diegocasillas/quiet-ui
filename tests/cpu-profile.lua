@@ -4,7 +4,6 @@ local db = { enabled = false }
 ns.DB = function() return db end
 ns.Print = function(message) messages[#messages + 1] = message end
 ns.Report = function(_, err) error(err) end
-ns.UpdateLayoutPreview = function() clock = clock + 3; return true end
 GetTime = function() return now end
 debugprofilestop = function() return clock end
 local events = { scripts = {} }
@@ -23,12 +22,11 @@ for _ = 1, 10 do now = now + 0.1; events.scripts.OnUpdate(events, 0.1) end
 now = 10
 events.scripts.OnUpdate(events, 0.1)
 assert(messages[2]:find('CPU timing: 10.0 seconds', 1, true))
-assert(messages[3] == 'layout: 3.000 ms/s, 3.000 ms/call (10 calls).', messages[3])
 now = 20
 events.scripts.OnUpdate(events, 0.1)
-assert(#messages == 3, 'Completed profiling must not keep reporting')
+assert(#messages == 2, 'Completed profiling must not keep reporting')
 debugprofilestop = nil
 SlashCmdList.PUROCINE('profile')
-assert(messages[4] == 'CPU timing is not available on this client.')
+assert(messages[3] == 'CPU timing is not available on this client.')
 assert(not db.enabled)
 print('PASS temporary CPU timing, completion, disabled state and unavailable timer')

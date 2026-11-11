@@ -2,7 +2,7 @@ local _, ns = ...
 
 local snapshotChar, snapshotPreset
 
-local KEYS = { "visible", "hoverOnly", "groupVisibility", "forceLayout", "player", "playerThresholdKind", "playerThresholdPercent", "requireLivingTarget", "groupAuras", "alwaysShowDebuffs", "showPlayerFrameInParty",
+local KEYS = { "visible", "hoverOnly", "groupVisibility", "player", "playerThresholdKind", "playerThresholdPercent", "requireLivingTarget", "groupAuras", "alwaysShowDebuffs", "showPlayerFrameInParty",
     "chat", "chatFade", "groups", "hostile", "friendly", "range", "forceFramesInInstance", "letterbox", "combatZoom",
     "combatZoomPercent", "defaultZoom", "defaultZoomPercent", "rememberZoom" }
 
@@ -53,26 +53,10 @@ function ns.Settings()
     return char
 end
 
-function ns.PresetInterfaceStyle(preset)
-    if type(preset.interfaceStyle) == "number" then return preset.interfaceStyle end
-    local style = ns.LayoutInterfaceStyle and ns.LayoutInterfaceStyle(preset.layout)
-        or (preset.layout and preset.layout.interfaceStyle)
-    if style == nil and not ns.LayoutInterfaceStyle then style = 0 end
-    if style ~= nil then preset.interfaceStyle = style end
-    return style
-end
-
-function ns.PresetCompatible(preset)
-    local style = ns.PresetInterfaceStyle(preset)
-    return style ~= nil and style == (ns.CurrentInterfaceStyle and ns.CurrentInterfaceStyle() or 0)
-end
-
 function ns.PresetList()
     local list = {}
     for id, preset in pairs(ns.Presets()) do
-        if ns.PresetCompatible(preset) then
-            list[#list + 1] = { id = id, name = preset.name }
-        end
+        list[#list + 1] = { id = id, name = preset.name }
     end
     table.sort(list, function(a, b) return a.name:lower() < b.name:lower() end)
     return list
@@ -89,7 +73,7 @@ function ns.PresetName(name, id)
     return name
 end
 
-function ns.SavePreset(id, name, layout, settings)
+function ns.SavePreset(id, name, settings)
     local valid, err = ns.PresetName(name, id)
     if not valid then return nil, err end
     local db = ns.DB()
@@ -98,21 +82,13 @@ function ns.SavePreset(id, name, layout, settings)
         db.nextPresetId = (db.nextPresetId or 0) + 1
         id = tostring(db.nextPresetId)
     end
-    local saved = ns.CopySettings(settings)
-    saved.forceLayout = nil
-    local style = ns.LayoutInterfaceStyle and ns.LayoutInterfaceStyle(layout)
-        or (layout and layout.interfaceStyle)
-        or (ns.CurrentInterfaceStyle and ns.CurrentInterfaceStyle() or 0)
-    ns.Presets()[id] = { name = valid, layout = ns.Copy(layout), settings = saved, interfaceStyle = style }
+    ns.Presets()[id] = { name = valid, settings = ns.CopySettings(settings) }
     return id
 end
 
 function ns.ActivatePreset(id, settings)
     local char = ns.CharDB()
     if id and not ns.Presets()[id] then return false end
-    if id and not ns.PresetCompatible(ns.Presets()[id]) then
-        return false, "That preset is not available for the current interface mode."
-    end
     if settings then ns.CopySettings(settings, char) else ns.Settings() end
     char.presetId = id
     snapshotChar, snapshotPreset = nil, nil
@@ -158,13 +134,7 @@ function ns.PresetCommand(name)
         ns.Print('Preset "' .. name .. '" was not found. Use /purocine preset to list presets.')
         return
     end
-    if not ns.PresetCompatible(ns.Presets()[selected]) then
-        ns.Print('Preset "' .. ns.Presets()[selected].name .. '" is not available for the current interface mode.')
-        return
-    end
-    if ns.CancelLayoutPreview then ns.CancelLayoutPreview() end
     ns.ActivatePreset(selected)
-    if ns.LayoutSettingsChanged then ns.LayoutSettingsChanged() end
     if ns.ApplyAll then ns.ApplyAll() end
     if ns.RefreshSetup then ns.RefreshSetup() end
     ns.Print('Preset "' .. ns.Presets()[selected].name .. '" selected.')

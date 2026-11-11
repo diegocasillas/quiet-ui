@@ -315,7 +315,7 @@ test('Always show debuffs defaults on and survives saves, presets and reset', fu
     draft.alwaysShowDebuffs = false
     ns.ActivatePreset(nil, saved())
     assert(PuroCineCharDB.alwaysShowDebuffs == false and not ns.AlwaysShowDebuffs())
-    local id = assert(ns.SavePreset(nil, 'Debuffs fade', {}, saved()))
+    local id = assert(ns.SavePreset(nil, 'Debuffs fade', saved()))
     ns.ActivatePreset(id)
     assert(not ns.AlwaysShowDebuffs(), 'Preset did not retain opt-out')
     ns.DeletePreset(id)
@@ -604,7 +604,6 @@ test('Show-all transitions recalculate bars even with a stationary pointer', fun
         'ResetMenu', 'RestoreChat', 'RestoreAlpha' }) do
         ns[name] = function() end
     end
-    ns.ForcePuroCineLayout = function() return false end
     SlashCmdList.PUROCINE('off')
     assert(not ns.Glancing(), 'Disabling the addon did not clear command Glance')
     assert(not PuroCineDB.enabled, 'Off command did not disable the addon')
@@ -678,7 +677,7 @@ test('Legacy pins split mixed groups without changing which bars stay up', funct
     assert(ns.GroupVisibility(ns.BarGroup('swing')) == 'always')
     assert(not ns.GroupVisibility(ns.BarGroup('1')), 'Migration pinned unpinned action bars')
     source.hoverOnly = { meter = true }
-    local id = assert(ns.SavePreset(nil, 'Hover', {}, source))
+    local id = assert(ns.SavePreset(nil, 'Hover', source))
     ns.ActivatePreset(id)
     assert(ns.OnlyOnHover('meter') and ns.GroupVisibility(ns.BarGroup('swing')) == 'always')
     ns.DeletePreset(id)
@@ -833,7 +832,7 @@ test('XP defaults to hover and unchecking persists usual combat visibility', fun
     ns.ActivatePreset(nil, saved())
     assert(PuroCineCharDB.hoverOnly.xp == false and not ns.OnlyOnHover('xp'), 'Unchecking did not persist')
     read(); assert(not draft.hoverOnly.xp)
-    local id = assert(ns.SavePreset(nil, 'Normal XP', {}, saved()))
+    local id = assert(ns.SavePreset(nil, 'Normal XP', saved()))
     ns.ActivatePreset(id); assert(not ns.OnlyOnHover('xp'))
     MainStatusTrackingBarContainer = frame(UIParent)
     ns.FindFaders(false)

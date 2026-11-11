@@ -39,15 +39,9 @@ ns.Glancing = function() return false end
 ns.BarGroup = function() return 1 end
 ns.BarTarget = function() return false end
 ns.ApplyAll = function() end
-ns.CurrentLayoutRef = function() return { layoutName = 'Raid', layoutType = 1 } end
-ns.LayoutChoices = function() return { { name = 'Other', ref = { layoutName = 'Other', layoutType = 1 } } } end
-local preview, committed, cancelled
-ns.PreviewLayout = function(ref) preview = ref.layoutName end
-ns.CommitLayoutPreview = function() committed = true; preview = nil end
-ns.CancelLayoutPreview = function() cancelled = true; preview = nil end
 dofile('tests/addon.lua')('Presets.lua', ns)
 dofile('tests/addon.lua')('Setup.lua', ns)
-local id = ns.SavePreset(nil, 'Healer', ns.CurrentLayoutRef(), { chat = false, chatFade = 0, groupAuras = false, player = 'resource',
+local id = ns.SavePreset(nil, 'Healer', { chat = false, chatFade = 0, groupAuras = false, player = 'resource',
     requireLivingTarget = true, visible = { bars = true, swing = true },
     groups = { ['1'] = 2 }, hostile = { ['1'] = true }, friendly = { ['2'] = true },
     range = { yards = 'spell', kind = 'friendly', spell = 'Heal' } })
@@ -62,13 +56,6 @@ ui:Hide(); ns.ShowSetup(); ui.save.scripts.OnClick()
 assert(not PuroCineCharDB.presetId and PuroCineCharDB.chatFade == 20, 'Closing discards selection')
 ui.presetSelector.scripts.OnClick(); ui.presetMenu.items[2].scripts.OnClick(); ui.save.scripts.OnClick()
 assert(PuroCineCharDB.presetId == id and PuroCineCharDB.chat == false and PuroCineCharDB.chatFade == 0)
-ui.layoutSelector.scripts.OnClick(); ui.layoutMenu.items[1].scripts.OnClick()
-assert(preview == 'Other', 'Layout selection must preview immediately')
-assert(ns.Presets()[id].layout.layoutName == 'Raid', 'Preview must not save the shared preset')
-ui:Hide(); ns.ShowSetup()
-assert(cancelled and preview == nil and ns.Presets()[id].layout.layoutName == 'Raid')
-ui.layoutSelector.scripts.OnClick(); ui.layoutMenu.items[1].scripts.OnClick(); ui.save.scripts.OnClick()
-assert(committed and ns.Presets()[id].layout.layoutName == 'Other', 'Save must commit the preview')
 assert(PuroCineCharDB.groupAuras == false and PuroCineCharDB.player == 'resource')
 assert(PuroCineCharDB.requireLivingTarget and (not PuroCineCharDB.visible
     or (not PuroCineCharDB.visible.bars and not PuroCineCharDB.visible.swing)))
@@ -118,7 +105,7 @@ assert(ui.width >= 592 and ui.width <= 636 and ui.height <= 474, 'Setup is not c
 assert(#ui.tabs == 7 and ui.pages[4].id == 'groups', 'Groups tab is missing')
 assert(ui.visibilityHeader.parent == ui.pages[4] and ui.groupRows[1].parent == ui.pages[3],
     'Group visibility did not move out of Bars')
-assert(ui.presetSelector.width == ui.pages[1].width and ui.layoutSelector.width == ui.pages[1].width,
+assert(ui.presetSelector.width == ui.pages[1].width,
     'General selectors do not use the content width')
 for _, row in ipairs(ui.rows) do
     assert(row.key ~= 'bars' and row.key ~= 'swing', 'Bars still appear on Visible')

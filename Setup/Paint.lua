@@ -6,16 +6,10 @@ local function Paint()
     if not Setup.frame then return end
     if Setup.frame.presetSelector then
         Setup.ButtonText(Setup.frame.presetSelector, Setup.presetName or "<no preset>")
-        Setup.ButtonText(Setup.frame.layoutSelector, ns.LayoutLabel and ns.LayoutLabel(Setup.presetLayout)
-            or (Setup.presetLayout and Setup.presetLayout.layoutName or "Choose layout"))
         if Setup.presetName then
-            Setup.frame.forceLayout:Hide()
-            Setup.frame.layoutSelector:Show()
             Setup.frame.renamePreset:Enable()
             if Setup.selectedPresetId then Setup.frame.deletePreset:Enable() else Setup.frame.deletePreset:Disable() end
         else
-            Setup.frame.forceLayout:Show()
-            Setup.frame.layoutSelector:Hide()
             Setup.frame.renamePreset:Disable()
             Setup.frame.deletePreset:Disable()
         end
@@ -23,9 +17,6 @@ local function Paint()
     for _, row in ipairs(Setup.frame.rows) do
         Setup.PaintBox(row.always.box, Setup.draft[row.key])
         Setup.PaintBox(row.hover.box, Setup.draft.hoverOnly[row.key])
-    end
-    if Setup.frame.forceLayout then
-        Setup.PaintBox(Setup.frame.forceLayout.box, Setup.draft.forceLayout)
     end
     if Setup.frame.playerRow then
         Setup.PaintBox(Setup.frame.playerRow.box, Setup.draft.player)
