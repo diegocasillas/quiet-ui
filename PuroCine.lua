@@ -1,6 +1,6 @@
 local ADDON, ns = ...
 
--- Wiring: apply / restore, events, the per-frame update, and /cine.
+-- Wiring: apply / restore, events, the per-frame update, and /purocine.
 
 local booted = false
 local hookedGlobal = {}
@@ -22,7 +22,7 @@ local function StartCPUProfile()
         return
     end
     cpuProfile = { started = GetTime(), sections = {}, frames = 0 }
-    ns.Print("Measuring Cine for 10 seconds. Keep playing in the same situation.")
+    ns.Print("Measuring Puro Cine for 10 seconds. Keep playing in the same situation.")
 end
 
 local function FinishCPUProfile()
@@ -71,7 +71,7 @@ local function UpdateFades(elapsed, rescan)
 end
 
 -- Select once per enable, restore on disable. Both wait out combat and login.
--- With Force Cine layout off, the active Edit Mode layout stays as it is.
+-- With Force Puro Cine layout off, the active Edit Mode layout stays as it is.
 local function CheckStartupPreset()
     if not presetCheckPending then return true end
     if ns.ValidatePresetInterface and not ns.ValidatePresetInterface() then return false end
@@ -83,14 +83,14 @@ local function FinishLayout()
     if not CheckStartupPreset() then return end
     if finishingLayout then return end
     if ns.UpdateLayoutPreview and ns.UpdateLayoutPreview() then return end
-    if layoutPending == "select" and not ns.ForceCineLayout() then
+    if layoutPending == "select" and not ns.ForcePuroCineLayout() then
         layoutPending = nil
         return
     end
     if layoutPending ~= "select" and layoutPending ~= "restore" then return end
     finishingLayout = true
     local job = layoutPending
-    local select = ns.ActivePreset and ns.ActivePreset() and ns.SelectPresetLayout or ns.SelectCineLayout
+    local select = ns.ActivePreset and ns.ActivePreset() and ns.SelectPresetLayout or ns.SelectPuroCineLayout
     local fn = job == "select" and select or ns.RestorePreviousLayout
     local ok, done = pcall(fn)
     finishingLayout = false
@@ -106,7 +106,7 @@ end
 
 -- A new character applies the default preset after login. Keep selecting until that settles.
 local function ArmLayoutSettle()
-    if not ns.DB().enabled or not ns.ForceCineLayout() then return end
+    if not ns.DB().enabled or not ns.ForcePuroCineLayout() then return end
     settleToken = settleToken + 1
     local token = settleToken
     layoutChosen = false
@@ -117,7 +117,7 @@ local function ArmLayoutSettle()
     if not (C_Timer and C_Timer.After) then return end
     for _, delay in ipairs({ 1, 3, 6 }) do
         C_Timer.After(delay, function()
-            if token ~= settleToken or not ns.DB().enabled or not ns.ForceCineLayout() then return end
+            if token ~= settleToken or not ns.DB().enabled or not ns.ForcePuroCineLayout() then return end
             if type(GetTime) == "function" and GetTime() > settleUntil then return end
             layoutChosen = false
             layoutPending = "select"
@@ -146,7 +146,7 @@ local function RestoreAll()
     settleToken = settleToken + 1
     settleUntil = 0
     layoutChosen = false
-    if ns.ForceCineLayout() or ns.CharDB().presetLayoutManaged then
+    if ns.ForcePuroCineLayout() or ns.CharDB().presetLayoutManaged then
         layoutPending = "restore"
         FinishLayout()
     else
@@ -163,7 +163,7 @@ local function ApplyAll()
     if ns.ForgetBarButtons then ns.ForgetBarButtons() end
     if ns.FollowGlowButtons then ns.FollowGlowButtons() end
     ns.RefreshWorld()
-    if ns.ForceCineLayout() then
+    if ns.ForcePuroCineLayout() then
         if not layoutChosen then
             layoutPending = "select"
             FinishLayout()
@@ -232,8 +232,8 @@ local function Boot()
     if first then
         local state = ns.DB().enabled and "on, enjoy the view" or "off for now"
         ns.Print("is " .. state .. ".")
-        print("   |cffffffff/cine|r  switch it on or off")
-        print("   |cffffffff/cine setup|r  choose what stays visible")
+        print("   |cffffffff/purocine|r  switch it on or off")
+        print("   |cffffffff/purocine setup|r  choose what stays visible")
     end
     Rescan()
     ns.EnsureGlanceBinding()
@@ -337,7 +337,7 @@ end
 function handlers.EDIT_MODE_LAYOUTS_UPDATED()
     if ns.ForgetBarButtons then ns.ForgetBarButtons() end
     ns.EnsureLayout()
-    if not ns.DB().enabled or not ns.ForceCineLayout() then return end
+    if not ns.DB().enabled or not ns.ForcePuroCineLayout() then return end
     if type(GetTime) == "function" and GetTime() > settleUntil then return end
     layoutChosen = false
     layoutPending = "select"
@@ -541,10 +541,11 @@ HookGlobal("FCF_DockUpdate", function() ns.StripAllChat() end)
 HookGlobal("FCF_OpenTemporaryWindow", function() ns.StripAllChat() end)
 
 ------------------------------------------------------------------------------
--- /cine on | off | setup | glance | preset, no argument toggles.
+-- /purocine on | off | setup | glance | preset, no argument toggles.
 ------------------------------------------------------------------------------
-SLASH_CINE1 = "/cine"
-SlashCmdList["CINE"] = function(msg)
+SLASH_PUROCINE1 = "/purocine"
+SLASH_PUROCINE2 = "/cine"
+SlashCmdList["PUROCINE"] = function(msg)
     msg = (msg or ""):match("^%s*(.-)%s*$")
     local command, argument = msg:match("^(%S+)%s*(.-)$")
     if command and command:lower() == "preset" then

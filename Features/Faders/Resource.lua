@@ -28,10 +28,10 @@ local function HealthPart(frame)
 end
 
 local function KidsOf(frame)
-    local kids = frame._cineKids
+    local kids = frame._puroPuroCineKids
     if kids then return kids end
     kids = {}
-    frame._cineKids = kids
+    frame._puroPuroCineKids = kids
     if not frame.GetChildren then return kids end
     for _, child in ipairs({ frame:GetChildren() }) do
         kids[#kids + 1] = child
@@ -54,7 +54,7 @@ local function PaintResource(frame, show, elapsed, powerAlpha, healthAlpha)
         end
         return
     end
-    if frame._cineAlpha ~= 1 or frame._cineSecret ~= nil then
+    if frame._puroPuroCineAlpha ~= 1 or frame._puroPuroCineSecret ~= nil then
         ns.HoldAlpha(frame, 1)
     end
     for i = 1, #kids do

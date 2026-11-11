@@ -5,10 +5,10 @@ ns.Chat = Chat
 local function HoldFont(frame, fs)
     if not fs or not fs.SetAlpha or not fs.GetObjectType then return end
     if fs:GetObjectType() ~= "FontString" then return end
-    local saved = frame._cineFontAlpha
+    local saved = frame._puroPuroCineFontAlpha
     if not saved then
         saved = {}
-        frame._cineFontAlpha = saved
+        frame._puroPuroCineFontAlpha = saved
     end
     if saved[fs] == nil then
         local alpha = fs.GetAlpha and fs:GetAlpha()
@@ -16,27 +16,27 @@ local function HoldFont(frame, fs)
         saved[fs] = alpha
     end
     -- Chat fade writes alpha back after OnUpdate. Hold 0 the same way textures do.
-    if not fs._cineHoldHook then
-        fs._cineHoldHook = true
+    if not fs._puroPuroCineHoldHook then
+        fs._puroPuroCineHoldHook = true
         pcall(hooksecurefunc, fs, "SetAlpha", function(self, alpha)
-            if self._cineApplying or not ns.DB().enabled then return end
+            if self._puroPuroCineApplying or not ns.DB().enabled then return end
             if ns.ModernChat and not ns.ModernChat() then return end
             if type(alpha) == "number" and not ns.IsSecret(alpha) and alpha < 0.01 then return end
-            self._cineApplying = true
+            self._puroPuroCineApplying = true
             self:SetAlpha(0)
-            self._cineApplying = false
+            self._puroPuroCineApplying = false
         end)
     end
     local alpha = fs:GetAlpha()
     if ns.IsSecret(alpha) or type(alpha) ~= "number" or alpha >= 0.01 then
-        fs._cineApplying = true
+        fs._puroPuroCineApplying = true
         fs:SetAlpha(0)
-        fs._cineApplying = false
+        fs._puroPuroCineApplying = false
     end
 end
 
 local function SkipChild(child)
-    if not child or child._cineBubble or child._cinePlate or child._cineEdit then
+    if not child or child._puroPuroCineBubble or child._puroPuroCinePlate or child._puroPuroCineEdit then
         return true
     end
     local name = child.GetName and child:GetName()
@@ -55,8 +55,8 @@ end
 -- A previous build shrank this font to hide the native lines and the client
 -- stored that size. Put a normal size back once, without hooking SetFont.
 local function RepairTinyFont(frame)
-    if frame._cineFontRepaired or not frame.GetFont or not frame.SetFont then return end
-    frame._cineFontRepaired = true
+    if frame._puroPuroCineFontRepaired or not frame.GetFont or not frame.SetFont then return end
+    frame._puroPuroCineFontRepaired = true
     local ok, font, size, flags = pcall(frame.GetFont, frame)
     if not ok or type(size) ~= "number" or size > 2 then return end
     pcall(frame.SetFont, frame, font or "Fonts\\FRIZQT__.TTF", 14, flags or "")
@@ -96,8 +96,8 @@ local function HideNativeText(frame, force)
     if not okKids then rootKids = {} end
     local okSig, sig = pcall(TextSignature, frame, rootKids)
     if not okSig then sig = nil end
-    if not force and sig ~= nil and sig == frame._cineTextSig then return end
-    frame._cineTextSig = sig
+    if not force and sig ~= nil and sig == frame._puroPuroCineTextSig then return end
+    frame._puroPuroCineTextSig = sig
     local function walk(obj, depth, kids)
         if not obj or depth > 5 or Forbidden(obj) then return end
         if obj.GetNumRegions then
@@ -123,19 +123,19 @@ end
 Chat.HideNativeText = HideNativeText
 
 local function RestoreFonts(frame)
-    local saved = frame._cineFontAlpha
+    local saved = frame._puroPuroCineFontAlpha
     if saved then
         for fs, alpha in pairs(saved) do
             if fs then
                 if fs.SetAlpha then
-                    fs._cineApplying = true
+                    fs._puroPuroCineApplying = true
                     fs:SetAlpha(alpha or 1)
-                    fs._cineApplying = false
+                    fs._puroPuroCineApplying = false
                 end
             end
         end
     end
-    frame._cineFontAlpha = nil
+    frame._puroPuroCineFontAlpha = nil
 end
 Chat.RestoreFonts = RestoreFonts
 

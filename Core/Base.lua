@@ -7,7 +7,7 @@ ns.Core = Core
 
 local FADE_OUT = 0.3
 Core.FADE_OUT = FADE_OUT
-local PREFIX = "|cff8fd4c8Cine|r: "
+local PREFIX = "|cff8fd4c8Puro Cine|r: "
 
 local hooked = {}
 Core.hooked = hooked
@@ -20,13 +20,17 @@ local chatHeld = {}
 Core.chatHeld = chatHeld
 
 function ns.DB()
-    if type(CineDB) ~= "table" then
-        CineDB = {}
+    -- Settings saved under the old addon name (CineDB) carry over once.
+    if type(PuroCineDB) ~= "table" and type(CineDB) == "table" then
+        PuroCineDB = CineDB
     end
-    if CineDB.enabled == nil then
-        CineDB.enabled = true
+    if type(PuroCineDB) ~= "table" then
+        PuroCineDB = {}
     end
-    return CineDB
+    if PuroCineDB.enabled == nil then
+        PuroCineDB.enabled = true
+    end
+    return PuroCineDB
 end
 
 function ns.Print(msg)

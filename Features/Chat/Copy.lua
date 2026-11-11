@@ -6,9 +6,9 @@ local function HideCopyBox()
     if not Chat.copyBox then return end
     local anchor = Chat.copyBox.anchor
     Chat.copyBox.anchor = nil
-    Chat.copyBox._cineStick = nil
+    Chat.copyBox._puroPuroCineStick = nil
     Chat.copyBox:Hide()
-    if anchor and anchor.chat then anchor.chat._cineDirty = true end
+    if anchor and anchor.chat then anchor.chat._puroPuroCineDirty = true end
 end
 Chat.HideCopyBox = HideCopyBox
 
@@ -31,16 +31,16 @@ local function EnsureCopyBox()
     box:Hide()
     Chat.Flat(box, 0.94)
     box:SetScript("OnEscapePressed", function(self)
-        self._cineStick = nil
+        self._puroPuroCineStick = nil
         self:ClearFocus()
     end)
     box:SetScript("OnEnterPressed", function(self)
-        self._cineStick = nil
+        self._puroPuroCineStick = nil
         self:ClearFocus()
     end)
     -- The click that opens the box also drops focus.
     box:SetScript("OnEditFocusLost", function(self)
-        if self._cineStick and GetTime() < self._cineStick then
+        if self._puroPuroCineStick and GetTime() < self._puroPuroCineStick then
             local function refocus()
                 if not self:IsShown() then return end
                 self:SetFocus()
@@ -53,7 +53,7 @@ local function EnsureCopyBox()
         end
         local anchor = self.anchor
         self:Hide()
-        if anchor and anchor.chat then anchor.chat._cineDirty = true end
+        if anchor and anchor.chat then anchor.chat._puroPuroCineDirty = true end
     end)
     Chat.copyBox = box
     return box
@@ -79,7 +79,7 @@ end
 local function ShowCopyBox(anchor, text)
     local box = EnsureCopyBox()
     box.anchor = anchor
-    box._cineStick = GetTime() + 0.2
+    box._puroPuroCineStick = GetTime() + 0.2
     box:ClearAllPoints()
     local width = 220
     if anchor.GetWidth then
@@ -92,7 +92,7 @@ local function ShowCopyBox(anchor, text)
     box:SetPoint("BOTTOMLEFT", anchor, "TOPLEFT", 0, 4)
     box:SetText(text)
     box:Show()
-    if anchor.chat then anchor.chat._cineDirty = true end
+    if anchor.chat then anchor.chat._puroPuroCineDirty = true end
     local function focus()
         if not box:IsShown() then return end
         box:SetFocus()

@@ -46,10 +46,10 @@ local function SizeBubble(bubble, msg, maxW)
     local tail = msg.secret and tostring(msg) or (msg.text or "")
     local fontKey = tostring(font) .. ":" .. tostring(size) .. ":" .. tostring(flags)
     local key = fontKey .. ":" .. math.floor(maxW) .. ":" .. tail
-    if bubble._cineSizeKey == key and bubble.h then
+    if bubble._puroPuroCineSizeKey == key and bubble.h then
         return bubble.h
     end
-    bubble._cineSizeKey = nil
+    bubble._puroPuroCineSizeKey = nil
     local innerMax = math.max(8, maxW - Chat.PAD * 2)
     if msg.secret then
         local lineH = type(size) == "number" and size or 14
@@ -57,11 +57,11 @@ local function SizeBubble(bubble, msg, maxW)
             local spacing = bubble.text:GetSpacing()
             if type(spacing) == "number" and spacing > 0 then lineH = lineH + spacing end
         end
-        local canRead = bubble:IsShown() and bubble._cineLaid == key
+        local canRead = bubble:IsShown() and bubble._puroPuroCineLaid == key
         bubble.text:SetWidth(innerMax)
         bubble.text:SetText(msg.text)
         bubble.text:SetTextColor(msg.r or 1, msg.g or 1, msg.b or 1, 1)
-        bubble._cineLaid = key
+        bubble._puroPuroCineLaid = key
         local measured = 0
         if canRead and bubble.text.GetStringHeight then
             local ok, h = pcall(bubble.text.GetStringHeight, bubble.text)
@@ -71,7 +71,7 @@ local function SizeBubble(bubble, msg, maxW)
         end
         local th = measured > 0 and measured or lineH * 4
         if canRead and measured > 0 then
-            bubble._cineSizeKey = key
+            bubble._puroPuroCineSizeKey = key
         end
         bubble.inner = innerMax
         bubble.h = th + Chat.PAD * 2
@@ -81,12 +81,12 @@ local function SizeBubble(bubble, msg, maxW)
     end
     local text = msg.text or ""
     local wide = msg.wide
-    if msg._cineWidthFont ~= fontKey or msg._cineWidthText ~= text or not wide or wide <= 0 then
+    if msg._puroPuroCineWidthFont ~= fontKey or msg._puroPuroCineWidthText ~= text or not wide or wide <= 0 then
         wide = Chat.UnboundedWidth(bubble.text, text)
         if wide > 0 then
             msg.wide = wide
-            msg._cineWidthFont, msg._cineWidthText = fontKey, text
-        elseif msg._cineWidthFont == fontKey and msg._cineWidthText == text then
+            msg._puroPuroCineWidthFont, msg._puroPuroCineWidthText = fontKey, text
+        elseif msg._puroPuroCineWidthFont == fontKey and msg._puroPuroCineWidthText == text then
             wide = msg.wide or 0
         end
     end
@@ -109,11 +109,11 @@ local function SizeBubble(bubble, msg, maxW)
     -- Read the bubble only after it was shown with this same text. A fresh
     -- string reports one short line, the row is shown, then it grows and the
     -- top message is dropped and put back every frame.
-    local canRead = bubble:IsShown() and bubble._cineLaid == key
+    local canRead = bubble:IsShown() and bubble._puroPuroCineLaid == key
     bubble.text:SetWidth(inner)
     bubble.text:SetText(text)
     bubble.text:SetTextColor(msg.r or 1, msg.g or 1, msg.b or 1, 1)
-    bubble._cineLaid = key
+    bubble._puroPuroCineLaid = key
     local measured, lines = 0, 0
     if canRead and not fits then
         local h = bubble.text:GetStringHeight()
@@ -146,7 +146,7 @@ local function SizeBubble(bubble, msg, maxW)
     -- Spacing and conservative row estimates can exceed the rendered height.
     local trusted = fits or (canRead and measured > 0)
     if trusted then
-        bubble._cineSizeKey = key
+        bubble._puroPuroCineSizeKey = key
     end
     bubble.inner = inner
     bubble.h = th + Chat.PAD * 2
@@ -183,25 +183,25 @@ end
 Chat.ShowCopy = ShowCopy
 
 local function EnterBubble(bubble)
-    bubble._cineSettle = (bubble._cineSettle or 0) + 1
-    bubble._cineHot = true
+    bubble._puroPuroCineSettle = (bubble._puroPuroCineSettle or 0) + 1
+    bubble._puroPuroCineHot = true
     ShowCopy(bubble, true)
-    if bubble.chat then bubble.chat._cineDirty = true end
+    if bubble.chat then bubble.chat._puroPuroCineDirty = true end
 end
 Chat.EnterBubble = EnterBubble
 
 -- OnLeave fires while the pointer is still crossing to the icon. Recheck after it lands.
 local function SettleHot(bubble)
     if not bubble then return end
-    bubble._cineSettle = (bubble._cineSettle or 0) + 1
-    local token = bubble._cineSettle
+    bubble._puroPuroCineSettle = (bubble._puroPuroCineSettle or 0) + 1
+    local token = bubble._puroPuroCineSettle
     local function apply()
-        if bubble._cineSettle ~= token then return end
+        if bubble._puroPuroCineSettle ~= token then return end
         local icon = bubble.copy
         local hot = ns.MouseOver(bubble) or (icon and icon:IsShown() and ns.MouseOver(icon))
-        bubble._cineHot = hot and true or false
-        ShowCopy(bubble, bubble._cineHot)
-        if bubble.chat then bubble.chat._cineDirty = true end
+        bubble._puroPuroCineHot = hot and true or false
+        ShowCopy(bubble, bubble._puroPuroCineHot)
+        if bubble.chat then bubble.chat._puroPuroCineDirty = true end
     end
     if C_Timer and C_Timer.After then
         C_Timer.After(0.12, apply)
@@ -250,7 +250,7 @@ Chat.Approach = Approach
 -- Keeps this line up, including the copy box.
 local function BubbleHeld(bubble)
     if not bubble then return false end
-    if bubble._cineHot then return true end
+    if bubble._puroPuroCineHot then return true end
     return Chat.copyBox and Chat.copyBox:IsShown() and Chat.copyBox.anchor == bubble or false
 end
 Chat.BubbleHeld = BubbleHeld
@@ -258,7 +258,7 @@ Chat.BubbleHeld = BubbleHeld
 -- Above the chat frame, under the bubbles. This client does not deliver the wheel
 -- to a pass-through or motion-only frame, so the catcher keeps the mouse.
 local function EnsureCatcher(frame)
-    if frame._cineCatcher then return frame._cineCatcher end
+    if frame._puroPuroCineCatcher then return frame._puroPuroCineCatcher end
     local ok, box = pcall(CreateFrame, "Frame", nil, UIParent)
     if not ok or not box then return end
     if box.EnableMouse then box:EnableMouse(true) end
@@ -273,35 +273,35 @@ local function EnsureCatcher(frame)
         Chat.Wheel(frame, delta)
     end)
     box:Hide()
-    frame._cineCatcher = box
+    frame._puroPuroCineCatcher = box
     return box
 end
 Chat.EnsureCatcher = EnsureCatcher
 
 local function PlaceCatcher(frame)
-    local box = frame._cineCatcher
+    local box = frame._puroPuroCineCatcher
     if not box then return end
     if not ns.Usable(frame) or not frame.IsShown or not frame:IsShown() then
         box:Hide()
         return
     end
-    if box._cineSpan ~= frame then
+    if box._puroPuroCineSpan ~= frame then
         box:SetParent(UIParent)
         box:ClearAllPoints()
         box:SetAllPoints(frame)
-        box._cineSpan = frame
+        box._puroPuroCineSpan = frame
     end
     local strata = frame.GetFrameStrata and frame:GetFrameStrata()
-    if type(strata) == "string" and box._cineStrata ~= strata then
+    if type(strata) == "string" and box._puroPuroCineStrata ~= strata then
         box:SetFrameStrata(strata)
-        box._cineStrata = strata
+        box._puroPuroCineStrata = strata
     end
     local level = frame.GetFrameLevel and frame:GetFrameLevel() or 0
     if type(level) ~= "number" then level = 0 end
-    if box._cineAnchor ~= level then
+    if box._puroPuroCineAnchor ~= level then
         box:SetFrameLevel(level + 1)
-        box._cineAnchor = level
-        frame._cineDirty = true
+        box._puroPuroCineAnchor = level
+        frame._puroPuroCineDirty = true
     end
     if not box:IsShown() then box:Show() end
 end
@@ -310,15 +310,15 @@ Chat.PlaceCatcher = PlaceCatcher
 -- The block, a bubble, or the copy icon. The copy box alone does not count.
 -- A still pointer does not need another pass over every bubble.
 local function FrameHot(frame)
-    local box = frame._cineCatcher
+    local box = frame._puroPuroCineCatcher
     if box and box:IsShown() and ns.Hit(box) then return true end
-    local byMsg = frame._cineByMsg
+    local byMsg = frame._puroPuroCineByMsg
     if not byMsg then return false end
     local moved = not ns.PointerMoved or ns.PointerMoved()
     if not moved then
         local anyHot = false
         for _, bubble in pairs(byMsg) do
-            if bubble._cineHot then
+            if bubble._puroPuroCineHot then
                 anyHot = true
                 break
             end
@@ -327,7 +327,7 @@ local function FrameHot(frame)
     end
     for _, bubble in pairs(byMsg) do
         local over = bubble:IsShown() and ns.MouseOver(bubble)
-        if bubble._cineHot or over then return true end
+        if bubble._puroPuroCineHot or over then return true end
     end
     return false
 end

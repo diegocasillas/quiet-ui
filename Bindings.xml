@@ -1,11 +1,11 @@
 <Bindings>
-	<Binding name="CINE_GLANCE" category="Puro Cine" runOnUp="true">
-		CineGlance(keystate)
+	<Binding name="PURO_CINE_GLANCE" category="Puro Cine" runOnUp="true">
+		PuroCineGlance(keystate)
 	</Binding>
-	<Binding name="CINE_GLANCE_FULL" category="Puro Cine" runOnUp="true">
-		CineGlanceFull(keystate)
+	<Binding name="PURO_CINE_GLANCE_FULL" category="Puro Cine" runOnUp="true">
+		PuroCineGlanceFull(keystate)
 	</Binding>
-	<Binding name="CINE_CAMERA_TOGGLE" category="Puro Cine" runOnUp="true">
-		CineCameraToggle(keystate)
+	<Binding name="PURO_CINE_CAMERA_TOGGLE" category="Puro Cine" runOnUp="true">
+		PuroCineCameraToggle(keystate)
 	</Binding>
 </Bindings>

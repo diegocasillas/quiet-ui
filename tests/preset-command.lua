@@ -6,7 +6,7 @@ ns.CharDB = function() return char end
 dofile('tests/addon.lua')('Presets.lua', ns)
 local healer = ns.SavePreset(nil, 'Raid Healer', { layoutName = 'Raid' }, { chatFade = 0 })
 local minimal = ns.SavePreset(nil, 'Minimal', { layoutName = 'Quiet' }, { chat = false })
-ns.ForceCineLayout = function() return ns.ActivePreset() ~= nil end
+ns.ForcePuroCineLayout = function() return ns.ActivePreset() ~= nil end
 ns.ModernChat = function() return false end
 local combat, selected, restored = false, {}, 0
 ns.SelectPresetLayout = function()
@@ -37,12 +37,12 @@ function events:SetScript(key, value) self.scripts[key] = value end
 function events:RegisterEvent() end
 CreateFrame = function() return events end
 SlashCmdList = {}
-dofile('tests/addon.lua')('Cine.lua', ns)
+dofile('tests/addon.lua')('PuroCine.lua', ns)
 for i = 1, 100 do
     local name = debug.getupvalue(events.scripts.OnEvent, i)
     if name == 'booted' then debug.setupvalue(events.scripts.OnEvent, i, true); break end
 end
-local command = SlashCmdList.CINE
+local command = SlashCmdList.PUROCINE
 command('preset')
 assert(messages[1] == 'Current preset: <no preset>.')
 assert(messages[2] == 'Available presets: "Minimal", "Raid Healer".')
@@ -55,7 +55,7 @@ assert(messages[#messages] == 'Preset "Raid Healer" selected.')
 command('preset Missing')
 assert(messages[#messages]:find('was not found', 1, true))
 command('preset "Raid Healer')
-assert(messages[#messages] == 'Use /cine preset "name".')
+assert(messages[#messages] == 'Use /purocine preset "name".')
 command('preset ""')
 assert(messages[#messages]:find('was not found', 1, true))
 assert(char.presetId == healer and #selected == 1 and canceled == 1)

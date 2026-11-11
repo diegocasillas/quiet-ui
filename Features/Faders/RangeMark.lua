@@ -30,7 +30,7 @@ local function EnsureRangeMark()
         pcall(created.SetMouseMotionEnabled, created, false)
     end
     created:SetAlpha(0)
-    created._cineAlpha = 0
+    created._puroPuroCineAlpha = 0
     created:Hide()
     Faders.rangeMark = created
     return created
@@ -38,11 +38,11 @@ end
 
 function ns.HideRangeMark()
     if not Faders.rangeMark then return end
-    Faders.rangeMark._cineAlpha = 0
-    Faders.rangeMark._cineSecret = nil
-    Faders.rangeMark._cineApplying = true
+    Faders.rangeMark._puroPuroCineAlpha = 0
+    Faders.rangeMark._puroPuroCineSecret = nil
+    Faders.rangeMark._puroPuroCineApplying = true
     Faders.rangeMark:SetAlpha(0)
-    Faders.rangeMark._cineApplying = false
+    Faders.rangeMark._puroPuroCineApplying = false
     Faders.rangeMark:Hide()
     local parentOk, parent = pcall(Faders.rangeMark.GetParent, Faders.rangeMark)
     if not parentOk or parent ~= UIParent then
@@ -176,7 +176,7 @@ function ns.UpdateRange(elapsed)
             return
         end
         ns.EaseAlpha(Faders.rangeMark, false, elapsed)
-        if Faders.rangeMark._cineAlpha == 0 then ns.HideRangeMark() end
+        if Faders.rangeMark._puroPuroCineAlpha == 0 then ns.HideRangeMark() end
         return
     end
     local mark = EnsureRangeMark()
@@ -187,10 +187,10 @@ function ns.UpdateRange(elapsed)
         return
     end
     if not mark:IsShown() then
-        mark._cineApplying = true
+        mark._puroPuroCineApplying = true
         mark:SetAlpha(0)
-        mark._cineApplying = false
-        mark._cineAlpha = 0
+        mark._puroPuroCineApplying = false
+        mark._puroPuroCineAlpha = 0
         mark:Show()
     end
     ns.EaseAlpha(mark, true, elapsed)

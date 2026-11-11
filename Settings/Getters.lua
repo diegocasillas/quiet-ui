@@ -5,23 +5,27 @@ local _, ns = ...
 local accountMoved = false
 
 function ns.CharDB()
-    if type(CineCharDB) ~= "table" then
-        CineCharDB = {}
+    -- Settings saved under the old addon name (CineCharDB) carry over once.
+    if type(PuroCineCharDB) ~= "table" and type(CineCharDB) == "table" then
+        PuroCineCharDB = CineCharDB
+    end
+    if type(PuroCineCharDB) ~= "table" then
+        PuroCineCharDB = {}
     end
     if not accountMoved then
         accountMoved = true
         local account = ns.DB()
         if account.visible ~= nil or account.player ~= nil then
-            if CineCharDB.visible == nil and CineCharDB.player == nil then
-                CineCharDB.visible = account.visible
-                CineCharDB.player = account.player
+            if PuroCineCharDB.visible == nil and PuroCineCharDB.player == nil then
+                PuroCineCharDB.visible = account.visible
+                PuroCineCharDB.player = account.player
             end
             account.visible = nil
             account.player = nil
         end
     end
-    if ns.MigrateOnce then ns.MigrateOnce(CineCharDB) end
-    return CineCharDB
+    if ns.MigrateOnce then ns.MigrateOnce(PuroCineCharDB) end
+    return PuroCineCharDB
 end
 
 -- These rows show only on hover until setup says otherwise.
@@ -133,8 +137,8 @@ function ns.ModernChat()
     return (ns.Settings and ns.Settings() or ns.CharDB()).chat ~= false
 end
 
--- Missing means off. Only an explicit true selects the Cine layout when the addon turns on.
-function ns.ForceCineLayout()
+-- Missing means off. Only an explicit true selects the Puro Cine layout when the addon turns on.
+function ns.ForcePuroCineLayout()
     return (ns.ActivePreset and ns.ActivePreset()) ~= nil
         or (ns.Settings and ns.Settings() or ns.CharDB()).forceLayout == true
 end

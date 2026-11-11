@@ -107,8 +107,8 @@ local function StripTab(tab)
     for _, key in ipairs(TAB_KEYS) do
         ns.ForceTextureHidden(tab[key])
     end
-    if not tab._cineClick and tab.HookScript then
-        tab._cineClick = true
+    if not tab._puroPuroCineClick and tab.HookScript then
+        tab._puroPuroCineClick = true
         tab:HookScript("OnClick", function()
             if ns.DB().enabled and ns.ModernChat() then StripTab(tab) end
         end)

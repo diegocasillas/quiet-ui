@@ -178,7 +178,7 @@ local function SpellField(parent)
     if box.SetTextColor then box:SetTextColor(1, 0.95, 0.8, 1) end
     local gold = Setup.GoldEdge(box)
     if not gold then Setup.Flat(box, 0.9) end
-    box._cineGold = gold and true or false
+    box._puroPuroCineGold = gold and true or false
     local hint = box:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
     hint:SetPoint("LEFT", 6, 0)
     hint:SetText("Bar 1")
@@ -197,13 +197,13 @@ local function SpellField(parent)
     end)
     box:SetScript("OnEditFocusGained", function(self)
         ShowHint(self)
-        if self._cineGold and self.SetBackdropBorderColor then
+        if self._puroPuroCineGold and self.SetBackdropBorderColor then
             self:SetBackdropBorderColor(1, 0.86, 0.4, 1)
         end
     end)
     box:SetScript("OnEditFocusLost", function(self)
         ShowHint(self)
-        if self._cineGold and self.SetBackdropBorderColor then
+        if self._puroPuroCineGold and self.SetBackdropBorderColor then
             self:SetBackdropBorderColor(0.75, 0.6, 0.28, 0.95)
         end
     end)

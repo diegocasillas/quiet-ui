@@ -4,10 +4,10 @@ local _, ns = ...
 -- Camera modes, set with console commands. Action is the default at login and
 -- reload; Normal is the way back, and one key toggles between them. Nothing is
 -- saved: a mode picked with the key lasts until the next login or reload.
--- Turning Cine off goes back to Normal.
+-- Turning Puro Cine off goes back to Normal.
 -- The binding system calls a global; down and up both arrive.
 ------------------------------------------------------------------------------
-BINDING_NAME_CINE_CAMERA_TOGGLE = "Toggle action camera"
+BINDING_NAME_PURO_CINE_CAMERA_TOGGLE = "Toggle action camera"
 
 local MODES = {
     action = {
@@ -22,7 +22,7 @@ local MODES = {
     },
 }
 
--- The mode Cine last set; nil until it has changed the camera.
+-- The mode Puro Cine last set; nil until it has changed the camera.
 local current
 
 -- The game's zoom limit is 15 yards times cameraDistanceMaxZoomFactor.
@@ -64,7 +64,7 @@ local function Apply(mode)
     end
 end
 
--- Does nothing while Cine is off, like Glance.
+-- Does nothing while Puro Cine is off, like Glance.
 function ns.SetCameraMode(mode)
     if not MODES[mode] or not ns.DB().enabled then return end
     Apply(mode)
@@ -134,7 +134,7 @@ function ns.ApplyDefaultCamera()
 end
 
 -- Setup's zoom test: glide to a share of the zoom limit, then back to where the
--- camera was. Works in either camera mode and while Cine is off.
+-- camera was. Works in either camera mode and while Puro Cine is off.
 local testBefore
 function ns.TestZoom(percent)
     if type(CameraZoomOut) ~= "function" or not ZoomNow() then
@@ -223,6 +223,6 @@ function ns.RestoreCamera()
     current = nil
 end
 
-function CineCameraToggle(keystate)
+function PuroCineCameraToggle(keystate)
     if keystate == "down" then ns.ToggleCamera() end
 end

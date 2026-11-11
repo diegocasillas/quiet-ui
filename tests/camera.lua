@@ -9,12 +9,12 @@ local ACTION = 'actioncam full|camerakeepcharactercentered 0|actioncam noheadmov
 local NORMAL = 'actioncam off|camerakeepcharactercentered 1'
 local function boot(enabled)
     local ns = {}
-    CineDB = { enabled = enabled }
+    PuroCineDB = { enabled = enabled }
     local sent, reports = {}, {}
     ConsoleExec = function(line) sent[#sent + 1] = line end
-    ns.DB = function() return CineDB end
+    ns.DB = function() return PuroCineDB end
     ns.Report = function(name, err) reports[#reports + 1] = name .. ': ' .. tostring(err) end
-    assert(loadfile('Features/Camera/Camera.lua'))('Cine', ns)
+    assert(loadfile('Features/Camera/Camera.lua'))('PuroCine', ns)
     local function take()
         local text = table.concat(sent, '|')
         for i = #sent, 1, -1 do sent[i] = nil end
@@ -27,41 +27,41 @@ test('The default runs the first macro and one key toggles between the two', fun
     local ns, take = boot(true)
     ns.ApplyDefaultCamera()
     assert(take() == ACTION, 'Default is not the action camera')
-    CineCameraToggle('down')
+    PuroCineCameraToggle('down')
     assert(take() == NORMAL, 'First press did not go to normal')
-    CineCameraToggle('down')
+    PuroCineCameraToggle('down')
     assert(take() == ACTION, 'Second press did not go back to action')
 end)
 
 test('Before any default the first press goes to action', function()
     local ns, take = boot(true)
-    CineCameraToggle('down')
+    PuroCineCameraToggle('down')
     assert(take() == ACTION)
-    CineCameraToggle('down')
+    PuroCineCameraToggle('down')
     assert(take() == NORMAL)
 end)
 
-test('Key up is ignored and nothing runs while Cine is off', function()
+test('Key up is ignored and nothing runs while Puro Cine is off', function()
     local ns, take = boot(true)
-    CineCameraToggle('up')
+    PuroCineCameraToggle('up')
     assert(take() == '', 'Key up changed the camera')
-    CineDB.enabled = false
-    CineCameraToggle('down'); ns.ApplyDefaultCamera()
-    assert(take() == '', 'The camera changed while Cine is off')
+    PuroCineDB.enabled = false
+    PuroCineCameraToggle('down'); ns.ApplyDefaultCamera()
+    assert(take() == '', 'The camera changed while Puro Cine is off')
 end)
 
-test('Turning Cine off restores normal only after Cine changed the camera', function()
+test('Turning Puro Cine off restores normal only after Puro Cine changed the camera', function()
     local ns, take = boot(true)
     ns.RestoreCamera()
     assert(take() == '', 'Restore ran without a change')
     ns.ApplyDefaultCamera(); take()
-    CineDB.enabled = false
+    PuroCineDB.enabled = false
     ns.RestoreCamera()
     assert(take() == NORMAL)
     ns.RestoreCamera()
     assert(take() == '', 'Restore ran twice')
-    CineDB.enabled = true
-    CineCameraToggle('down')
+    PuroCineDB.enabled = true
+    PuroCineCameraToggle('down')
     assert(take() == ACTION, 'The toggle forgot the restore')
 end)
 

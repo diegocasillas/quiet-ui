@@ -58,7 +58,7 @@ local function UpdateAuras(elapsed)
         if deadHide and frame ~= _G.DebuffFrame and not MouseOverAny(frame) then
             Faders.PaintNumeric(frame, false, elapsed)
         elseif keepDebuffs and frame == _G.DebuffFrame then
-            if frame._cineSecret ~= nil or frame._cineAlpha ~= 1 then
+            if frame._puroPuroCineSecret ~= nil or frame._puroPuroCineAlpha ~= 1 then
                 Faders.PaintNumeric(frame, true, elapsed)
             end
         elseif alpha ~= nil then

@@ -12,7 +12,7 @@ end
 ns.CancelLayoutPreview = function() canceled = canceled + 1 end
 ns.ApplyAll = function() applied = applied + 1 end
 dofile('tests/addon.lua')('Presets.lua', ns)
-local keyboard = ns.SavePreset(nil, 'Keyboard', { layoutName = 'Cine', layoutType = 1 }, { chat = false })
+local keyboard = ns.SavePreset(nil, 'Keyboard', { layoutName = 'Puro Cine', layoutType = 1 }, { chat = false })
 mode = 1
 local gamepad = ns.SavePreset(nil, 'Test A', { builtin = 3 }, { chatFade = 0 })
 local custom = ns.SavePreset(nil, 'Custom', { layoutName = 'aaaddd', layoutType = 1 }, {})
@@ -39,6 +39,6 @@ list = ns.PresetList()
 assert(#list == 2 and list[1].id == custom and list[2].id == gamepad)
 ns.PresetCommand('Test A')
 assert(char.presetId == gamepad and char.chatFade == 0 and canceled == 1 and applied == 1)
-ns.SavePreset(gamepad, 'Test A', { layoutName = 'Cine', layoutType = 1 }, {})
+ns.SavePreset(gamepad, 'Test A', { layoutName = 'Puro Cine', layoutType = 1 }, {})
 assert(db.presets[gamepad].interfaceStyle == 0, 'Saving a different linked mode must update the preset tag')
 print('PASS shared preset mode tags, legacy migration, lists, commands and activation guards')

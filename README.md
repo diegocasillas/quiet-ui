@@ -1,12 +1,12 @@
-# Cine
+# Puro Cine
 
 **Less UI. More world.** A cinematic interface for the **WoW Forever beta** (Interface 16001).
 
-Cine fades the Blizzard HUD while you explore and brings back the parts you
+Puro Cine fades the Blizzard HUD while you explore and brings back the parts you
 need through hover, combat, and your current situation. One setup window chooses
 what stays visible, with personal settings or shared presets across characters.
 
-![Cine while exploring](docs/images/img001.png)
+![Puro Cine while exploring](docs/images/img001.png)
 
 ## What you get
 
@@ -28,46 +28,46 @@ what stays visible, with personal settings or shared presets across characters.
   action camera** under **Puro Cine** in **Key Bindings** to switch between it and
   the normal camera.
 
-![Cine in combat](docs/images/img003.png)
+![Puro Cine in combat](docs/images/img003.png)
 
 ## Install
 
 1. Download the zip from the [latest release](https://github.com/rdurica/quiet-ui/releases/latest).
 2. Extract it into `World of Warcraft/_classic_beta_/Interface/AddOns/`.
-   The addon file should end up at `AddOns/Cine/Cine.toc`.
-3. Start the game or type `/reload`. Accept the optional Cine layout, or choose
+   The addon file should end up at `AddOns/PuroCine/Puro Cine.toc`.
+3. Start the game or type `/reload`. Accept the optional Puro Cine layout, or choose
    **Not now** to keep your current layout.
 
 ## Controls
 
 ```text
-/cine         Toggle Cine
-/cine on      Enable Cine
-/cine off     Disable Cine
-/cine setup   Open settings
-/cine glance  Toggle the faded HUD while Cine is enabled
-/cine preset  List the current and available presets
-/cine preset "Healer"   Select a shared preset by name
+/purocine         Toggle Puro Cine
+/purocine on      Enable Puro Cine
+/purocine off     Disable Puro Cine
+/purocine setup   Open settings
+/purocine glance  Toggle the faded HUD while Puro Cine is enabled
+/purocine preset  List the current and available presets
+/purocine preset "Healer"   Select a shared preset by name
 ```
 
-The minimap button also opens settings, even while Cine is off. Drag it around
+The minimap button also opens settings, even while Puro Cine is off. Drag it around
 the minimap to move it.
 
 Glance defaults to `` ` `` if the key is free. Change it under **Puro Cine** in
-**Key Bindings**. You can also use `/cine glance` in a macro and bind that macro
+**Key Bindings**. You can also use `/purocine glance` in a macro and bind that macro
 to a controller button through your controller setup.
 
 Camera modes have no default key. Bind **Toggle action camera** under **Puro Cine**
 in **Key Bindings**. Action camera runs `actioncam full`,
 `camerakeepcharactercentered 0`, `actioncam noheadmove` and `actioncam focusall`;
 normal camera runs `actioncam off` and `camerakeepcharactercentered 1`. Action
-camera is applied at login and reload while Cine is on, the key switches between
-the two until the next login or reload, and turning Cine off restores the normal
+camera is applied at login and reload while Puro Cine is on, the key switches between
+the two until the next login or reload, and turning Puro Cine off restores the normal
 camera.
 
 Preset names ignore letter case. Use quotes for names with spaces. Selecting a
 preset saves the choice for this character and applies its settings and linked
-layout while Cine is enabled; combat delays the layout change. While Cine
+layout while Puro Cine is enabled; combat delays the layout change. While Puro Cine
 is off, the selection is saved for the next enable. If settings are open, the
 command cancels the pending draft and layout preview and shows the selected preset.
 The layout list shows only layouts for your current interface mode, including
@@ -75,21 +75,21 @@ custom layouts: keyboard and mouse layouts normally, Gamepad layouts in Gamepad 
 On login or reload, a preset linked to a layout for another mode detaches to
 your personal settings. Its shared settings and layout link stay intact.
 Shared presets are also tagged for keyboard and mouse or Gamepad mode based on
-their linked layout. The preset menu and `/cine preset` list only presets for
+their linked layout. The preset menu and `/purocine preset` list only presets for
 the current mode; commands cannot select a preset for another mode. Existing
 presets acquire their tag automatically from their layout.
 
 ## Make it yours
 
-Open `/cine setup`, change your choices, then click **Save**. The window stays
+Open `/purocine setup`, change your choices, then click **Save**. The window stays
 open. **X** or **Escape** closes it without saving pending changes.
 
-![Cine setup](docs/images/img007.png)
+![Puro Cine setup](docs/images/img007.png)
 
 - **General:** Choose a shared preset or keep `<no preset>` for personal settings.
   Create, rename, or delete presets here, and choose the existing Edit Mode layout
-  each preset uses. Without a preset, **Force Cine layout** switches to the
-  bundled layout when Cine turns on; it is off by default.
+  each preset uses. Without a preset, **Force Puro Cine layout** switches to the
+  bundled layout when Puro Cine turns on; it is off by default.
 - **Visible:** Choose **Always visible** or **Only on hover** for each HUD element.
   Both unchecked keeps its usual rules. The two choices are mutually exclusive.
   XP, the quest tracker, the damage meter, the micro menu, and the raid manager
@@ -112,7 +112,7 @@ open. **X** or **Escape** closes it without saving pending changes.
   on bar 1. Choose Unfriendly or Friendly for the target type.
 - **Chat:** Toggle modern chat and choose the fade delay. **Stay** keeps messages
   visible at the bottom.
-- **Info:** A short guide to Cine and Glance.
+- **Info:** A short guide to Puro Cine and Glance.
 
 With a preset selected, **Save** updates its settings for every character using
 it. Other characters load the changes on their next login. Selecting, creating,
@@ -123,11 +123,11 @@ effect immediately after confirmation. New characters start with `<no preset>`.
 Leaving a preset, or losing it because it was deleted on another character, keeps
 the last settings used as a personal copy.
 
-A preset selects its linked layout when you log in, enable Cine, or save it.
-Turning Cine off restores your previous layout. If the linked layout is missing,
-Cine uses its bundled layout and reports the missing link once per login. Choose
+A preset selects its linked layout when you log in, enable Puro Cine, or save it.
+Turning Puro Cine off restores your previous layout. If the linked layout is missing,
+Puro Cine uses its bundled layout and reports the missing link once per login. Choose
 a replacement in General and save to repair it. Layout changes wait until combat
-ends. Presets can also be managed while Cine is off.
+ends. Presets can also be managed while Puro Cine is off.
 
 **Reset default** disconnects this character from its preset without changing the
 shared preset, then applies and saves the defaults immediately: Always visible off,
@@ -140,7 +140,7 @@ In range off.
 **Import layout** adds or updates the bundled Edit Mode layout immediately,
 including after choosing Not now. Each bundled layout version is offered once;
 updates require your agreement. Without a preset and with Force layout off,
-enabling or disabling Cine leaves your active layout alone.
+enabling or disabling Puro Cine leaves your active layout alone.
 
 <details>
 <summary><strong>Visibility rules in detail</strong></summary>

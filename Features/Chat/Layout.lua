@@ -15,7 +15,7 @@ local function BubbleAlpha(known, msg, fading, reveal, life, now, elapsed)
     local held = known and Chat.BubbleHeld(known)
     local natural = fading and not held and Chat.LineAlpha(msg, life, now) or 1
     local goal = (reveal or held) and 1 or natural
-    local current = known and known._cinePA
+    local current = known and known._puroPuroCinePA
     if type(current) ~= "number" or goal >= current then
         current = goal
     elseif current > goal + 0.02 then
@@ -27,14 +27,14 @@ local function BubbleAlpha(known, msg, fading, reveal, life, now, elapsed)
 end
 
 local function PaintBubble(frame, bubble, x, y, alpha)
-    if bubble._cinePX ~= x or bubble._cinePY ~= y then
+    if bubble._puroPuroCinePX ~= x or bubble._puroPuroCinePY ~= y then
         bubble:ClearAllPoints()
         bubble:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", x, y)
-        bubble._cinePX, bubble._cinePY = x, y
+        bubble._puroPuroCinePX, bubble._puroPuroCinePY = x, y
     end
-    if bubble._cinePA ~= alpha then
+    if bubble._puroPuroCinePA ~= alpha then
         bubble:SetAlpha(alpha)
-        bubble._cinePA = alpha
+        bubble._puroPuroCinePA = alpha
     end
     if not bubble:IsShown() then bubble:Show() end
 end
@@ -42,7 +42,7 @@ end
 local function BubbleSchedule(bubble, goal, held, fading, reveal, life, now)
     local msg = bubble.msg
     local animated = (msg.slide and now - msg.slide < Chat.SLIDE_TIME)
-        or math.abs(bubble._cinePA - goal) > 0.01 or bubble._y ~= bubble._cineTargetY
+        or math.abs(bubble._puroPuroCinePA - goal) > 0.01 or bubble._y ~= bubble._puroPuroCineTargetY
     local fadeAt
     if not reveal and fading and life > 0 and msg.born and not held then
         local at = msg.born + life - Chat.FADE_OUT
@@ -53,11 +53,11 @@ local function BubbleSchedule(bubble, goal, held, fading, reveal, life, now)
 end
 
 local function AnimateFrame(frame, elapsed, now)
-    local animations = frame._cineAnimations
+    local animations = frame._puroPuroCineAnimations
     if not animations or #animations == 0 then return false end
-    local fading = frame._cineOffset == 0
-    local reveal = fading and frame._cineHover
-    local life = frame._cineLife
+    local fading = frame._puroPuroCineOffset == 0
+    local reveal = fading and frame._puroPuroCineHover
+    local life = frame._puroPuroCineLife
     local count = #animations
     -- A disappearing row changes the stack. Decide before moving any other row.
     for i = 1, count do
@@ -66,88 +66,88 @@ local function AnimateFrame(frame, elapsed, now)
         local current, goal, held = BubbleAlpha(bubble, msg, fading, reveal, life, now, elapsed)
         local sliding = msg.slide and now - msg.slide < Chat.SLIDE_TIME
         if current <= 0.01 and goal <= 0 and not sliding then return false end
-        bubble._cinePendingAlpha, bubble._cinePendingGoal, bubble._cinePendingHeld = current, goal, held
+        bubble._puroPuroCinePendingAlpha, bubble._puroPuroCinePendingGoal, bubble._puroPuroCinePendingHeld = current, goal, held
     end
-    local n, fadeAt = 0, frame._cineFadeAt
+    local n, fadeAt = 0, frame._puroPuroCineFadeAt
     for i = 1, count do
         local bubble = animations[i]
-        local current, goal, held = bubble._cinePendingAlpha, bubble._cinePendingGoal, bubble._cinePendingHeld
-        bubble._cinePendingAlpha, bubble._cinePendingGoal, bubble._cinePendingHeld = nil, nil, nil
-        bubble._y = Chat.Ease(bubble._y, bubble._cineTargetY, elapsed)
+        local current, goal, held = bubble._puroPuroCinePendingAlpha, bubble._puroPuroCinePendingGoal, bubble._puroPuroCinePendingHeld
+        bubble._puroPuroCinePendingAlpha, bubble._puroPuroCinePendingGoal, bubble._puroPuroCinePendingHeld = nil, nil, nil
+        bubble._y = Chat.Ease(bubble._y, bubble._puroPuroCineTargetY, elapsed)
         PaintBubble(frame, bubble, 4 + Chat.SlideX(bubble.msg, now), bubble._y, current)
         local animated, wake = BubbleSchedule(bubble, goal, held, fading, reveal, life, now)
         if animated then n = n + 1; animations[n] = bubble end
         if wake and (not fadeAt or wake < fadeAt) then fadeAt = wake end
     end
     for i = n + 1, count do animations[i] = nil end
-    frame._cineFadeAt = fadeAt
-    frame._cineNext = n > 0 and 0 or fadeAt
+    frame._puroPuroCineFadeAt = fadeAt
+    frame._puroPuroCineNext = n > 0 and 0 or fadeAt
     return true
 end
 
 local function LayoutFrame(frame, elapsed)
-    if not ns.Usable(frame) or not frame._cineLines then return end
+    if not ns.Usable(frame) or not frame._puroPuroCineLines then return end
     if not frame.IsShown or not frame:IsShown() then
-        if frame._cineShown ~= false then
-            frame._cineShown = false
+        if frame._puroPuroCineShown ~= false then
+            frame._puroPuroCineShown = false
             Chat.HideActive(frame)
         end
         return
     end
-    if frame._cineShown == false then
-        frame._cineDirty = true
+    if frame._puroPuroCineShown == false then
+        frame._puroPuroCineDirty = true
     end
-    frame._cineShown = true
+    frame._puroPuroCineShown = true
     local width = frame.GetWidth and frame:GetWidth()
     local height = frame.GetHeight and frame:GetHeight()
     if type(width) ~= "number" or ns.IsSecret(width) or width < 40 then return end
     if type(height) ~= "number" or ns.IsSecret(height) or height < 20 then return end
-    local lines = frame._cineLines
+    local lines = frame._puroPuroCineLines
     local offset = math.floor(Chat.ScrollOffset(frame))
     if offset < 0 then offset = 0 end
     local maxOffset = math.max(0, #lines - 1)
     if offset > maxOffset then offset = maxOffset end
     local life = Chat.ChatLife()
     local now = GetTime()
-    local restack = frame._cineDirty or frame._cineW ~= width or frame._cineH ~= height
-        or frame._cineOffset ~= offset or frame._cineLife ~= life
-    local due = frame._cineNext == 0 or (type(frame._cineNext) == "number" and frame._cineNext > 0 and now >= frame._cineNext)
+    local restack = frame._puroPuroCineDirty or frame._puroPuroCineW ~= width or frame._puroPuroCineH ~= height
+        or frame._puroPuroCineOffset ~= offset or frame._puroPuroCineLife ~= life
+    local due = frame._puroPuroCineNext == 0 or (type(frame._puroPuroCineNext) == "number" and frame._puroPuroCineNext > 0 and now >= frame._puroPuroCineNext)
     if not restack and not due then return end
-    if not restack and not frame._cineLayoutPending and (not frame._cineFadeAt or now < frame._cineFadeAt)
+    if not restack and not frame._puroPuroCineLayoutPending and (not frame._puroPuroCineFadeAt or now < frame._puroPuroCineFadeAt)
         and AnimateFrame(frame, elapsed, now) then return end
-    frame._cineDirty = nil
-    frame._cineW, frame._cineH = width, height
-    frame._cineOffset = offset
-    frame._cineLife = life
+    frame._puroPuroCineDirty = nil
+    frame._puroPuroCineW, frame._puroPuroCineH = width, height
+    frame._puroPuroCineOffset = offset
+    frame._puroPuroCineLife = life
     Chat.RepairTinyFont(frame)
-    local byMsg = frame._cineByMsg
+    local byMsg = frame._puroPuroCineByMsg
     -- Only the bottom view drops old lines. Hover shows the page that fits; scrolling walks the rest.
     local fading = offset == 0
-    local reveal = fading and frame._cineHover
+    local reveal = fading and frame._puroPuroCineHover
     local index = #lines - offset
     local y = 4
-    local seen = frame._cineSeen
+    local seen = frame._puroPuroCineSeen
     if not seen then
         seen = {}
-        frame._cineSeen = seen
+        frame._puroPuroCineSeen = seen
     else
         for key in pairs(seen) do
             seen[key] = nil
         end
     end
-    local stack = frame._cineStack
+    local stack = frame._puroPuroCineStack
     if not stack then
         stack = {}
-        frame._cineStack = stack
+        frame._puroPuroCineStack = stack
     end
     local stackN = 0
-    local fontStamp = frame._cineFont
+    local fontStamp = frame._puroPuroCineFont
     if restack or not fontStamp then
         fontStamp = FontStamp(frame)
-        frame._cineFont = fontStamp
+        frame._puroPuroCineFont = fontStamp
     end
-    local animations = frame._cineAnimations
-    if not animations then animations = {}; frame._cineAnimations = animations end
+    local animations = frame._puroPuroCineAnimations
+    if not animations then animations = {}; frame._puroPuroCineAnimations = animations end
     local animatedN, fadeAt, measure, dropped = 0, nil, false, false
     local guard = 0
     while index >= 1 and guard < 40 do
@@ -165,11 +165,11 @@ local function LayoutFrame(frame, elapsed)
         if place then
             local bubble = known or Chat.AcquireBubble(frame)
             local h = bubble.h
-            if bubble.msg ~= msg or not h or not bubble._cineSizeKey or restack then
-                if bubble._cineFontStamp ~= fontStamp then
+            if bubble.msg ~= msg or not h or not bubble._puroPuroCineSizeKey or restack then
+                if bubble._puroPuroCineFontStamp ~= fontStamp then
                     Chat.ApplyFont(bubble, frame)
-                    bubble._cineFontStamp = fontStamp
-                    bubble._cineSizeKey = nil
+                    bubble._puroPuroCineFontStamp = fontStamp
+                    bubble._puroPuroCineSizeKey = nil
                 end
                 h = Chat.SizeBubble(bubble, msg, width - 8)
             end
@@ -184,7 +184,7 @@ local function LayoutFrame(frame, elapsed)
             stackN = stackN + 1
             stack[stackN] = bubble
             local target = y
-            bubble._cineTargetY = target
+            bubble._puroPuroCineTargetY = target
             if bubble.msg ~= msg or bubble._y == nil then
                 bubble._y = target
             else
@@ -194,7 +194,7 @@ local function LayoutFrame(frame, elapsed)
             bubble.chat = frame
             PaintBubble(frame, bubble, 4 + Chat.SlideX(msg, now), bubble._y, current)
             -- Wrapped text needs a shown frame before its height can be trusted.
-            if not bubble._cineSizeKey then measure = true end
+            if not bubble._puroPuroCineSizeKey then measure = true end
             local animated, wake = BubbleSchedule(bubble, goal, held, fading, reveal, life, now)
             if animated then animatedN = animatedN + 1; animations[animatedN] = bubble end
             if wake and (not fadeAt or wake < fadeAt) then fadeAt = wake end
@@ -210,15 +210,15 @@ local function LayoutFrame(frame, elapsed)
         local level = (frame:GetFrameLevel() or 0) + 2
         for i = stackN, 1, -1 do
             local bubble = stack[i]
-            bubble._cineLevel = level
+            bubble._puroPuroCineLevel = level
             pcall(bubble.SetFrameLevel, bubble, level)
         end
     end
     for i = animatedN + 1, #animations do animations[i] = nil end
     -- Revisit a released history gap before continuing the remaining animations.
-    frame._cineLayoutPending = measure or (dropped and animatedN > 0)
-    frame._cineFadeAt = fadeAt
-    frame._cineNext = (frame._cineLayoutPending or animatedN > 0) and 0 or fadeAt
+    frame._puroPuroCineLayoutPending = measure or (dropped and animatedN > 0)
+    frame._puroPuroCineFadeAt = fadeAt
+    frame._puroPuroCineNext = (frame._puroPuroCineLayoutPending or animatedN > 0) and 0 or fadeAt
     for msg, bubble in pairs(byMsg) do
         if not seen[msg] then
             byMsg[msg] = nil
