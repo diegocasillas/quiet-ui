@@ -178,14 +178,14 @@ local function BaseSpell(id)
 end
 
 -- A cast out of combat holds the fade groups whose buttons carry that spell for a moment.
--- Bars that hover, always show or follow no usual rules are left as they are.
+-- Hover groups peek too; a group under Always visible is up already.
 function ns.PeekBarsForCast(spellID)
     if type(spellID) ~= "number" or ns.IsSecret(spellID) or ns.InCombat() then return end
     if type(GetTime) ~= "function" then return end
     local base = BaseSpell(spellID)
     for _, entry in ipairs(Bars.resolved) do
         local group = ns.BarGroup(entry.id)
-        if not ns.GroupVisibility(group) then
+        if ns.GroupVisibility(group) ~= "always" then
             for _, bar in ipairs(entry.frames) do
                 if ns.Usable(bar) then
                     local list = Bars.ButtonsFor(bar, true)
@@ -272,7 +272,7 @@ function ns.UpdateBars(showAll, elapsed, rescan)
             barShow[entry.id] = RowForced(entry.id, showAllForced) or showGroup[group]
                 or (not mode and hostile and ns.BarTarget(entry.id, "hostile"))
                 or (not mode and friendly and ns.BarTarget(entry.id, "friendly"))
-                or (not mode and Peeking(group)) or false
+                or Peeking(group) or false
         end
         haveBarShow = true
     end
