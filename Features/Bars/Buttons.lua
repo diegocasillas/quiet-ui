@@ -6,11 +6,48 @@ local buttonCache = {}
 local deepCache = {}
 local regionCache = {}
 
+-- Glowing Bars (and addons like it) mark a glowing button SetIgnoreParentAlpha(true),
+-- so the glow stays visible whatever its bar is doing. Under a bar Cine fades that
+-- would show the glow with the bar hidden. The mark is undone, so the button follows
+-- its bar's alpha again; a glow on a bar that is showing looks as before.
+local function FollowBarAlpha(button)
+    if button._cineFollowHook or type(button.SetIgnoreParentAlpha) ~= "function" then return end
+    button._cineFollowHook = true
+    pcall(hooksecurefunc, button, "SetIgnoreParentAlpha", function(self, ignore)
+        if not ignore or self._cineFollowing or not ns.DB().enabled then return end
+        self._cineFollowing = true
+        self:SetIgnoreParentAlpha(false)
+        self._cineFollowing = false
+    end)
+    if type(button.IsIgnoringParentAlpha) == "function" and ns.DB().enabled then
+        local ok, ignoring = pcall(button.IsIgnoringParentAlpha, button)
+        if ok and ignoring == true then button:SetIgnoreParentAlpha(false) end
+    end
+end
+
+-- The buttons are looked up by name, not through the bar caches: some sit in
+-- container frames the caches do not walk. A hook per button catches the next
+-- mark at once; the sweep catches buttons made later and marks already set.
+local GLOW_PREFIXES = { "ActionButton", "MultiBarBottomLeftButton", "MultiBarBottomRightButton",
+    "MultiBarRightButton", "MultiBarLeftButton", "MultiBar5Button", "MultiBar6Button",
+    "MultiBar7Button", "MultiBar8Button", "StanceButton", "PetActionButton" }
+
+function ns.FollowGlowButtons()
+    if not ns.DB().enabled then return end
+    for _, prefix in ipairs(GLOW_PREFIXES) do
+        for index = 1, 12 do
+            local button = _G[prefix .. index]
+            if button and not button._cineFollowHook then FollowBarAlpha(button) end
+        end
+    end
+end
+
 local function RememberButtons(bar, list, deep)
     local seen = {}
     local function add(button)
         if seen[button] then return end
         seen[button] = true
+        FollowBarAlpha(button)
         list[#list + 1] = button
     end
     Bars.EachOwnButton(bar, add)

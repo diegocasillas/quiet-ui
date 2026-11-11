@@ -161,6 +161,7 @@ local function ApplyAll()
         return
     end
     if ns.ForgetBarButtons then ns.ForgetBarButtons() end
+    if ns.FollowGlowButtons then ns.FollowGlowButtons() end
     ns.RefreshWorld()
     if ns.ForceCineLayout() then
         if not layoutChosen then
@@ -488,6 +489,7 @@ events:SetScript("OnUpdate", function(_, elapsed)
     if chromeAcc < 1 then return end
     chromeAcc = 0
     Run("frame scan", ns.FindFaders, false)
+    Run("glow buttons", ns.FollowGlowButtons)
     Run("swing", ns.ScanSwing)
     if ns.BarChildrenChanged and ns.BarChildrenChanged() then
         Run("bar buttons", ns.ForgetBarButtons)
