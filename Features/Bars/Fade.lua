@@ -154,6 +154,107 @@ local function ReleaseUnwatched()
 end
 
 local showGroup = {}
+-- Fade group to the time its cast peek ends.
+local peeks = {}
+local PEEK_SECONDS = 2
+local peekCount = 0
+
+-- The spell an item casts when used (a hearthstone, a potion).
+local function ItemSpell(itemID)
+    local read = C_Item and C_Item.GetItemSpell or GetItemSpell
+    if type(read) ~= "function" or type(itemID) ~= "number" then return end
+    local ok, first, second = pcall(read, itemID)
+    if not ok then return end
+    return type(second) == "number" and second or (type(first) == "number" and first or nil)
+end
+
+local function ActionSpell(slot)
+    if type(GetActionInfo) ~= "function" then return end
+    local ok, kind, id = pcall(GetActionInfo, slot)
+    if not ok or ns.IsSecret(kind) or ns.IsSecret(id) then return end
+    if kind == "macro" then
+        if type(GetMacroSpell) == "function" then
+            local okMacro, spell = pcall(GetMacroSpell, id)
+            if okMacro and spell then return spell end
+        end
+        if type(GetMacroItem) == "function" then
+            local okItem, _, link = pcall(GetMacroItem, id)
+            local itemID = okItem and type(link) == "string" and tonumber(link:match("item:(%d+)"))
+            return itemID and ItemSpell(itemID) or nil
+        end
+        return
+    end
+    if kind == "spell" then return id end
+    if kind == "item" then return ItemSpell(id) end
+end
+
+local function BaseSpell(id)
+    if C_Spell and type(C_Spell.GetBaseSpell) == "function" then
+        local ok, base = pcall(C_Spell.GetBaseSpell, id)
+        if ok and type(base) == "number" then return base end
+    end
+    return id
+end
+
+-- A cast out of combat holds the fade groups whose buttons carry that spell for a moment.
+-- Hover groups peek too; a group under Always visible is up already.
+function ns.PeekBarsForCast(spellID, extra)
+    if type(spellID) ~= "number" or ns.IsSecret(spellID) or ns.InCombat() then return end
+    if type(GetTime) ~= "function" then return end
+    local base
+    for _, entry in ipairs(Bars.resolved) do
+        local group = ns.BarGroup(entry.id)
+        local found = ns.GroupVisibility(group) == "always"
+        for _, bar in ipairs(entry.frames) do
+            if found then break end
+            if ns.Usable(bar) then
+                local list = Bars.ButtonsFor(bar, true)
+                for i = 1, #list do
+                    local slot = list[i].action
+                    local spell = type(slot) == "number" and ActionSpell(slot)
+                    if spell then
+                        if spell ~= spellID then
+                            base = base or BaseSpell(spellID)
+                            found = BaseSpell(spell) == base
+                        else
+                            found = true
+                        end
+                        if found then
+                            local untilTime = GetTime() + PEEK_SECONDS + (extra or 0)
+                            if not peeks[group] then
+                                peekCount = peekCount + 1
+                            elseif peeks[group] > untilTime then
+                                untilTime = peeks[group]
+                            end
+                            peeks[group] = untilTime
+                            ns.TouchHud()
+                            break
+                        end
+                    end
+                end
+            end
+        end
+    end
+end
+
+-- True once when a peek has just run out, so the bars get one more pass to fade.
+function ns.BarPeekEnded()
+    if peekCount == 0 or type(GetTime) ~= "function" then return false end
+    local now, ended = GetTime(), false
+    for group, untilTime in pairs(peeks) do
+        if now >= untilTime then
+            peeks[group] = nil
+            peekCount = peekCount - 1
+            ended = true
+        end
+    end
+    return ended
+end
+
+local function Peeking(group)
+    local untilTime = peeks[group]
+    return untilTime ~= nil and type(GetTime) == "function" and GetTime() < untilTime
+end
 local barShow = {}
 local haveBarShow = false
 local shownGroups = {}
@@ -205,7 +306,8 @@ function ns.UpdateBars(showAll, elapsed, rescan)
             local mode = ns.GroupVisibility(group)
             barShow[entry.id] = RowForced(entry.id, showAllForced) or showGroup[group]
                 or (not mode and hostile and ns.BarTarget(entry.id, "hostile"))
-                or (not mode and friendly and ns.BarTarget(entry.id, "friendly")) or false
+                or (not mode and friendly and ns.BarTarget(entry.id, "friendly"))
+                or Peeking(group) or false
         end
         haveBarShow = true
     end

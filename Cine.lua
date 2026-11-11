@@ -310,6 +310,26 @@ function handlers.PLAYER_REGEN_ENABLED()
     ns.EnsureLayout()
 end
 
+function handlers.UNIT_SPELLCAST_SUCCEEDED(_, _, spellID)
+    ns.PeekBarsForCast(spellID)
+end
+
+-- A cast with a cast time or a channel peeks from its start and lasts until it ends.
+local function PeekCasting(info, spellID)
+    if type(info) ~= "function" or type(GetTime) ~= "function" then return end
+    local ok, _, _, _, _, endMs = pcall(info, "player")
+    local left = ok and type(endMs) == "number" and not ns.IsSecret(endMs) and endMs / 1000 - GetTime() or 0
+    ns.PeekBarsForCast(spellID, left > 0 and left or 0)
+end
+
+function handlers.UNIT_SPELLCAST_START(_, _, spellID)
+    PeekCasting(UnitCastingInfo, spellID)
+end
+
+function handlers.UNIT_SPELLCAST_CHANNEL_START(_, _, spellID)
+    PeekCasting(UnitChannelInfo, spellID)
+end
+
 function handlers.QUEST_TURNED_IN(_, xp)
     ns.MarkQuestXP(xp)
 end
@@ -431,6 +451,7 @@ events:SetScript("OnUpdate", function(_, elapsed)
     local flyout = ns.FlyoutOpen and ns.FlyoutOpen() and true or false
     local glance = ns.Glancing() and true or false
     local moved = PointerMoved()
+    if ns.BarPeekEnded() then ns.TouchHud() end
     local hud = ns.ConsumeHud()
     slowAcc = slowAcc + elapsed
     local slow = slowAcc >= 0.1
@@ -501,8 +522,15 @@ events:SetScript("OnUpdate", function(_, elapsed)
     end
 end)
 
+-- Only the player's own casts; the unfiltered event fires for every unit nearby.
+local UNIT_EVENTS = { UNIT_SPELLCAST_SUCCEEDED = "player", UNIT_SPELLCAST_START = "player",
+    UNIT_SPELLCAST_CHANNEL_START = "player" }
 for eventName in pairs(handlers) do
-    pcall(events.RegisterEvent, events, eventName)
+    if UNIT_EVENTS[eventName] then
+        pcall(events.RegisterUnitEvent, events, eventName, UNIT_EVENTS[eventName])
+    else
+        pcall(events.RegisterEvent, events, eventName)
+    end
 end
 
 -- Hooked arguments are not ours to forward, except the chat frame.
