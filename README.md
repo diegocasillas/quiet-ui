@@ -22,10 +22,10 @@ what stays visible, with personal settings or shared presets across characters.
   in and out with the micro menu, and shows while you hold an item.
 - **Glance.** Press `` ` `` to reveal the faded HUD at once. Press again to return
   to your usual visibility rules. Chat stays unchanged. **Full glance** (bind it
-  under **Cine** in **Key Bindings**) also shows what is set to Only on hover (but never the micro menu and bags);
+  under **Puro Cine** in **Key Bindings**) also shows what is set to Only on hover (but never the micro menu and bags);
   pressing one glance while the other is on swaps to it.
 - **Camera modes.** Action camera is applied at login and reload. Bind **Toggle
-  action camera** under **Cine** in **Key Bindings** to switch between it and
+  action camera** under **Puro Cine** in **Key Bindings** to switch between it and
   the normal camera.
 
 ![Cine in combat](docs/images/img003.png)
@@ -53,11 +53,11 @@ what stays visible, with personal settings or shared presets across characters.
 The minimap button also opens settings, even while Cine is off. Drag it around
 the minimap to move it.
 
-Glance defaults to `` ` `` if the key is free. Change it under **Cine** in
+Glance defaults to `` ` `` if the key is free. Change it under **Puro Cine** in
 **Key Bindings**. You can also use `/cine glance` in a macro and bind that macro
 to a controller button through your controller setup.
 
-Camera modes have no default key. Bind **Toggle action camera** under **Cine**
+Camera modes have no default key. Bind **Toggle action camera** under **Puro Cine**
 in **Key Bindings**. Action camera runs `actioncam full`,
 `camerakeepcharactercentered 0`, `actioncam noheadmove` and `actioncam focusall`;
 normal camera runs `actioncam off` and `camerakeepcharactercentered 1`. Action
