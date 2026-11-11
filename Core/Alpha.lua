@@ -13,22 +13,22 @@ function ns.Remember(frame)
 end
 
 function ns.EnsureAlphaHook(frame)
-    if not frame or frame._puroPuroCineAlphaHook or not frame.SetAlpha then return end
-    frame._puroPuroCineAlphaHook = true
+    if not frame or frame._puroCineAlphaHook or not frame.SetAlpha then return end
+    frame._puroCineAlphaHook = true
     Core.hooked[#Core.hooked + 1] = frame
     pcall(hooksecurefunc, frame, "SetAlpha", function(self, alpha)
-        if self._puroPuroCineApplying then return end
+        if self._puroCineApplying then return end
         if not ns.DB().enabled then return end
-        if self._puroPuroCineChat and ns.ModernChat and not ns.ModernChat() then return end
-        local want = self._puroPuroCineSecret
+        if self._puroCineChat and ns.ModernChat and not ns.ModernChat() then return end
+        local want = self._puroCineSecret
         if want == nil then
-            want = self._puroPuroCineAlpha
+            want = self._puroCineAlpha
             if type(want) ~= "number" then return end
             if not ns.IsSecret(alpha) and math.abs((alpha or 0) - want) < 0.02 then return end
         end
-        self._puroPuroCineApplying = true
+        self._puroCineApplying = true
         self:SetAlpha(want)
-        self._puroPuroCineApplying = false
+        self._puroCineApplying = false
     end)
 end
 
@@ -42,16 +42,16 @@ Core.CurrentAlpha = CurrentAlpha
 function ns.PushAlpha(frame, alpha)
     if not frame or not frame.SetAlpha then return end
     -- The SetAlpha hook already puts back overwrites. Skip the read when nothing changed.
-    if frame._puroPuroCineSecret == nil and frame._puroPuroCineAlpha == alpha then return end
-    frame._puroPuroCineAlpha = alpha
-    frame._puroPuroCineSecret = nil
+    if frame._puroCineSecret == nil and frame._puroCineAlpha == alpha then return end
+    frame._puroCineAlpha = alpha
+    frame._puroCineSecret = nil
     local current = CurrentAlpha(frame)
     if current and math.abs(current - alpha) < 0.01 then
         return
     end
-    frame._puroPuroCineApplying = true
+    frame._puroCineApplying = true
     frame:SetAlpha(alpha)
-    frame._puroPuroCineApplying = false
+    frame._puroCineApplying = false
 end
 
 -- Holds an alpha that may be secret; the fade is skipped since it cannot be read.
@@ -59,11 +59,11 @@ function ns.HoldSecretAlpha(frame, alpha)
     if not ns.Usable(frame) or not frame.SetAlpha then return end
     ns.Remember(frame)
     ns.EnsureAlphaHook(frame)
-    frame._puroPuroCineAlpha = nil
-    frame._puroPuroCineSecret = alpha
-    frame._puroPuroCineApplying = true
+    frame._puroCineAlpha = nil
+    frame._puroCineSecret = alpha
+    frame._puroCineApplying = true
     frame:SetAlpha(alpha)
-    frame._puroPuroCineApplying = false
+    frame._puroCineApplying = false
 end
 
 -- Remember, hook, and set in one go.
@@ -77,16 +77,16 @@ end
 
 function ns.ReleaseAlpha(frame)
     if not frame or not frame.SetAlpha then return end
-    frame._puroPuroCineAlpha = nil
-    frame._puroPuroCineSecret = nil
-    frame._puroPuroCineApplying = true
+    frame._puroCineAlpha = nil
+    frame._puroCineSecret = nil
+    frame._puroCineApplying = true
     frame:SetAlpha(Core.savedAlpha[frame] or 1)
-    frame._puroPuroCineApplying = false
+    frame._puroCineApplying = false
 end
 
 function ns.NoteChat(obj)
-    if not obj or obj._puroPuroCineChat then return end
-    obj._puroPuroCineChat = true
+    if not obj or obj._puroCineChat then return end
+    obj._puroCineChat = true
     Core.chatHeld[#Core.chatHeld + 1] = obj
 end
 
@@ -94,9 +94,9 @@ function ns.ReleaseChatHold()
     for i = 1, #Core.chatHeld do
         local obj = Core.chatHeld[i]
         if obj.GetObjectType and obj:GetObjectType() == "Texture" then
-            obj._puroPuroCineApplying = true
+            obj._puroCineApplying = true
             obj:SetAlpha(Core.textureAlpha[obj] or 1)
-            obj._puroPuroCineApplying = false
+            obj._puroCineApplying = false
         else
             ns.ReleaseAlpha(obj)
         end

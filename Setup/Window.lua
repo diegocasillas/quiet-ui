@@ -288,7 +288,7 @@ local function CreateSetup()
     local kind = "flat"
     if ok and widget and PortraitChrome(widget) then
         kind = "portrait"
-        widget._puroPuroCinePortrait = true
+        widget._puroCinePortrait = true
         ApplyTitle(widget, "Puro Cine")
         ApplyPortrait(widget)
     else
@@ -743,7 +743,7 @@ function ns.ShowSetup()
     if ns.CancelLayoutPreview then ns.CancelLayoutPreview() end
     Setup.frame = Setup.frame or CreateSetup()
     Setup.LoadSavedDraft()
-    if Setup.frame._puroPuroCinePortrait then
+    if Setup.frame._puroCinePortrait then
         ApplyPortrait(Setup.frame)
     end
     Setup.frame:Show()

@@ -125,9 +125,9 @@ local function RefreshKids(list)
                 count, known = value, true
             end
         end
-        if not known or frame._puroPuroCineKidCount ~= count then
-            frame._puroPuroCineKids = nil
-            frame._puroPuroCineKidCount = known and count or nil
+        if not known or frame._puroCineKidCount ~= count then
+            frame._puroCineKids = nil
+            frame._puroCineKidCount = known and count or nil
         end
     end
 end

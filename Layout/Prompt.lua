@@ -130,7 +130,7 @@ local function CreatePrompt()
     local kind = "flat"
     if ok and frame and PortraitChrome(frame) then
         kind = "portrait"
-        frame._puroPuroCineGear = true
+        frame._puroCineGear = true
         ApplyTitle(frame, "Puro Cine")
         ApplyGearPortrait(frame)
         HideClose(frame)
@@ -183,7 +183,7 @@ end
 
 local function Ask(text, yesLabel)
     prompt = prompt or CreatePrompt()
-    if prompt._puroPuroCineGear then ApplyGearPortrait(prompt) end
+    if prompt._puroCineGear then ApplyGearPortrait(prompt) end
     prompt.text:SetText(text)
     SetButtonLabel(prompt.yes, yesLabel)
     prompt:Show()

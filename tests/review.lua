@@ -117,7 +117,7 @@ test('Native chat stays visible after addon or Modern chat is disabled', functio
     chat.scripts.OnMouseWheel(chat, 1)
     assert(scrolls == 1, 'Wheel hook remained active with addon off')
     assert(font.alpha == 1, 'AddMessage hid native text with addon off')
-    assert(#chat._puroPuroCineLines == 3, 'History must still be collected while disabled')
+    assert(#chat._puroCineLines == 3, 'History must still be collected while disabled')
 end)
 
 test('A custom chat window hides its native text when its tab is shown', function()
@@ -136,7 +136,7 @@ test('A custom chat window hides its native text when its tab is shown', functio
     ChatFrame3 = chat
     chat.shown = false
     ns.StripAllChat(true)
-    assert(chat._puroPuroCineBubbles, 'The window was not bound ' .. table.concat(reports, '; '))
+    assert(chat._puroCineBubbles, 'The window was not bound ' .. table.concat(reports, '; '))
     chat:AddMessage('hello')
     ns.UpdateChat(0.1)
     -- Selecting the tab shows the window, and the client builds its lines then.
@@ -220,22 +220,22 @@ test('Chat verifies wrapped history and resized bubbles before going idle', func
         function chat:GetWidth() return self.width end
         function chat:GetHeight() return 200 end
         function chat:GetFont() return 'test', 14, '' end
-        chat._puroPuroCineLines = scenario == 'scroll' and { msg, {} } or { msg }
-        chat._puroPuroCineByMsg = { [msg] = bubble }
-        chat._puroPuroCineDirty = true
-        chat._puroPuroCineHover = scenario == 'hover'
-        chat._puroPuroCineScroll = scenario == 'scroll' and 1 or 0
+        chat._puroCineLines = scenario == 'scroll' and { msg, {} } or { msg }
+        chat._puroCineByMsg = { [msg] = bubble }
+        chat._puroCineDirty = true
+        chat._puroCineHover = scenario == 'hover'
+        chat._puroCineScroll = scenario == 'scroll' and 1 or 0
         layout(chat, 1/60)
         if scenario == 'resize' then
-            assert(bubble._puroPuroCineSizeKey, 'Single row should be cached')
+            assert(bubble._puroCineSizeKey, 'Single row should be cached')
             chat.width = 118
             layout(chat, 1/60)
         end
-        assert(chat._puroPuroCineNext == 0, scenario .. ': missing follow-up measurement')
+        assert(chat._puroCineNext == 0, scenario .. ': missing follow-up measurement')
         layout(chat, 1/60)
         if scenario == 'secret' then
-            assert(not bubble._puroPuroCineSizeKey, 'Zero height must not be cached')
-            assert(chat._puroPuroCineNext == 0, 'Unavailable height needs another measurement')
+            assert(not bubble._puroCineSizeKey, 'Zero height must not be cached')
+            assert(chat._puroCineNext == 0, 'Unavailable height needs another measurement')
             layout(chat, 1/60)
         end
         assert(bubble.height >= 52, scenario .. ': last row remains clipped')
@@ -245,8 +245,8 @@ test('Chat verifies wrapped history and resized bubbles before going idle', func
             print('Idle wrapped chat, 600 frames: extra height reads=' .. (fs.reads - reads))
             assert(fs.reads == reads, 'Line spacing kept remeasuring settled chat every frame')
         end
-        assert(bubble._puroPuroCineSizeKey, scenario .. ': measured size was not cached')
-        assert(chat._puroPuroCineNext == nil, scenario .. ': settled chat keeps waking')
+        assert(bubble._puroCineSizeKey, scenario .. ': measured size was not cached')
+        assert(chat._puroCineNext == nil, scenario .. ': settled chat keeps waking')
         local reads = fs.reads
         layout(chat, 1/60)
         assert(fs.reads == reads, scenario .. ': idle chat remeasured text')
@@ -754,7 +754,7 @@ test('Resource hover bypasses secret curves and restores both child and root alp
     ns.Glancing = function() return true end
     update(0.01); assert(health.alpha == 1 and power.alpha == 1)
     ns.Glancing = function() return false end
-    root.children = {}; root._puroPuroCineKids = nil
+    root.children = {}; root._puroCineKids = nil
     update(0.15); update(0.15)
     assert(root.alpha == 0, 'Childless resource root never finished fading')
     ns.RestoreAlpha()

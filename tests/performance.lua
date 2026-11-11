@@ -109,7 +109,7 @@ local reported
 ns.Report = function(name) reported = name end
 tick()
 check(reported == 'player power', 'Failed sampling must be reported without breaking the update')
-check(not PlayerFrame._puroPuroCineSecret, 'Failed power sampling must not reuse the previous secret result')
+check(not PlayerFrame._puroCineSecret, 'Failed power sampling must not reuse the previous secret result')
 ns.RestoreAlpha()
 check(health.alpha == 1 and powerBar.alpha == 1, 'Disable must restore resource children')
 if arg[2] ~= '--measure' then

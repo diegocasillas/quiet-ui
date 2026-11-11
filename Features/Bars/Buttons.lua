@@ -11,13 +11,13 @@ local regionCache = {}
 -- would show the glow with the bar hidden. The mark is undone, so the button follows
 -- its bar's alpha again; a glow on a bar that is showing looks as before.
 local function FollowBarAlpha(button)
-    if button._puroPuroCineFollowHook or type(button.SetIgnoreParentAlpha) ~= "function" then return end
-    button._puroPuroCineFollowHook = true
+    if button._puroCineFollowHook or type(button.SetIgnoreParentAlpha) ~= "function" then return end
+    button._puroCineFollowHook = true
     pcall(hooksecurefunc, button, "SetIgnoreParentAlpha", function(self, ignore)
-        if not ignore or self._puroPuroCineFollowing or not ns.DB().enabled then return end
-        self._puroPuroCineFollowing = true
+        if not ignore or self._puroCineFollowing or not ns.DB().enabled then return end
+        self._puroCineFollowing = true
         self:SetIgnoreParentAlpha(false)
-        self._puroPuroCineFollowing = false
+        self._puroCineFollowing = false
     end)
     if type(button.IsIgnoringParentAlpha) == "function" and ns.DB().enabled then
         local ok, ignoring = pcall(button.IsIgnoringParentAlpha, button)
@@ -37,7 +37,7 @@ function ns.FollowGlowButtons()
     for _, prefix in ipairs(GLOW_PREFIXES) do
         for index = 1, 12 do
             local button = _G[prefix .. index]
-            if button and not button._puroPuroCineFollowHook then FollowBarAlpha(button) end
+            if button and not button._puroCineFollowHook then FollowBarAlpha(button) end
         end
     end
 end

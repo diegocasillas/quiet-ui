@@ -6,28 +6,28 @@ local function ReleaseBubble(frame, bubble)
     if Chat.copyBox and Chat.copyBox.anchor == bubble then
         Chat.HideCopyBox()
     end
-    bubble._puroPuroCineHot = false
+    bubble._puroCineHot = false
     Chat.ShowCopy(bubble, false)
     bubble:Hide()
     bubble:SetAlpha(1)
     bubble.msg = nil
     bubble._y = nil
-    bubble._puroPuroCineSizeKey = nil
-    bubble._puroPuroCineLaid = nil
-    bubble._puroPuroCinePX = nil
-    bubble._puroPuroCinePY = nil
-    bubble._puroPuroCinePA = nil
-    bubble._puroPuroCineLevel = nil
-    bubble._puroPuroCineFontStamp = nil
-    bubble._puroPuroCineTargetY = nil
-    bubble._puroPuroCinePendingAlpha, bubble._puroPuroCinePendingGoal, bubble._puroPuroCinePendingHeld = nil, nil, nil
-    frame._puroPuroCinePool[#frame._puroPuroCinePool + 1] = bubble
+    bubble._puroCineSizeKey = nil
+    bubble._puroCineLaid = nil
+    bubble._puroCinePX = nil
+    bubble._puroCinePY = nil
+    bubble._puroCinePA = nil
+    bubble._puroCineLevel = nil
+    bubble._puroCineFontStamp = nil
+    bubble._puroCineTargetY = nil
+    bubble._puroCinePendingAlpha, bubble._puroCinePendingGoal, bubble._puroCinePendingHeld = nil, nil, nil
+    frame._puroCinePool[#frame._puroCinePool + 1] = bubble
 end
 Chat.ReleaseBubble = ReleaseBubble
 
 local function CreateBubble(frame)
     local bubble = CreateFrame("Frame", nil, frame)
-    bubble._puroPuroCineBubble = true
+    bubble._puroCineBubble = true
     bubble.chat = frame
     bubble.links = {}
     Chat.BindBubbleLinks(bubble)
@@ -91,7 +91,7 @@ local function CreateBubble(frame)
 end
 
 local function AcquireBubble(frame)
-    local pool = frame._puroPuroCinePool
+    local pool = frame._puroCinePool
     local bubble = pool[#pool]
     if bubble then
         pool[#pool] = nil
@@ -102,13 +102,13 @@ end
 Chat.AcquireBubble = AcquireBubble
 
 local function HideActive(frame)
-    frame._puroPuroCineDirty = true
-    frame._puroPuroCineNext, frame._puroPuroCineFadeAt, frame._puroPuroCineLayoutPending = 0, nil, nil
-    local animations = frame._puroPuroCineAnimations
+    frame._puroCineDirty = true
+    frame._puroCineNext, frame._puroCineFadeAt, frame._puroCineLayoutPending = 0, nil, nil
+    local animations = frame._puroCineAnimations
     if animations then
         for i = #animations, 1, -1 do animations[i] = nil end
     end
-    local byMsg = frame._puroPuroCineByMsg
+    local byMsg = frame._puroCineByMsg
     if not byMsg then return end
     for msg, bubble in pairs(byMsg) do
         byMsg[msg] = nil

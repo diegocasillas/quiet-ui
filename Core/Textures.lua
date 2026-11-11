@@ -14,24 +14,24 @@ function ns.ForceTextureHidden(tex)
         Core.textureAlpha[tex] = saved
     end
     if ns.MarkingChat then ns.NoteChat(tex) end
-    if not tex._puroPuroCineTexHook then
-        tex._puroPuroCineTexHook = true
+    if not tex._puroCineTexHook then
+        tex._puroCineTexHook = true
         pcall(hooksecurefunc, tex, "SetAlpha", function(self, alpha)
-            if self._puroPuroCineApplying or not ns.DB().enabled then return end
-            if self._puroPuroCineChat and ns.ModernChat and not ns.ModernChat() then return end
+            if self._puroCineApplying or not ns.DB().enabled then return end
+            if self._puroCineChat and ns.ModernChat and not ns.ModernChat() then return end
             if type(alpha) == "number" and not ns.IsSecret(alpha) and alpha < 0.01 then return end
-            self._puroPuroCineApplying = true
+            self._puroCineApplying = true
             self:SetAlpha(0)
-            self._puroPuroCineApplying = false
+            self._puroCineApplying = false
         end)
     end
     if not ns.DB().enabled then return end
     -- A secret alpha cannot be compared; treat it as visible.
     local alpha = tex:GetAlpha()
     if ns.IsSecret(alpha) or type(alpha) ~= "number" or alpha >= 0.01 then
-        tex._puroPuroCineApplying = true
+        tex._puroCineApplying = true
         tex:SetAlpha(0)
-        tex._puroPuroCineApplying = false
+        tex._puroCineApplying = false
     end
 end
 
