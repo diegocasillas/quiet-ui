@@ -56,6 +56,7 @@ Opinionated UI for WoW Forever. Modern and cinematic: few frames, few buttons, t
 - Action bars only through alpha. Do not use `Hide()`, `Show()`, or state drivers on bars.
 - No secure snippets. Do not touch `ChatFrame_OpenChat`.
 - `PlayerFrame` and `PetFrame` only through alpha, per the rule above. TargetFrame may only be faded through alpha for Require a living target. Do not hide party or raid frames, the minimap, vehicle / extra action / zone ability, or the LFG eye (`QueueStatus`, `LFGEye`).
+- An action button never keeps `SetIgnoreParentAlpha(true)` while Cine is on: a hook undoes it, so another addon's glow on a button (Glowing Bars) fades with the bar Cine hides.
 - Blizzard overwrites alpha. Hold the wanted value with a `SetAlpha` hook and the `_cineApplying` flag so the hook does not loop.
 - Disabling must restore saved alpha and textures (`RestoreAll`). Wire new behavior into both `ApplyAll` and `RestoreAll`.
 
