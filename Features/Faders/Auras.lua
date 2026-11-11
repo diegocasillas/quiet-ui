@@ -51,8 +51,13 @@ local function UpdateAuras(elapsed)
     local alpha = useCurve and Faders.EvalPlayerThresholds(Faders.auraWeight) or nil
     Faders.UpdateIgnoredDebuffs(elapsed, usual)
     local keepDebuffs = not ns.OnlyOnHover("auras") and ns.AlwaysShowDebuffs()
+    -- Dead or a ghost: the buffs fade out whatever else would show them. Hover,
+    -- Glance and Edit Mode still show them; debuffs keep their own rules.
+    local deadHide = ns.PlayerIsDead() and not ns.OnlyOnHover("auras") and not ns.Glancing() and not ns.InEditMode()
     for _, frame in ipairs(Faders.auraFrames) do
-        if keepDebuffs and frame == _G.DebuffFrame then
+        if deadHide and frame ~= _G.DebuffFrame and not MouseOverAny(frame) then
+            Faders.PaintNumeric(frame, false, elapsed)
+        elseif keepDebuffs and frame == _G.DebuffFrame then
             if frame._cineSecret ~= nil or frame._cineAlpha ~= 1 then
                 Faders.PaintNumeric(frame, true, elapsed)
             end
