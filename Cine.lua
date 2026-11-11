@@ -449,7 +449,7 @@ events:SetScript("OnUpdate", function(_, elapsed)
     end
     elapsed = elapsed or 0
     local flyout = ns.FlyoutOpen and ns.FlyoutOpen() and true or false
-    local glance = ns.Glancing() and true or false
+    local glance = ns.GlanceMode()
     local moved = PointerMoved()
     if ns.BarPeekEnded() then ns.TouchHud() end
     local hud = ns.ConsumeHud()
@@ -562,6 +562,10 @@ SlashCmdList["CINE"] = function(msg)
     end
     if msg == "glance" then
         ns.ToggleGlance()
+        return
+    end
+    if msg == "glance full" then
+        ns.ToggleFullGlance()
         return
     end
     local db = ns.DB()

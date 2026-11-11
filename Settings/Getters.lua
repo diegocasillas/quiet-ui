@@ -48,8 +48,10 @@ end
 
 function ns.VisibilityShow(name, usual, hovered)
     if ns.InEditMode() then return true end
-    if ns.OnlyOnHover(name) then return hovered and true or false end
-    if ns.Glancing() then return true end
+    -- Full glance leaves the micro menu and the bag bar alone.
+    local full = ns.FullGlancing() and name ~= "micro"
+    if ns.OnlyOnHover(name) then return (hovered or full) and true or false end
+    if ns.Glancing() and (name ~= "micro" or not ns.FullGlancing()) then return true end
     return ns.Pinned(name) or usual or hovered or false
 end
 

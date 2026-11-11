@@ -110,7 +110,7 @@ function ns.UpdateFaders(elapsed)
     local function UpdateVisible(name, frames, usual, noHover, exception)
         local hovered = HoverFrames(name, frames)
         if ns.OnlyOnHover(name) then
-            UpdateGroup(frames, usual or ns.InEditMode() or exception or hovered, elapsed)
+            UpdateGroup(frames, usual or ns.InEditMode() or exception or hovered or ns.FullGlancing(), elapsed)
         else
             UpdateGroup(frames, usual or ns.Pinned(name) or glance, elapsed, noHover)
         end
