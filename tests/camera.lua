@@ -75,4 +75,32 @@ test('A missing ConsoleExec or a failing command is reported, not thrown', funct
     assert(reports[#reports]:find('ConsoleExec'), 'Missing ConsoleExec was not reported')
 end)
 
+test('The distance key glides to the other of the two distances', function()
+    local ns = boot(true)
+    local zoom, calls = 10, {}
+    GetCVar = function() return '1' end
+    GetCameraZoom = function() return zoom end
+    CameraZoomIn = function() calls[#calls + 1] = 'in' end
+    CameraZoomOut = function() calls[#calls + 1] = 'out' end
+    ns.DefaultZoomPercentShare = function() return 0.3 end
+    ns.CombatZoomShare = function() return 0.6 end
+    ns.Print = function() end
+    -- Limit 15: default 4.5, combat 9, midpoint 6.75.
+    PuroCineCameraDistanceToggle('up')
+    for _ = 1, 5 do ns.UpdateCameraZoom(0.1) end
+    assert(#calls == 0, 'Key up moved the camera')
+    PuroCineCameraDistanceToggle('down')
+    for _ = 1, 5 do ns.UpdateCameraZoom(0.1) end
+    assert(calls[1] == 'in', 'Past the midpoint the key did not go to the nearer distance')
+    zoom, calls = 4.5, {}
+    PuroCineCameraDistanceToggle('down')
+    for _ = 1, 5 do ns.UpdateCameraZoom(0.1) end
+    assert(calls[1] == 'out', 'At the nearer distance the key did not go to the farther one')
+    PuroCineDB.enabled = false
+    zoom, calls = 10, {}
+    PuroCineCameraDistanceToggle('down')
+    for _ = 1, 5 do ns.UpdateCameraZoom(0.1) end
+    assert(#calls == 0, 'The key moved the camera while Puro Cine is off')
+end)
+
 os.exit(failures == 0 and 0 or 1)
