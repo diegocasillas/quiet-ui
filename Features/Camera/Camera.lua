@@ -8,6 +8,7 @@ local _, ns = ...
 -- The binding system calls a global; down and up both arrive.
 ------------------------------------------------------------------------------
 BINDING_NAME_PURO_CINE_CAMERA_TOGGLE = "Toggle action camera"
+BINDING_NAME_PURO_CINE_CAMERA_DISTANCE_TOGGLE = "Toggle camera distance"
 
 local MODES = {
     action = {
@@ -146,6 +147,23 @@ function ns.TestZoom(percent)
     StartPath(ZOOM_BASE * factor * percent / 100)
 end
 
+-- The distance key: glide to the other of the two set distances (the default and the
+-- combat one, whether or not their checks are on). The camera counts as being at the
+-- nearer one when it is on that side of the midpoint. Not saved, and any camera mode.
+function ns.ToggleCameraDistance()
+    if not ns.DB().enabled then return end
+    local now = ZoomNow()
+    if type(CameraZoomOut) ~= "function" or not now then
+        ns.Print("The camera zoom is not available.")
+        return
+    end
+    local factor = type(GetCVar) == "function" and tonumber(GetCVar("cameraDistanceMaxZoomFactor")) or 1
+    local a = ZOOM_BASE * factor * ns.DefaultZoomPercentShare()
+    local b = ZOOM_BASE * factor * ns.CombatZoomShare()
+    local near, far = math.min(a, b), math.max(a, b)
+    StartPath(now >= (near + far) / 2 and near or far)
+end
+
 function ns.EndZoomTest()
     local before = testBefore
     testBefore = nil
@@ -225,4 +243,8 @@ end
 
 function PuroCineCameraToggle(keystate)
     if keystate == "down" then ns.ToggleCamera() end
+end
+
+function PuroCineCameraDistanceToggle(keystate)
+    if keystate == "down" then ns.ToggleCameraDistance() end
 end

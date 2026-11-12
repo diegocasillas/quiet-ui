@@ -8,4 +8,7 @@
 	<Binding name="PURO_CINE_CAMERA_TOGGLE" category="Puro Cine" runOnUp="true">
 		PuroCineCameraToggle(keystate)
 	</Binding>
+	<Binding name="PURO_CINE_CAMERA_DISTANCE_TOGGLE" category="Puro Cine" runOnUp="true">
+		PuroCineCameraDistanceToggle(keystate)
+	</Binding>
 </Bindings>

@@ -26,7 +26,8 @@ what stays visible, with personal settings or shared presets across characters.
   pressing one glance while the other is on swaps to it.
 - **Camera modes.** Action camera is applied at login and reload. Bind **Toggle
   action camera** under **Puro Cine** in **Key Bindings** to switch between it and
-  the normal camera.
+  the normal camera. **Toggle camera distance** glides between your default and
+  combat distances.
 
 ![Puro Cine in combat](docs/images/img003.png)
 
@@ -63,6 +64,11 @@ normal camera runs `actioncam off` and `camerakeepcharactercentered 1`. Action
 camera is applied at login and reload while Puro Cine is on, the key switches between
 the two until the next login or reload, and turning Puro Cine off restores the normal
 camera.
+
+**Toggle camera distance** (no default key) glides between the two distances set in
+General: the default distance and the combat distance, whichever is not where the
+camera is now. It works in either camera mode, even with those distances switched
+off, and does nothing while Puro Cine is off. Nothing is saved.
 
 Preset names ignore letter case. Use quotes for names with spaces. Selecting a
 preset saves the choice for this character and applies its settings. While Puro Cine

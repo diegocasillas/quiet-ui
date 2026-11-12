@@ -117,7 +117,12 @@ end
 function ns.DefaultZoomShare()
     local settings = ns.Settings and ns.Settings() or ns.CharDB()
     if settings.defaultZoom == false then return nil end
-    local value = settings.defaultZoomPercent
+    return ns.DefaultZoomPercentShare()
+end
+
+-- The default share whether or not the default distance is on (the distance key uses it).
+function ns.DefaultZoomPercentShare()
+    local value = (ns.Settings and ns.Settings() or ns.CharDB()).defaultZoomPercent
     if type(value) == "number" and value >= 1 and value <= 100 then return value / 100 end
     return 0.3
 end
