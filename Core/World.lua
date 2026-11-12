@@ -91,9 +91,12 @@ end
 local PEEK_TIME = 5
 
 local function NoteNewBuffs(updateInfo)
-    if type(updateInfo) ~= "table" or updateInfo.isFullUpdate then return end
+    if type(updateInfo) ~= "table" then return end
+    -- In a battleground the whole update can be secret: nothing in it can be tested.
+    local full = updateInfo.isFullUpdate
+    if ns.IsSecret(full) or full then return end
     local added = updateInfo.addedAuras
-    if type(added) ~= "table" then return end
+    if type(added) ~= "table" or ns.IsSecret(added) then return end
     for i = 1, #added do
         local aura = added[i]
         local helpful = type(aura) == "table" and aura.isHelpful
