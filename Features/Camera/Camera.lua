@@ -9,6 +9,7 @@ local _, ns = ...
 ------------------------------------------------------------------------------
 BINDING_NAME_PURO_CINE_CAMERA_TOGGLE = "Toggle action camera"
 BINDING_NAME_PURO_CINE_CAMERA_DISTANCE_TOGGLE = "Toggle camera distance"
+BINDING_NAME_PURO_CINE_CAMERA_FULL_ZOOM = "Zoom out to 100%"
 
 local MODES = {
     action = {
@@ -39,6 +40,7 @@ local ZOOM_MOVED = 0.01 -- yards: change that counts as moving
 local ZOOM_STILL = 0.1  -- seconds without moving: the step has settled
 local ZOOM_NO_MOVE = 0.3 -- seconds after a step with no motion: the limit is reached
 local ZOOM_GIVE_UP = 10
+local ZOOM_FULL_NEAR = 0.5 -- yards: close enough to the limit to count as at it
 -- The way back in follows a planned path instead: a smoothstep from where the
 -- camera is to the old distance, with a small correction toward the planned
 -- point every frame (the error stays small, so the steps do not pile up).
@@ -164,6 +166,29 @@ function ns.ToggleCameraDistance()
     StartPath(now >= (near + far) / 2 and near or far)
 end
 
+-- The full zoom key: glide out to the whole zoom limit; pressed again there, glide back to
+-- where the camera was. Not saved, any camera mode, and nothing while Puro Cine is off.
+local fullBefore
+function ns.ToggleFullZoom()
+    if not ns.DB().enabled then return end
+    local now = ZoomNow()
+    if type(CameraZoomOut) ~= "function" or not now then
+        ns.Print("The camera zoom is not available.")
+        return
+    end
+    local factor = type(GetCVar) == "function" and tonumber(GetCVar("cameraDistanceMaxZoomFactor")) or 1
+    local limit = ZOOM_BASE * factor
+    if now >= limit - ZOOM_FULL_NEAR then
+        -- Already out: go back to where it was, or to the default distance.
+        local before = fullBefore or limit * ns.DefaultZoomPercentShare()
+        fullBefore = nil
+        StartPath(before)
+        return
+    end
+    fullBefore = now
+    StartPath(limit)
+end
+
 function ns.EndZoomTest()
     local before = testBefore
     testBefore = nil
@@ -235,7 +260,7 @@ function ns.UpdateCameraZoom(elapsed)
 end
 
 function ns.RestoreCamera()
-    zoomBefore, zoomMove = nil, nil
+    zoomBefore, zoomMove, fullBefore = nil, nil, nil
     if not current then return end
     Apply("normal")
     current = nil
@@ -247,4 +272,8 @@ end
 
 function PuroCineCameraDistanceToggle(keystate)
     if keystate == "down" then ns.ToggleCameraDistance() end
+end
+
+function PuroCineCameraFullZoom(keystate)
+    if keystate == "down" then ns.ToggleFullZoom() end
 end

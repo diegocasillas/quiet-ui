@@ -103,4 +103,30 @@ test('The distance key glides to the other of the two distances', function()
     assert(#calls == 0, 'The key moved the camera while Puro Cine is off')
 end)
 
+test('The full zoom key goes out to the limit and back', function()
+    local ns = boot(true)
+    local zoom, calls = 6, {}
+    GetCVar = function() return '1' end
+    GetCameraZoom = function() return zoom end
+    CameraZoomIn = function() calls[#calls + 1] = 'in' end
+    CameraZoomOut = function() calls[#calls + 1] = 'out' end
+    ns.DefaultZoomPercentShare = function() return 0.3 end
+    ns.Print = function() end
+    PuroCineCameraFullZoom('up')
+    for _ = 1, 5 do ns.UpdateCameraZoom(0.1) end
+    assert(#calls == 0, 'Key up moved the camera')
+    PuroCineCameraFullZoom('down')
+    for _ = 1, 5 do ns.UpdateCameraZoom(0.1) end
+    assert(calls[1] == 'out', 'The key did not zoom out')
+    zoom, calls = 15, {}
+    PuroCineCameraFullZoom('down')
+    for _ = 1, 5 do ns.UpdateCameraZoom(0.1) end
+    assert(calls[1] == 'in', 'At the limit the key did not go back')
+    PuroCineDB.enabled = false
+    zoom, calls = 6, {}
+    PuroCineCameraFullZoom('down')
+    for _ = 1, 5 do ns.UpdateCameraZoom(0.1) end
+    assert(#calls == 0, 'The key moved the camera while Puro Cine is off')
+end)
+
 os.exit(failures == 0 and 0 or 1)
