@@ -27,7 +27,7 @@ what stays visible, with personal settings or shared presets across characters.
 - **Camera modes.** Action camera is applied at login and reload. Bind **Toggle
   action camera** under **Puro Cine** in **Key Bindings** to switch between it and
   the normal camera. **Toggle camera distance** glides between your default and
-  combat distances.
+  combat distances. **Zoom out to 100%** goes to the zoom limit.
 
 ![Puro Cine in combat](docs/images/img003.png)
 
@@ -69,6 +69,9 @@ camera.
 General: the default distance and the combat distance, whichever is not where the
 camera is now. It works in either camera mode, even with those distances switched
 off, and does nothing while Puro Cine is off. Nothing is saved.
+
+**Zoom out to 100%** (no default key) glides out to the whole zoom limit. It works in
+either camera mode and does nothing while Puro Cine is off.
 
 Preset names ignore letter case. Use quotes for names with spaces. Selecting a
 preset saves the choice for this character and applies its settings. While Puro Cine

@@ -11,4 +11,7 @@
 	<Binding name="PURO_CINE_CAMERA_DISTANCE_TOGGLE" category="Puro Cine" runOnUp="true">
 		PuroCineCameraDistanceToggle(keystate)
 	</Binding>
+	<Binding name="PURO_CINE_CAMERA_FULL_ZOOM" category="Puro Cine" runOnUp="true">
+		PuroCineCameraFullZoom(keystate)
+	</Binding>
 </Bindings>

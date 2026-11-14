@@ -9,6 +9,7 @@ local _, ns = ...
 ------------------------------------------------------------------------------
 BINDING_NAME_PURO_CINE_CAMERA_TOGGLE = "Toggle action camera"
 BINDING_NAME_PURO_CINE_CAMERA_DISTANCE_TOGGLE = "Toggle camera distance"
+BINDING_NAME_PURO_CINE_CAMERA_FULL_ZOOM = "Zoom out to 100%"
 
 local MODES = {
     action = {
@@ -164,6 +165,19 @@ function ns.ToggleCameraDistance()
     StartPath(now >= (near + far) / 2 and near or far)
 end
 
+-- The full zoom key: glide out to the whole zoom limit. Not saved, any camera mode, and
+-- nothing while Puro Cine is off.
+function ns.ZoomOutFully()
+    if not ns.DB().enabled then return end
+    local now = ZoomNow()
+    if type(CameraZoomOut) ~= "function" or not now then
+        ns.Print("The camera zoom is not available.")
+        return
+    end
+    local factor = type(GetCVar) == "function" and tonumber(GetCVar("cameraDistanceMaxZoomFactor")) or 1
+    StartPath(ZOOM_BASE * factor)
+end
+
 function ns.EndZoomTest()
     local before = testBefore
     testBefore = nil
@@ -247,4 +261,8 @@ end
 
 function PuroCineCameraDistanceToggle(keystate)
     if keystate == "down" then ns.ToggleCameraDistance() end
+end
+
+function PuroCineCameraFullZoom(keystate)
+    if keystate == "down" then ns.ZoomOutFully() end
 end
