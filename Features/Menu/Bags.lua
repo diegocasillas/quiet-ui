@@ -26,6 +26,7 @@ local MICRO_NAMES = {
     "WorldMapMicroButton",
     "PVPMicroButton",
     "HousingMicroButton",
+    "LegacyMicroButton",
 }
 Menu.MICRO_NAMES = MICRO_NAMES
 
