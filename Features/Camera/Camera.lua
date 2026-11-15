@@ -89,6 +89,7 @@ end
 -- Entering combat pulls the camera out to the player's zoom limit; leaving
 -- it brings the camera back to the distance it had.
 function ns.ZoomOutForCombat()
+    fishingWait, fishingBefore = nil, nil
     if not ns.DB().enabled or current ~= "action" or not ns.CombatZoom() then return end
     if type(CameraZoomOut) ~= "function" or not ZoomNow() then
         ns.Report("camera", "zoom is missing")
@@ -149,11 +150,18 @@ local function IsFishing(spellID)
     return name ~= nil and fishingNames[name] == true
 end
 
+-- Seconds after the line stops before the camera goes back.
+local FISHING_RETURN = 5
+-- The distance before the fishing zoom (nil outside fishing) and the seconds left
+-- before the return (nil while no wait runs).
+local fishingBefore, fishingWait
+
 -- Casting a line (a fishing channel) glides the camera in to the fishing distance. It
--- never pulls the camera out, and nothing brings it back: the camera stays there.
+-- never pulls the camera out. Casting again before the return cancels it.
 function ns.ZoomInForFishing(spellID)
     if not ns.DB().enabled or current ~= "action" or not ns.FishingZoom() then return end
     if not IsFishing(spellID) then return end
+    fishingWait = nil
     local now = ZoomNow()
     if type(CameraZoomIn) ~= "function" or not now then
         ns.Report("camera", "zoom is missing")
@@ -162,9 +170,16 @@ function ns.ZoomInForFishing(spellID)
     local factor = type(GetCVar) == "function" and tonumber(GetCVar("cameraDistanceMaxZoomFactor")) or 1
     local target = ZOOM_BASE * factor * ns.FishingZoomShare()
     if now <= target then return end
-    -- A return after combat that is still pending is dropped: the camera stays here.
+    -- A return after combat that is still pending is dropped: fishing sets the distance.
     zoomBefore = nil
+    fishingBefore = fishingBefore or now
     StartPath(target)
+end
+
+-- The line stops (reeled in, looted or interrupted): after a few seconds the camera goes back.
+function ns.NoteFishingStop(spellID)
+    if not fishingBefore or not IsFishing(spellID) then return end
+    fishingWait = FISHING_RETURN
 end
 
 -- Distance for the default share of the zoom limit; nil while it is off.
@@ -258,7 +273,19 @@ local function FollowPath(move, elapsed, zoom)
     end
 end
 
+-- Back to the default distance, or to where the camera was when the default is off.
+local function ReturnFromFishing()
+    local before = fishingBefore
+    fishingWait, fishingBefore = nil, nil
+    if not before or not ns.DB().enabled or current ~= "action" or not ZoomNow() then return end
+    StartPath(DefaultDistance() or before)
+end
+
 function ns.UpdateCameraZoom(elapsed)
+    if fishingWait then
+        fishingWait = fishingWait - elapsed
+        if fishingWait <= 0 then ReturnFromFishing() end
+    end
     local move = zoomMove
     if not move then return end
     local zoom = ZoomNow()
