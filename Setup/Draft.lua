@@ -37,7 +37,7 @@ local function ReadDraft(source)
     Setup.draft.fishingZoom = source.fishingZoom ~= false
     local fishing = source.fishingZoomPercent
     Setup.draft.fishingZoomPercent = type(fishing) == "number" and fishing >= 1 and fishing <= 100
-        and fishing == math.floor(fishing) and tostring(fishing) or "10"
+        and fishing == math.floor(fishing) and tostring(fishing) or "5"
     if Setup.frame and Setup.frame.fishingZoomPercent then Setup.frame.fishingZoomPercent.edit:ClearFocus() end
     Setup.draft.rememberZoom = source.rememberZoom ~= false
     if Setup.frame and Setup.frame.combatZoomPercent then Setup.frame.combatZoomPercent.edit:ClearFocus() end
@@ -150,7 +150,7 @@ local function DraftSettings()
     if not fishingText:match("^%d+$") or not fishingN or fishingN < 1 or fishingN > 100 then
         return nil, "Enter a whole percentage from 1 to 100 for the fishing zoom."
     end
-    if fishingN ~= 10 then db.fishingZoomPercent = fishingN end
+    if fishingN ~= 5 then db.fishingZoomPercent = fishingN end
     if not Setup.draft.defaultZoom then db.defaultZoom = false end
     local defaultText = Setup.draft.defaultZoomPercent:match("^%s*(.-)%s*$")
     local defaultN = tonumber(defaultText)

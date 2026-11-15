@@ -116,11 +116,11 @@ function ns.FishingZoom()
     return (ns.Settings and ns.Settings() or ns.CharDB()).fishingZoom ~= false
 end
 
--- Share (0-1) of the farthest zoom for the fishing zoom; missing means 0.1.
+-- Share (0-1) of the farthest zoom for the fishing zoom; missing means 0.05.
 function ns.FishingZoomShare()
     local value = (ns.Settings and ns.Settings() or ns.CharDB()).fishingZoomPercent
     if type(value) == "number" and value >= 1 and value <= 100 then return value / 100 end
-    return 0.1
+    return 0.05
 end
 
 -- Share for the default distance (login, and after combat when the previous

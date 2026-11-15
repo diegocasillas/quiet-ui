@@ -28,7 +28,7 @@ what stays visible, with personal settings or shared presets across characters.
   action camera** under **Puro Cine** in **Key Bindings** to switch between it and
   the normal camera. **Toggle camera distance** glides between your default and
   combat distances. **Zoom out to 100%** goes to the zoom limit. Casting a fishing
-  line zooms the camera in (10 % of the zoom limit by default); 5 seconds after the
+  line zooms the camera in (5 % of the zoom limit by default); 2.5 seconds after the
   line stops it goes back to the default distance, unless you cast again.
 
 ![Puro Cine in combat](docs/images/img003.png)

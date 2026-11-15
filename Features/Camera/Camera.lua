@@ -151,7 +151,7 @@ local function IsFishing(spellID)
 end
 
 -- Seconds after the line stops before the camera goes back.
-local FISHING_RETURN = 5
+local FISHING_RETURN = 2.5
 -- The distance before the fishing zoom (nil outside fishing) and the seconds left
 -- before the return (nil while no wait runs).
 local fishingBefore, fishingWait
