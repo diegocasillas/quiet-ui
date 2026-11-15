@@ -4,7 +4,7 @@ local snapshotChar, snapshotPreset
 
 local KEYS = { "visible", "hoverOnly", "groupVisibility", "player", "playerThresholdKind", "playerThresholdPercent", "requireLivingTarget", "groupAuras", "alwaysShowDebuffs", "showPlayerFrameInParty",
     "chat", "chatFade", "groups", "hostile", "friendly", "range", "forceFramesInInstance", "letterbox", "combatZoom",
-    "combatZoomPercent", "defaultZoom", "defaultZoomPercent", "rememberZoom" }
+    "combatZoomPercent", "fishingZoom", "fishingZoomPercent", "defaultZoom", "defaultZoomPercent", "rememberZoom" }
 
 function ns.Copy(value)
     if type(value) ~= "table" then return value end

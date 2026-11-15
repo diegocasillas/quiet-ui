@@ -223,6 +223,7 @@ end
 
 function handlers.UNIT_SPELLCAST_CHANNEL_START(_, _, spellID)
     PeekCasting(UnitChannelInfo, spellID)
+    ns.ZoomInForFishing(spellID)
 end
 
 function handlers.QUEST_TURNED_IN(_, xp)

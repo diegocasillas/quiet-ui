@@ -111,6 +111,18 @@ function ns.CombatZoomShare()
     return 0.6
 end
 
+-- Missing means on. Only an explicit false stops the fishing zoom.
+function ns.FishingZoom()
+    return (ns.Settings and ns.Settings() or ns.CharDB()).fishingZoom ~= false
+end
+
+-- Share (0-1) of the farthest zoom for the fishing zoom; missing means 0.1.
+function ns.FishingZoomShare()
+    local value = (ns.Settings and ns.Settings() or ns.CharDB()).fishingZoomPercent
+    if type(value) == "number" and value >= 1 and value <= 100 then return value / 100 end
+    return 0.1
+end
+
 -- Share for the default distance (login, and after combat when the previous
 -- distance is not remembered); missing means 0.3, and nil means it is off
 -- (defaultZoom false).

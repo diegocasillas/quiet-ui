@@ -119,6 +119,54 @@ local function StartPath(target)
     end
 end
 
+-- Fishing spells: the ids below, or any spell with the same name as one of them (ranks).
+local FISHING_IDS = { [131474] = true, [131490] = true, [7620] = true, [7731] = true,
+    [7732] = true, [18248] = true, [33095] = true, [51294] = true, [88868] = true }
+local fishingNames
+
+local function SpellName(spellID)
+    if C_Spell and type(C_Spell.GetSpellName) == "function" then
+        local ok, name = pcall(C_Spell.GetSpellName, spellID)
+        if ok and type(name) == "string" and not ns.IsSecret(name) then return name end
+    end
+    if type(GetSpellInfo) == "function" then
+        local ok, name = pcall(GetSpellInfo, spellID)
+        if ok and type(name) == "string" and not ns.IsSecret(name) then return name end
+    end
+end
+
+local function IsFishing(spellID)
+    if type(spellID) ~= "number" or ns.IsSecret(spellID) then return false end
+    if FISHING_IDS[spellID] then return true end
+    if not fishingNames then
+        fishingNames = {}
+        for id in pairs(FISHING_IDS) do
+            local name = SpellName(id)
+            if name then fishingNames[name] = true end
+        end
+    end
+    local name = SpellName(spellID)
+    return name ~= nil and fishingNames[name] == true
+end
+
+-- Casting a line (a fishing channel) glides the camera in to the fishing distance. It
+-- never pulls the camera out, and nothing brings it back: the camera stays there.
+function ns.ZoomInForFishing(spellID)
+    if not ns.DB().enabled or current ~= "action" or not ns.FishingZoom() then return end
+    if not IsFishing(spellID) then return end
+    local now = ZoomNow()
+    if type(CameraZoomIn) ~= "function" or not now then
+        ns.Report("camera", "zoom is missing")
+        return
+    end
+    local factor = type(GetCVar) == "function" and tonumber(GetCVar("cameraDistanceMaxZoomFactor")) or 1
+    local target = ZOOM_BASE * factor * ns.FishingZoomShare()
+    if now <= target then return end
+    -- A return after combat that is still pending is dropped: the camera stays here.
+    zoomBefore = nil
+    StartPath(target)
+end
+
 -- Distance for the default share of the zoom limit; nil while it is off.
 local function DefaultDistance()
     local share = ns.DefaultZoomShare()
