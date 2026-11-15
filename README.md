@@ -29,7 +29,7 @@ what stays visible, with personal settings or shared presets across characters.
   the normal camera. **Toggle camera distance** glides between your default and
   combat distances. **Zoom out to 100%** goes to the zoom limit. Casting a fishing
   line zooms the camera in (5 % of the zoom limit by default); 2.5 seconds after the
-  line stops it goes back to the default distance, unless you cast again.
+  line stops it goes back to the distance it had, unless you cast again.
 
 ![Puro Cine in combat](docs/images/img003.png)
 

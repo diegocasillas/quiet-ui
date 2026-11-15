@@ -273,12 +273,12 @@ local function FollowPath(move, elapsed, zoom)
     end
 end
 
--- Back to the default distance, or to where the camera was when the default is off.
+-- Back to the distance the camera had before the fishing zoom.
 local function ReturnFromFishing()
     local before = fishingBefore
     fishingWait, fishingBefore = nil, nil
     if not before or not ns.DB().enabled or current ~= "action" or not ZoomNow() then return end
-    StartPath(DefaultDistance() or before)
+    StartPath(before)
 end
 
 function ns.UpdateCameraZoom(elapsed)

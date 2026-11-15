@@ -140,7 +140,7 @@ test('Casting a line glides the camera in to the fishing distance and leaves it 
     assert(#calls == 0, 'Fishing zoomed with the setting off')
 end)
 
-test('The camera goes back to the default distance 2.5 seconds after the line stops', function()
+test('The camera goes back to the previous distance 2.5 seconds after the line stops', function()
     local ns = boot(true)
     local zoom, calls = 10, {}
     GetCVar = function() return '1' end
