@@ -56,6 +56,14 @@ local function Paint()
         if row.edit:GetText() ~= Setup.draft.combatZoomPercent then row.edit:SetText(Setup.draft.combatZoomPercent) end
         if Setup.draft.combatZoom then row:Show() else row.edit:ClearFocus(); row:Hide() end
     end
+    if Setup.frame.fishingZoom then
+        Setup.PaintBox(Setup.frame.fishingZoom.box, Setup.draft.fishingZoom)
+    end
+    if Setup.frame.fishingZoomPercent then
+        local row = Setup.frame.fishingZoomPercent
+        if row.edit:GetText() ~= Setup.draft.fishingZoomPercent then row.edit:SetText(Setup.draft.fishingZoomPercent) end
+        if Setup.draft.fishingZoom then row:Show() else row.edit:ClearFocus(); row:Hide() end
+    end
     if Setup.frame.testZoomPercent then
         local row = Setup.frame.testZoomPercent
         local text = Setup.draft.testZoomPercent or ""

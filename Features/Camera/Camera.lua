@@ -89,6 +89,7 @@ end
 -- Entering combat pulls the camera out to the player's zoom limit; leaving
 -- it brings the camera back to the distance it had.
 function ns.ZoomOutForCombat()
+    fishingWait, fishingBefore = nil, nil
     if not ns.DB().enabled or current ~= "action" or not ns.CombatZoom() then return end
     if type(CameraZoomOut) ~= "function" or not ZoomNow() then
         ns.Report("camera", "zoom is missing")
@@ -117,6 +118,68 @@ local function StartPath(target)
         move.from = move.last
         move.time = math.min(PATH_MAX, PATH_TIME + PATH_PER_YARD * math.abs(target - move.last))
     end
+end
+
+-- Fishing spells: the ids below, or any spell with the same name as one of them (ranks).
+local FISHING_IDS = { [131474] = true, [131490] = true, [7620] = true, [7731] = true,
+    [7732] = true, [18248] = true, [33095] = true, [51294] = true, [88868] = true }
+local fishingNames
+
+local function SpellName(spellID)
+    if C_Spell and type(C_Spell.GetSpellName) == "function" then
+        local ok, name = pcall(C_Spell.GetSpellName, spellID)
+        if ok and type(name) == "string" and not ns.IsSecret(name) then return name end
+    end
+    if type(GetSpellInfo) == "function" then
+        local ok, name = pcall(GetSpellInfo, spellID)
+        if ok and type(name) == "string" and not ns.IsSecret(name) then return name end
+    end
+end
+
+local function IsFishing(spellID)
+    if type(spellID) ~= "number" or ns.IsSecret(spellID) then return false end
+    if FISHING_IDS[spellID] then return true end
+    if not fishingNames then
+        fishingNames = {}
+        for id in pairs(FISHING_IDS) do
+            local name = SpellName(id)
+            if name then fishingNames[name] = true end
+        end
+    end
+    local name = SpellName(spellID)
+    return name ~= nil and fishingNames[name] == true
+end
+
+-- Seconds after the line stops before the camera goes back.
+local FISHING_RETURN = 2.5
+-- The distance before the fishing zoom (nil outside fishing) and the seconds left
+-- before the return (nil while no wait runs).
+local fishingBefore, fishingWait
+
+-- Casting a line (a fishing channel) glides the camera in to the fishing distance. It
+-- never pulls the camera out. Casting again before the return cancels it.
+function ns.ZoomInForFishing(spellID)
+    if not ns.DB().enabled or current ~= "action" or not ns.FishingZoom() then return end
+    if not IsFishing(spellID) then return end
+    fishingWait = nil
+    local now = ZoomNow()
+    if type(CameraZoomIn) ~= "function" or not now then
+        ns.Report("camera", "zoom is missing")
+        return
+    end
+    local factor = type(GetCVar) == "function" and tonumber(GetCVar("cameraDistanceMaxZoomFactor")) or 1
+    local target = ZOOM_BASE * factor * ns.FishingZoomShare()
+    if now <= target then return end
+    -- A return after combat that is still pending is dropped: fishing sets the distance.
+    zoomBefore = nil
+    fishingBefore = fishingBefore or now
+    StartPath(target)
+end
+
+-- The line stops (reeled in, looted or interrupted): after a few seconds the camera goes back.
+function ns.NoteFishingStop(spellID)
+    if not fishingBefore or not IsFishing(spellID) then return end
+    fishingWait = FISHING_RETURN
 end
 
 -- Distance for the default share of the zoom limit; nil while it is off.
@@ -210,7 +273,19 @@ local function FollowPath(move, elapsed, zoom)
     end
 end
 
+-- Back to the distance the camera had before the fishing zoom.
+local function ReturnFromFishing()
+    local before = fishingBefore
+    fishingWait, fishingBefore = nil, nil
+    if not before or not ns.DB().enabled or current ~= "action" or not ZoomNow() then return end
+    StartPath(before)
+end
+
 function ns.UpdateCameraZoom(elapsed)
+    if fishingWait then
+        fishingWait = fishingWait - elapsed
+        if fishingWait <= 0 then ReturnFromFishing() end
+    end
     local move = zoomMove
     if not move then return end
     local zoom = ZoomNow()

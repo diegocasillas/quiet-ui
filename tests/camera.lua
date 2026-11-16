@@ -103,6 +103,75 @@ test('The distance key glides to the other of the two distances', function()
     assert(#calls == 0, 'The key moved the camera while Puro Cine is off')
 end)
 
+test('Casting a line glides the camera in to the fishing distance and leaves it there', function()
+    local ns = boot(true)
+    local zoom, calls = 10, {}
+    GetCVar = function() return '1' end
+    GetCameraZoom = function() return zoom end
+    CameraZoomIn = function() calls[#calls + 1] = 'in' end
+    CameraZoomOut = function() calls[#calls + 1] = 'out' end
+    ns.FishingZoom = function() return true end
+    ns.FishingZoomShare = function() return 0.05 end
+    ns.IsSecret = function() return false end
+    local function run() for _ = 1, 40 do ns.UpdateCameraZoom(0.1) end end
+    -- Normal camera: nothing.
+    ns.ZoomInForFishing(131474)
+    run()
+    assert(#calls == 0, 'Fishing zoomed in the normal camera')
+    ns.SetCameraMode('action')
+    -- Not a fishing spell: nothing.
+    ns.ZoomInForFishing(12345)
+    run()
+    assert(#calls == 0, 'A spell that is not fishing zoomed the camera')
+    -- Fishing: in, toward 1.5 yards (5 % of 15).
+    ns.ZoomInForFishing(131474)
+    run()
+    assert(calls[1] == 'in', 'Casting a line did not zoom in')
+    -- Already nearer than the fishing distance: never pulled out.
+    zoom, calls = 1, {}
+    ns.ZoomInForFishing(131474)
+    run()
+    assert(#calls == 0, 'Fishing pulled the camera out')
+    -- Off in the setup: nothing.
+    zoom, calls = 10, {}
+    ns.FishingZoom = function() return false end
+    ns.ZoomInForFishing(131474)
+    run()
+    assert(#calls == 0, 'Fishing zoomed with the setting off')
+end)
+
+test('The camera goes back to the previous distance 2.5 seconds after the line stops', function()
+    local ns = boot(true)
+    local zoom, calls = 10, {}
+    GetCVar = function() return '1' end
+    GetCameraZoom = function() return zoom end
+    CameraZoomIn = function() calls[#calls + 1] = 'in' end
+    CameraZoomOut = function() calls[#calls + 1] = 'out' end
+    ns.FishingZoom = function() return true end
+    ns.FishingZoomShare = function() return 0.05 end
+    ns.DefaultZoomShare = function() return 0.3 end
+    ns.IsSecret = function() return false end
+    ns.SetCameraMode('action')
+    ns.ZoomInForFishing(131474)
+    for _ = 1, 40 do ns.UpdateCameraZoom(0.1) end
+    zoom, calls = 1.5, {}
+    ns.NoteFishingStop(131474)
+    for _ = 1, 20 do ns.UpdateCameraZoom(0.1) end
+    assert(#calls == 0, 'The camera moved before the 2.5 seconds were up')
+    for _ = 1, 10 do ns.UpdateCameraZoom(0.1) end
+    assert(calls[1] == 'out', 'The camera did not go back after 2.5 seconds')
+    -- Fishing again inside the 2.5 seconds cancels the return.
+    zoom, calls = 10, {}
+    ns.ZoomInForFishing(131474)
+    for _ = 1, 40 do ns.UpdateCameraZoom(0.1) end
+    zoom, calls = 1.5, {}
+    ns.NoteFishingStop(131474)
+    for _ = 1, 20 do ns.UpdateCameraZoom(0.1) end
+    ns.ZoomInForFishing(131474)
+    for _ = 1, 100 do ns.UpdateCameraZoom(0.1) end
+    assert(#calls == 0, 'The camera moved although the line was cast again in time')
+end)
+
 test('The full zoom key glides out to the limit', function()
     local ns = boot(true)
     local zoom, calls = 6, {}

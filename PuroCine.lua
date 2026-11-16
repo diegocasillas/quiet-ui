@@ -223,6 +223,11 @@ end
 
 function handlers.UNIT_SPELLCAST_CHANNEL_START(_, _, spellID)
     PeekCasting(UnitChannelInfo, spellID)
+    ns.ZoomInForFishing(spellID)
+end
+
+function handlers.UNIT_SPELLCAST_CHANNEL_STOP(_, _, spellID)
+    ns.NoteFishingStop(spellID)
 end
 
 function handlers.QUEST_TURNED_IN(_, xp)
@@ -398,7 +403,7 @@ end)
 
 -- Only the player's own casts; the unfiltered event fires for every unit nearby.
 local UNIT_EVENTS = { UNIT_SPELLCAST_SUCCEEDED = "player", UNIT_SPELLCAST_START = "player",
-    UNIT_SPELLCAST_CHANNEL_START = "player" }
+    UNIT_SPELLCAST_CHANNEL_START = "player", UNIT_SPELLCAST_CHANNEL_STOP = "player" }
 for eventName in pairs(handlers) do
     if UNIT_EVENTS[eventName] then
         pcall(events.RegisterUnitEvent, events, eventName, UNIT_EVENTS[eventName])
