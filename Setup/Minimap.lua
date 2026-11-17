@@ -91,7 +91,7 @@ local function CreateMinimap()
     button:SetScript("OnEnter", function(self)
         if not GameTooltip then return end
         GameTooltip:SetOwner(self, "ANCHOR_LEFT")
-        GameTooltip:SetText("Puro Cine", 1, 1, 1)
+        GameTooltip:SetText("Puro Cine", 1, 0.82, 0)
         GameTooltip:AddLine("Left click: open setup", 0.85, 0.85, 0.85)
         GameTooltip:AddLine("Drag: move", 0.6, 0.6, 0.6)
         GameTooltip:Show()
