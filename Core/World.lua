@@ -40,6 +40,7 @@ local world = {
     dead = false,
     eating = false,
     peekUntil = 0,
+    hurtUntil = 0,
 }
 Bars.world = world
 
@@ -118,6 +119,31 @@ if type(CreateFrame) == "function" then
             if world.combat or not ns.DB().enabled then return end
             ns.RefreshEating()
             NoteNewBuffs(updateInfo)
+        end)
+    end
+end
+
+-- Damage taken outside combat (falling, drowning, fire and the like, which do not start a
+-- fight) shows the player frame briefly. The client hides the player's health as a secret
+-- value, so it cannot be compared; UNIT_COMBAT names the kind of hit instead. A secret
+-- kind cannot be told from a heal and is skipped.
+local HURT_TIME = 5
+
+function ns.NoteHit(kind)
+    if type(kind) ~= "string" or ns.IsSecret(kind) or kind ~= "WOUND" then return end
+    world.hurtUntil = GetTime() + HURT_TIME
+end
+
+function ns.DamagePeek()
+    return world.hurtUntil > 0 and GetTime() < world.hurtUntil
+end
+
+if type(CreateFrame) == "function" then
+    local hitEvents = CreateFrame("Frame")
+    if pcall(hitEvents.RegisterUnitEvent, hitEvents, "UNIT_COMBAT", "player") then
+        hitEvents:SetScript("OnEvent", function(_, _, _, kind)
+            if world.combat or not ns.DB().enabled then return end
+            ns.NoteHit(kind)
         end)
     end
 end
