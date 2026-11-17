@@ -3,7 +3,8 @@ local Setup = ns.Setup or {}
 ns.Setup = Setup
 
 ------------------------------------------------------------------------------
--- Minimap button. Unnamed, parented to Minimap, so the fade walk never sees it.
+-- Minimap button, parented to Minimap, so the fade walk never sees it. Its name starts with
+-- LibDBIcon10_ so button trays (MinimapButtonButton and the like) recognise and collect it.
 ------------------------------------------------------------------------------
 
 local function MinimapDegrees()
@@ -48,7 +49,7 @@ local function ApplyIcon(icon)
 end
 
 local function CreateMinimap()
-    local button = CreateFrame("Button", "PuroCine", Minimap)
+    local button = CreateFrame("Button", "LibDBIcon10_PuroCine", Minimap)
     button:SetSize(31, 31)
     local level = Minimap:GetFrameLevel()
     button:SetFrameLevel((type(level) == "number" and level or 0) + 8)
@@ -90,7 +91,7 @@ local function CreateMinimap()
     button:SetScript("OnEnter", function(self)
         if not GameTooltip then return end
         GameTooltip:SetOwner(self, "ANCHOR_LEFT")
-        GameTooltip:SetText("Puro Cine", 1, 1, 1)
+        GameTooltip:SetText("Puro Cine", 1, 0.82, 0)
         GameTooltip:AddLine("Left click: open setup", 0.85, 0.85, 0.85)
         GameTooltip:AddLine("Drag: move", 0.6, 0.6, 0.6)
         GameTooltip:Show()
