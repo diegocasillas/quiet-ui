@@ -124,24 +124,14 @@ if type(CreateFrame) == "function" then
 end
 
 -- Damage taken outside combat (falling, drowning, fire and the like, which do not start a
--- fight) shows the player frame briefly. Health is compared between updates; a secret
--- value cannot be compared and is skipped, and a change of the maximum is not damage.
+-- fight) shows the player frame briefly. The client hides the player's health as a secret
+-- value, so it cannot be compared; UNIT_COMBAT names the kind of hit instead. A secret
+-- kind cannot be told from a heal and is skipped.
 local HURT_TIME = 5
-local lastHealth, lastMax
 
-function ns.NoteHealth()
-    if type(UnitHealth) ~= "function" or type(UnitHealthMax) ~= "function" then return end
-    local okH, health = pcall(UnitHealth, "player")
-    local okM, max = pcall(UnitHealthMax, "player")
-    if not okH or not okM or type(health) ~= "number" or type(max) ~= "number"
-        or ns.IsSecret(health) or ns.IsSecret(max) then
-        lastHealth, lastMax = nil, nil
-        return
-    end
-    if lastHealth and lastMax == max and health < lastHealth and health > 0 then
-        world.hurtUntil = GetTime() + HURT_TIME
-    end
-    lastHealth, lastMax = health, max
+function ns.NoteHit(kind)
+    if type(kind) ~= "string" or ns.IsSecret(kind) or kind ~= "WOUND" then return end
+    world.hurtUntil = GetTime() + HURT_TIME
 end
 
 function ns.DamagePeek()
@@ -149,14 +139,11 @@ function ns.DamagePeek()
 end
 
 if type(CreateFrame) == "function" then
-    local healthEvents = CreateFrame("Frame")
-    if pcall(healthEvents.RegisterUnitEvent, healthEvents, "UNIT_HEALTH", "player") then
-        healthEvents:SetScript("OnEvent", function()
-            if world.combat or not ns.DB().enabled then
-                lastHealth, lastMax = nil, nil
-                return
-            end
-            ns.NoteHealth()
+    local hitEvents = CreateFrame("Frame")
+    if pcall(hitEvents.RegisterUnitEvent, hitEvents, "UNIT_COMBAT", "player") then
+        hitEvents:SetScript("OnEvent", function(_, _, _, kind)
+            if world.combat or not ns.DB().enabled then return end
+            ns.NoteHit(kind)
         end)
     end
 end
