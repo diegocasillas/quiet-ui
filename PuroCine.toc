@@ -1,5 +1,5 @@
 ## Interface: 16001
-## Title: Puro Cine
+## Title: |cffffd100Puro Cine|r
 ## Notes: Puro Cine for WoW Forever. Bars, XP, meter and cooldowns show on hover, in combat and in instances. One button for bags. Chat without chrome. /purocine setup chooses what stays visible.
 ## Author: Puro Cine
 ## Category: UI
