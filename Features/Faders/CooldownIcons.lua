@@ -15,13 +15,20 @@ ns.Faders = Faders
 -- own IsSpellUsable, so conditional spells need no class list.
 -- Secret values (a fight hides most of them) are never read; the next source is used.
 -- Nothing here is class specific: spells are matched by name, as the icons show them.
+--
+-- The icons are read when the game reports a change (a cooldown, usability, target, form or
+-- equipment event, at most every MIN_GAP), when a cooldown estimated to end is about to,
+-- and at least every SAFETY seconds for what no event covers. All of it runs on GetTime():
+-- UpdateFaders hands over one frame's elapsed time, which is not the time between calls.
 
 local VIEWERS = { "EssentialCooldownViewer", "UtilityCooldownViewer" }
 local GLOBAL_COOLDOWN = 1.51   -- a cooldown this short is the global cooldown, not the spell's
 local READY_MARGIN = 0.2       -- this close to ready counts as ready
 local CAST_GRACE = 1           -- after a cast the client may not show the cooldown yet
 local STILL_RUNNING = 1        -- the icon says "on cooldown" but gives no time
-local SCAN_EVERY = 0.1
+local MIN_GAP = 0.1            -- events never scan more often than this
+local SAFETY = 0.5             -- a scan with no event, for what the events do not report
+local SPELL_TTL = 5            -- an icon's spell is read again after this (an override can change)
 local LAST_EQUIPPED_SLOT = 19
 
 local endsAt = {}        -- spell name -> GetTime() the cooldown is estimated to end
@@ -31,7 +38,11 @@ local names = {}         -- spell id -> name
 local useItems = {}      -- spell id -> equipped item id that casts it, or false
 local targets = {}       -- icon -> true (ready, show) / false (on cooldown, hide)
 local held = {}          -- icons whose alpha we hold
-local scanAcc = SCAN_EVERY
+local spellOf = {}        -- cooldownID -> spell id, or false when the icon names none
+local spellOfAt = {}      -- cooldownID -> GetTime() it was read
+local dirty = true         -- an event says something may have changed
+local lastScan = -math.huge
+local wakeAt               -- GetTime() the nearest estimated cooldown is about to end
 
 local function Readable(value)
     if value == nil or ns.IsSecret(value) then return false end
@@ -164,16 +175,24 @@ local function Remaining(spellId, name, icon, now)
     return ends - now
 end
 
--- The spell an icon draws (an override, like a stance or talent swap, wins).
-local function IconSpell(icon)
+-- The spell an icon draws (an override, like a stance or talent swap, wins). The answer
+-- is kept per cooldownID: the game builds a new table for every read.
+local function IconSpell(icon, now)
     local id = icon.cooldownID
     if not Readable(id) then return nil end
-    if not (C_CooldownViewer and C_CooldownViewer.GetCooldownViewerCooldownInfo) then return nil end
-    local ok, info = pcall(C_CooldownViewer.GetCooldownViewerCooldownInfo, id)
-    if not ok or type(info) ~= "table" then return nil end
-    local spell = info.overrideSpellID
-    if not Readable(spell) or spell == 0 then spell = info.spellID end
-    return Readable(spell) and spell or nil
+    local at = spellOfAt[id]
+    if at and now - at < SPELL_TTL then return spellOf[id] or nil end
+    local spell
+    if C_CooldownViewer and C_CooldownViewer.GetCooldownViewerCooldownInfo then
+        local ok, info = pcall(C_CooldownViewer.GetCooldownViewerCooldownInfo, id)
+        if ok and type(info) == "table" then
+            spell = info.overrideSpellID
+            if not Readable(spell) or spell == 0 then spell = info.spellID end
+            if not Readable(spell) then spell = nil end
+        end
+    end
+    spellOf[id], spellOfAt[id] = spell or false, now
+    return spell
 end
 
 -- True when the game says the spell cannot be used now for a reason other than a
@@ -187,23 +206,32 @@ local function Unusable(spellId)
     return not (Readable(noPower) and noPower)
 end
 
+local nextWake   -- the earliest wake of this scan
+
 local function Evaluate(icon, now)
-    local spellId = IconSpell(icon)
+    local spellId = IconSpell(icon, now)
     local name = spellId and SpellName(spellId)
     -- Unknown spell: leave the icon alone.
     if not name then
         targets[icon] = true
         return
     end
-    local ready = Remaining(spellId, name, icon, now) <= READY_MARGIN
+    local remaining = Remaining(spellId, name, icon, now)
+    local ready = remaining <= READY_MARGIN
+    -- A cooldown with a known end is looked at again as it gets ready.
+    local ends = endsAt[name]
+    if not ready and ends then
+        local wake = math.max(ends - READY_MARGIN, now + 0.05)
+        if not nextWake or wake < nextWake then nextWake = wake end
+    end
     -- A trinket's spell says nothing about the item, so items skip the check.
     if ready and not UseItem(spellId) and Unusable(spellId) then ready = false end
     targets[icon] = ready
 end
 
 local seen = {}
-local function Scan()
-    local now = GetTime()
+local function Scan(now)
+    nextWake = nil
     for icon in pairs(seen) do seen[icon] = nil end
     for _, name in ipairs(VIEWERS) do
         local viewer = _G[name]
@@ -229,6 +257,7 @@ local function Scan()
             end
         end
     end
+    wakeAt = nextWake
 end
 
 function Faders.RestoreCooldownIcons()
@@ -237,7 +266,7 @@ function Faders.RestoreCooldownIcons()
         held[icon] = nil
     end
     for icon in pairs(targets) do targets[icon] = nil end
-    scanAcc = SCAN_EVERY
+    lastScan, wakeAt, dirty = -math.huge, nil, true
 end
 
 function Faders.UpdateCooldownIcons(elapsed)
@@ -247,10 +276,11 @@ function Faders.UpdateCooldownIcons(elapsed)
     end
     -- Edit Mode and Glance show every icon, ready or not.
     local all = ns.InEditMode() or ns.Glancing()
-    scanAcc = scanAcc + (elapsed or 0)
-    if scanAcc >= SCAN_EVERY then
-        scanAcc = 0
-        Scan()
+    local now = GetTime()
+    local since = now - lastScan
+    if (dirty and since >= MIN_GAP) or since >= SAFETY or (wakeAt and now >= wakeAt) then
+        dirty, lastScan = false, now
+        Scan(now)
     end
     for icon, ready in pairs(targets) do
         if ns.Usable(icon) then
@@ -264,29 +294,33 @@ function Faders.UpdateCooldownIcons(elapsed)
     end
 end
 
--- The player's own casts start the fallback timer. The spell id can be secret in a
--- fight; the cast is then unknown and the other two sources carry on.
+-- Events mark the icons for a new read. The player's own casts also start the fallback
+-- timer; the spell id can be secret in a fight, the cast is then unknown and the other
+-- two sources carry on. A form, spell or talent change can swap the spell an icon draws.
 if type(CreateFrame) == "function" then
     local events = CreateFrame("Frame")
-    local ok = pcall(events.RegisterUnitEvent, events, "UNIT_SPELLCAST_SUCCEEDED", "player")
-    pcall(events.RegisterEvent, events, "PLAYER_EQUIPMENT_CHANGED")
-    pcall(events.RegisterEvent, events, "UPDATE_SHAPESHIFT_FORM")
-    if ok then
-        events:SetScript("OnEvent", function(_, event, _, _, spellId)
-            if event == "PLAYER_EQUIPMENT_CHANGED" then
-                for id in pairs(useItems) do useItems[id] = nil end
-                return
-            end
-            if event == "UPDATE_SHAPESHIFT_FORM" then
-                for name in pairs(knownLength) do knownLength[name] = nil end
-                return
-            end
+    pcall(events.RegisterUnitEvent, events, "UNIT_SPELLCAST_SUCCEEDED", "player")
+    for _, event in ipairs({ "SPELL_UPDATE_COOLDOWN", "SPELL_UPDATE_USABLE", "ACTIONBAR_UPDATE_COOLDOWN",
+        "ACTIONBAR_UPDATE_USABLE", "PLAYER_TARGET_CHANGED", "PLAYER_EQUIPMENT_CHANGED",
+        "UPDATE_SHAPESHIFT_FORM", "SPELLS_CHANGED", "PLAYER_TALENT_UPDATE" }) do
+        pcall(events.RegisterEvent, events, event)
+    end
+    events:SetScript("OnEvent", function(_, event, _, _, spellId)
+        dirty = true
+        if event == "PLAYER_EQUIPMENT_CHANGED" then
+            for id in pairs(useItems) do useItems[id] = nil end
+        elseif event == "UPDATE_SHAPESHIFT_FORM" then
+            for name in pairs(knownLength) do knownLength[name] = nil end
+            for id in pairs(spellOfAt) do spellOfAt[id] = nil end
+        elseif event == "SPELLS_CHANGED" or event == "PLAYER_TALENT_UPDATE" then
+            for id in pairs(spellOfAt) do spellOfAt[id] = nil end
+        elseif event == "UNIT_SPELLCAST_SUCCEEDED" then
             local name = SpellName(spellId)
             if not name then return end
             local now = GetTime()
             castAt[name] = now
             local seconds = math.max(BaseCooldown(spellId), knownLength[name] or 0)
             if seconds > GLOBAL_COOLDOWN then endsAt[name] = now + seconds end
-        end)
-    end
+        end
+    end)
 end
