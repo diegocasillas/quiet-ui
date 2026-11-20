@@ -77,6 +77,11 @@ local function BindBubbles(frame)
         end)
     end
     Chat.EnsureCatcher(frame)
+    if frame.HookScript and not frame._puroCineWakeHook then
+        frame._puroCineWakeHook = true
+        frame:HookScript("OnShow", function() Chat.Wake() end)
+        frame:HookScript("OnHide", function() Chat.Wake() end)
+    end
     if frame.EnableMouseWheel then frame:EnableMouseWheel(true) end
     if frame.HookScript and not frame._puroCineWheel then
         frame._puroCineWheel = true
@@ -100,12 +105,74 @@ local function EaseEdit(edit, elapsed)
     end
 end
 
+-- Hover is read again only after the pointer moves (or every 0.1 s, for frames moving under it).
+-- Chat reads the cursor itself, so the answer does not depend on the order of the frame phases.
+function Chat.PointerStill()
+    local state = Chat.state
+    if type(GetCursorPosition) ~= "function" then
+        state.pointerStill = false
+        return false
+    end
+    local x, y = GetCursorPosition()
+    state.pointerStill = x == state.pointerX and y == state.pointerY
+    state.pointerX, state.pointerY = x, y
+    return state.pointerStill
+end
+
+-- A still pointer with nothing easing runs a full pass every CALM_FOR seconds (the periodic hover
+-- and catcher reads). A dirty window, a due bubble, a tab starting to flash, a window shown or
+-- hidden, or an input box changing focus runs one at once.
+local CALM_FOR = 0.1
+
+-- The shown windows and tabs, kept by each full pass. Fields on Blizzard frames are slow to read
+-- on this client, so the calm check reads these few instead of every window.
+local live, liveTabs = {}, {}
+
+local function Easing(obj, want)
+    return obj ~= nil and (obj._puroCineSecret ~= nil or obj._puroCineAlpha ~= want)
+end
+
+-- True when a full pass is needed now.
+local function Pending(now)
+    for i = 1, #live do
+        local frame = live[i]
+        if frame._puroCineDirty then return true end
+        local wake = frame._puroCineNext
+        if wake == 0 or (type(wake) == "number" and wake > 0 and now >= wake) then return true end
+    end
+    for i = 1, #liveTabs do
+        local tab = liveTabs[i]
+        if (tab.alerting and true or false) ~= (tab._puroCineAlerting or false) then return true end
+    end
+    return false
+end
+
+-- After a full pass: pending, or an input box still easing.
+local function Busy(now)
+    if Pending(now) then return true end
+    for i = 1, Chat.ChatCount() do
+        local edit = Chat.Window(i, "EditBox")
+        local want = edit and edit._puroCineWant
+        if want ~= nil and (Easing(edit, want) or Easing(edit._puroCineHeader, want) or Easing(edit._puroCinePlate, want)) then
+            return true
+        end
+    end
+    return false
+end
+
 function ns.UpdateChat(elapsed)
     if not ns.DB().enabled or not ns.ModernChat() then return end
     local now = GetTime()
+    local still = Chat.PointerStill()
+    local state = Chat.state
+    if still and state.calmUntil and now < state.calmUntil and not Pending(now) then return end
+    ns.Wipe(live)
+    ns.Wipe(liveTabs)
     for i = 1, Chat.ChatCount() do
-        EaseEdit(_G["ChatFrame" .. i .. "EditBox"], elapsed)
-        local frame = _G["ChatFrame" .. i]
+        EaseEdit(Chat.Window(i, "EditBox"), elapsed)
+        local tab = Chat.Window(i, "Tab")
+        if tab and ns.Usable(tab) and tab:IsShown() then liveTabs[#liveTabs + 1] = tab end
+        local frame = Chat.Window(i)
         if frame and frame._puroCineBubbles then
             if not ns.Usable(frame) or not frame.IsShown or not frame:IsShown() then
                 if frame._puroCineShown ~= false then
@@ -116,6 +183,7 @@ function ns.UpdateChat(elapsed)
                     frame._puroCineNativeAt = nil
                 end
             else
+                live[#live + 1] = frame
                 if frame._puroCineShown == false then
                     frame._puroCineDirty = true
                     -- A tab that was hidden has its lines built when it shows, with no
@@ -132,10 +200,14 @@ function ns.UpdateChat(elapsed)
                     Chat.PlaceCatcher(frame)
                     frame._puroCineCatcherAt = now + 0.1
                 end
-                local hot = Chat.FrameHot(frame) or Chat.TabRowHot(frame, i)
-                if hot ~= frame._puroCineHover then
-                    frame._puroCineHover = hot
-                    frame._puroCineDirty = true
+                -- A still pointer keeps the hover; it is checked again at most every 0.1 s.
+                if not still or frame._puroCineDirty or not frame._puroCineHoverAt or now >= frame._puroCineHoverAt then
+                    frame._puroCineHoverAt = now + 0.1
+                    local hot = Chat.FrameHot(frame) or Chat.TabRowHot(frame, i)
+                    if hot ~= frame._puroCineHover then
+                        frame._puroCineHover = hot
+                        frame._puroCineDirty = true
+                    end
                 end
                 local wake = frame._puroCineNext
                 if frame._puroCineDirty or wake == 0 or (type(wake) == "number" and wake > 0 and now >= wake) then
@@ -144,10 +216,12 @@ function ns.UpdateChat(elapsed)
             end
         end
     end
-    Chat.FadeTabs(elapsed)
+    local tabsEasing = Chat.FadeTabs(elapsed)
+    state.calmUntil = not tabsEasing and not Busy(now) and now + CALM_FOR or nil
 end
 
 function ns.RestoreChat()
+    Chat.Wake()
     Chat.RestoreTabs()
     Chat.HideCopyBox()
     Chat.RestoreEdits()
@@ -160,6 +234,7 @@ function ns.RestoreChat()
             frame._puroCineHover = false
             frame._puroCineCatcherAt = nil
             frame._puroCineNativeAt = nil
+            frame._puroCineHoverAt = nil
             frame._puroCineTextSig = nil
             if frame._puroCineCatcher then frame._puroCineCatcher:Hide() end
             Chat.HideActive(frame)

@@ -50,6 +50,7 @@ end
 function ns.StripAllChat(force)
     if Chat.stripping or not ns.DB().enabled or not ns.ModernChat() then return end
     Chat.stripping = true
+    Chat.Wake()
     ns.MarkingChat = true
     if force then Chat.chromeStripped = false end
     Chat.NoteTemporary()
@@ -86,6 +87,7 @@ function ns.RestripChat(frame)
     if Chat.stripping or not ns.Usable(frame) or not OwnChatFrame(frame) or not ns.DB().enabled
         or not ns.ModernChat() then return end
     Chat.stripping = true
+    Chat.Wake()
     ns.MarkingChat = true
     local ok, err = pcall(StripChat, frame)
     ns.MarkingChat = false

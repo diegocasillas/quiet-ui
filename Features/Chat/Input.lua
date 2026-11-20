@@ -222,7 +222,9 @@ local function SyncEdit(edit)
         return
     end
     local focused = edit._puroCineFocus or (edit.HasFocus and edit:HasFocus())
-    edit._puroCineWant = focused and 1 or 0
+    local want = focused and 1 or 0
+    if edit._puroCineWant ~= want then Chat.Wake() end
+    edit._puroCineWant = want
     HoldEditMouse(edit, focused)
     PadEdit(edit)
     HideEditChrome(edit)
@@ -267,7 +269,7 @@ Chat.BindEdit = BindEdit
 function ns.SyncVisibleEdits()
     if not ns.DB().enabled or not ns.ModernChat() then return end
     for i = 1, Chat.ChatCount() do
-        local edit = _G["ChatFrame" .. i .. "EditBox"]
+        local edit = Chat.Window(i, "EditBox")
         if edit and edit._puroCineEdit and edit:IsShown() then
             local focused = edit.HasFocus and edit:HasFocus() and true or false
             if focused then
