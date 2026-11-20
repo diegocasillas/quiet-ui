@@ -117,6 +117,7 @@ function ns.UpdateFaders(elapsed)
     end
     Faders.Run("xp bar", UpdateVisible, "xp", Faders.statusFrames, Faders.XPShouldShow(), false, ns.XPForced())
     Faders.Run("cooldown manager", UpdateVisible, "cooldowns", Faders.cooldownFrames, Faders.CooldownsShouldShow(), true)
+    Faders.Run("cooldown icons", Faders.UpdateCooldownIcons, elapsed)
     Faders.Run("damage meter", UpdateVisible, "meter", Faders.meterFrames, Faders.MeterShouldShow())
     Faders.Run("quest catcher", Faders.PlaceQuestCatcher)
     local questHot = Faders.questCatcher and ns.Hit(Faders.questCatcher)

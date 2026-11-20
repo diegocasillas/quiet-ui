@@ -94,6 +94,11 @@ function ns.AlwaysShowDebuffs()
     return (ns.Settings and ns.Settings() or ns.CharDB()).alwaysShowDebuffs ~= false
 end
 
+-- Missing means off. Only an explicit true makes the cooldown manager show ready cooldowns only.
+function ns.ReadyCooldownsOnly()
+    return (ns.Settings and ns.Settings() or ns.CharDB()).readyCooldownsOnly == true
+end
+
 -- Missing means off. Only an explicit true keeps the player frame up in a party.
 function ns.ShowPlayerFrameInParty()
     return (ns.Settings and ns.Settings() or ns.CharDB()).showPlayerFrameInParty == true
