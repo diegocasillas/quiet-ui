@@ -14,8 +14,29 @@ local function StartCPUProfile()
         ns.Print("CPU timing is not available on this client.")
         return
     end
-    cpuProfile = { started = GetTime(), sections = {}, frames = 0 }
+    cpuProfile = { started = GetTime(), sections = {}, parts = {}, frames = 0 }
     ns.Print("Measuring Puro Cine for 10 seconds. Keep playing in the same situation.")
+end
+
+local function ProfileRows(sections)
+    local rows = {}
+    for name, section in pairs(sections) do
+        rows[#rows + 1] = { name = name, ms = section.ms, calls = section.calls }
+    end
+    table.sort(rows, function(a, b) return a.ms > b.ms end)
+    return rows
+end
+
+local function PrintProfileRow(row, duration)
+    ns.Print(string.format("%s: %.3f ms/s, %.3f ms/call (%d calls).",
+        row.name, row.ms / duration, row.ms / row.calls, row.calls))
+end
+
+local function RecordCPU(sections, label, started)
+    local ms = math.max(0, debugprofilestop() - started)
+    local section = sections[label]
+    if not section then section = { ms = 0, calls = 0 }; sections[label] = section end
+    section.ms, section.calls = section.ms + ms, section.calls + 1
 end
 
 local function FinishCPUProfile()
@@ -23,17 +44,16 @@ local function FinishCPUProfile()
     cpuProfile.frames = cpuProfile.frames + 1
     local duration = GetTime() - cpuProfile.started
     if duration < 10 then return end
-    local rows = {}
-    for name, section in pairs(cpuProfile.sections) do
-        rows[#rows + 1] = { name = name, ms = section.ms, calls = section.calls }
-    end
-    table.sort(rows, function(a, b) return a.ms > b.ms end)
+    local rows = ProfileRows(cpuProfile.sections)
     ns.Print(string.format("CPU timing: %.1f seconds, %d frames, preset %s.", duration,
         cpuProfile.frames, ns.ActivePreset and ns.ActivePreset() and ns.ActivePreset().name or "<no preset>"))
     for i = 1, math.min(8, #rows) do
-        local row = rows[i]
-        ns.Print(string.format("%s: %.3f ms/s, %.3f ms/call (%d calls).",
-            row.name, row.ms / duration, row.ms / row.calls, row.calls))
+        PrintProfileRow(rows[i], duration)
+    end
+    -- The parts of faders and smooth are already counted in those two rows, so they
+    -- print after the top eight instead of taking their places.
+    for _, row in ipairs(ProfileRows(cpuProfile.parts)) do
+        PrintProfileRow(row, duration)
     end
     cpuProfile = nil
 end
@@ -42,14 +62,27 @@ local function Run(label, fn, ...)
     local profile = label and cpuProfile
     local started = profile and debugprofilestop()
     local ok, err = pcall(fn, ...)
-    if profile then
-        local ms = math.max(0, debugprofilestop() - started)
-        local section = profile.sections[label]
-        if not section then section = { ms = 0, calls = 0 }; profile.sections[label] = section end
-        section.ms, section.calls = section.ms + ms, section.calls + 1
-    end
+    if profile then RecordCPU(profile.sections, label, started) end
     if not ok then ns.Report(label or "fades", err) end
 end
+
+-- Times the parts inside one section ("smooth / player frame"). Handed to that section
+-- only while a profile runs; it reports a failing part the way Faders.Run does.
+local function PartRun(prefix)
+    return function(label, fn, ...)
+        local profile = cpuProfile
+        local started = profile and debugprofilestop()
+        local ok, err = pcall(fn, ...)
+        if profile then RecordCPU(profile.parts, prefix .. " / " .. label, started) end
+        if not ok then ns.Report(label, err) end
+    end
+end
+local fadersParts = PartRun("faders")
+local smoothParts = PartRun("smooth")
+
+-- Fades of 0.3 s stay smooth at 30 updates a second, for about half the cost of one per frame.
+local SMOOTH_STEP = 1 / 30
+local smoothAcc = 0
 
 local function UpdateFades(elapsed, rescan)
     if not ns.DB().enabled then return end
@@ -57,7 +90,7 @@ local function UpdateFades(elapsed, rescan)
     ns.BeginTick(rescan)
     local showAll = ns.ShowAll()
     Run("bar visibility", ns.UpdateBars, showAll, elapsed, rescan)
-    Run("faders", ns.UpdateFaders, elapsed)
+    Run("faders", ns.UpdateFaders, elapsed, cpuProfile and fadersParts or nil)
     Run("menu", ns.UpdateMenuButton, elapsed)
 end
 
@@ -67,6 +100,7 @@ local function RestoreAll()
     ns.RestoreCamera()
     ns.RestoreLetterbox()
     if ns.Faders and ns.Faders.RestoreIgnoredDebuffs then ns.Faders.RestoreIgnoredDebuffs() end
+    if ns.Faders and ns.Faders.RestoreCooldownIcons then ns.Faders.RestoreCooldownIcons() end
     if ns.Faders and ns.Faders.RestorePet then ns.Faders.RestorePet() end
     ns.HideQuestCatcher()
     ns.HideRangeMark()
@@ -370,7 +404,7 @@ events:SetScript("OnUpdate", function(_, elapsed)
     if slow then
         if not rescan and not wasHot then
             ns.NextFadeTick()
-            Run("faders", ns.UpdateFaders, elapsed)
+            Run("faders", ns.UpdateFaders, elapsed, cpuProfile and fadersParts or nil)
             Run("menu", ns.UpdateMenuButton, elapsed)
             if ns.FrameHot() then wasHot = true end
         end
@@ -383,7 +417,13 @@ events:SetScript("OnUpdate", function(_, elapsed)
     end
     -- Range changes while you walk, with no focus or cursor change, so it cannot wait for a rescan.
     Run("range", ns.UpdateRange, elapsed)
-    Run("smooth", ns.UpdateSmooth, elapsed)
+    -- A HUD change (combat, a quest reward...) still runs it on its own frame.
+    smoothAcc = smoothAcc + elapsed
+    if hud or smoothAcc >= SMOOTH_STEP then
+        local step = smoothAcc
+        smoothAcc = 0
+        Run("smooth", ns.UpdateSmooth, step, cpuProfile and smoothParts or nil)
+    end
     Run("camera zoom", ns.UpdateCameraZoom, elapsed)
     chromeAcc = chromeAcc + elapsed
     if chromeAcc < 1 then return end

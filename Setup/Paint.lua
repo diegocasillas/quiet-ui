@@ -39,6 +39,9 @@ local function Paint()
     if Setup.frame.alwaysShowDebuffs then
         Setup.PaintBox(Setup.frame.alwaysShowDebuffs.box, Setup.draft.alwaysShowDebuffs)
     end
+    if Setup.frame.readyCooldownsOnly then
+        Setup.PaintBox(Setup.frame.readyCooldownsOnly.box, Setup.draft.readyCooldownsOnly)
+    end
     if Setup.frame.showPlayerFrameInParty then
         Setup.PaintBox(Setup.frame.showPlayerFrameInParty.box, Setup.draft.showPlayerFrameInParty)
     end

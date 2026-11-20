@@ -105,7 +105,8 @@ local function Under(frame, ancestor)
 end
 Faders.Under = Under
 
-function ns.UpdateFaders(elapsed)
+function ns.UpdateFaders(elapsed, profile)
+    local run = profile or Faders.Run
     local glance = ns.Glancing()
     local function UpdateVisible(name, frames, usual, noHover, exception)
         local hovered = HoverFrames(name, frames)
@@ -115,10 +116,11 @@ function ns.UpdateFaders(elapsed)
             UpdateGroup(frames, usual or ns.Pinned(name) or glance, elapsed, noHover)
         end
     end
-    Faders.Run("xp bar", UpdateVisible, "xp", Faders.statusFrames, Faders.XPShouldShow(), false, ns.XPForced())
-    Faders.Run("cooldown manager", UpdateVisible, "cooldowns", Faders.cooldownFrames, Faders.CooldownsShouldShow(), true)
-    Faders.Run("damage meter", UpdateVisible, "meter", Faders.meterFrames, Faders.MeterShouldShow())
-    Faders.Run("quest catcher", Faders.PlaceQuestCatcher)
+    run("xp bar", UpdateVisible, "xp", Faders.statusFrames, Faders.XPShouldShow(), false, ns.XPForced())
+    run("cooldown manager", UpdateVisible, "cooldowns", Faders.cooldownFrames, Faders.CooldownsShouldShow(), true)
+    run("cooldown icons", Faders.UpdateCooldownIcons, elapsed)
+    run("damage meter", UpdateVisible, "meter", Faders.meterFrames, Faders.MeterShouldShow())
+    run("quest catcher", Faders.PlaceQuestCatcher)
     local questHot = Faders.questCatcher and ns.Hit(Faders.questCatcher)
-    Faders.Run("quest tracker", UpdateGroup, Faders.questFrames, ns.VisibilityShow("quests", false, questHot), elapsed)
+    run("quest tracker", UpdateGroup, Faders.questFrames, ns.VisibilityShow("quests", false, questHot), elapsed)
 end

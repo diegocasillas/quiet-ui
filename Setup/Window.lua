@@ -503,6 +503,11 @@ local function CreateSetup()
         Setup.Paint()
     end)
     widget.letterbox:SetPoint("TOPLEFT", visible, "TOPLEFT", 0, y - 48)
+    widget.readyCooldownsOnly = Setup.Choice(visible, "Cooldown manager: show only ready cooldowns", function()
+        Setup.draft.readyCooldownsOnly = not Setup.draft.readyCooldownsOnly
+        Setup.Paint()
+    end)
+    widget.readyCooldownsOnly:SetPoint("TOPLEFT", visible, "TOPLEFT", 0, y - 72)
 
     local bars = widget.pages[3]
     widget.groupHeader = Setup.Section(bars, "Fade together")

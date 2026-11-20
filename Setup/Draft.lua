@@ -23,6 +23,7 @@ local function ReadDraft(source)
     Setup.draft.groupAuras = source.groupAuras ~= false
     Setup.draft.alwaysShowDebuffs = source.alwaysShowDebuffs ~= false
     Setup.draft.showPlayerFrameInParty = source.showPlayerFrameInParty == true
+    Setup.draft.readyCooldownsOnly = source.readyCooldownsOnly == true
     Setup.draft.forceFramesInInstance = source.forceFramesInInstance ~= false
     Setup.draft.chat = source.chat ~= false
     Setup.draft.letterbox = source.letterbox ~= false
@@ -135,6 +136,7 @@ local function DraftSettings()
     end
     if not Setup.draft.alwaysShowDebuffs then db.alwaysShowDebuffs = false end
     if Setup.draft.showPlayerFrameInParty then db.showPlayerFrameInParty = true end
+    if Setup.draft.readyCooldownsOnly then db.readyCooldownsOnly = true end
     if not Setup.draft.forceFramesInInstance then db.forceFramesInInstance = false end
     if not Setup.draft.letterbox then db.letterbox = false end
     if not Setup.draft.combatZoom then db.combatZoom = false end
