@@ -25,6 +25,15 @@ end
 local microButtons = {}
 local microBuilt = false
 local microSeen = {}
+-- What hover is read on: the micro buttons and the bag bar's frames. Built with the button
+-- list, so an update never walks the bag bar's children.
+local hoverTargets = {}
+-- The catcher's corners are read again only after a build: its anchors follow the buttons.
+local catcherDirty = true
+
+local function AddHoverTarget(frame)
+    hoverTargets[#hoverTargets + 1] = frame
+end
 
 -- Names and frames share the seen set, so a button listed both ways is kept once.
 local function AddMicro(frame, key)
@@ -52,6 +61,10 @@ local function BuildMicroButtons()
         end
     end
     for key in pairs(microSeen) do microSeen[key] = nil end
+    for i = #hoverTargets, 1, -1 do hoverTargets[i] = nil end
+    for i = 1, #microButtons do hoverTargets[i] = microButtons[i] end
+    pcall(ns.EachBagFrame, AddHoverTarget)
+    catcherDirty = true
     microBuilt = true
 end
 
@@ -152,8 +165,11 @@ local function PlaceMicroCatcher()
     if not box then return end
     if not ns.DB().enabled or ns.InEditMode() then
         box:Hide()
+        catcherDirty = true
         return
     end
+    if not catcherDirty then return end
+    catcherDirty = false
     local tl, br = MicroCorner()
     if not tl then
         box:Hide()
@@ -186,14 +202,9 @@ end
 -- The bag bar sits beside the micro menu and fades with it.
 local function MicroHot()
     if microCatcher and ns.Hit(microCatcher) then return true end
-    local bagHot = false
-    ns.EachBagFrame(function(frame)
-        if not bagHot and ns.Hit(frame) then bagHot = true end
-    end)
-    if bagHot then return true end
-    local list = MicroList()
-    for i = 1, #list do
-        if ns.Hit(list[i]) then return true end
+    MicroList()
+    for i = 1, #hoverTargets do
+        if ns.Hit(hoverTargets[i]) then return true end
     end
     return false
 end
