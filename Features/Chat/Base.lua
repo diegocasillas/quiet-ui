@@ -93,6 +93,27 @@ local function ChatCount()
 end
 Chat.ChatCount = ChatCount
 
+-- Private to Features/Chat: state that several files read and write.
+Chat.state = Chat.state or {}
+
+-- Per-frame paths look windows up by index; the global names are built once.
+local windowNames = { [""] = {}, Tab = {}, EditBox = {} }
+
+function Chat.Window(i, part)
+    local list = windowNames[part or ""]
+    local name = list[i]
+    if not name then
+        name = "ChatFrame" .. i .. (part or "")
+        list[i] = name
+    end
+    return _G[name]
+end
+
+-- A window was shown or hidden, or an input box changed focus: the next frame runs a full pass.
+function Chat.Wake()
+    Chat.state.calmUntil = nil
+end
+
 local function StripTab(tab)
     if not tab or not ns.DB().enabled or not ns.ModernChat() then return end
     local marked = ns.MarkingChat
