@@ -7,7 +7,7 @@ local TABS = {
     { id = "visible", label = "Visible", height = 290 },
     { id = "bars", label = "Bars", height = 308 },
     { id = "groups", label = "Groups", height = 320 },
-    { id = "player", label = "Player", height = 292 },
+    { id = "player", label = "Player", height = 192 },
     { id = "chat", label = "Chat", height = 72 },
     { id = "info", label = "Info", height = 148 },
 }
@@ -639,25 +639,6 @@ local function CreateSetup()
         Setup.Paint()
     end)
     widget.showPlayerFrameInParty:SetPoint("TOPLEFT", player, "TOPLEFT", 0, -164)
-    widget.rangeHeader = Setup.Section(player, "Range")
-    widget.rangeHeader:SetPoint("TOPLEFT", player, "TOPLEFT", 0, -190)
-    widget.range = Setup.Choice(player, "In range", function()
-        Setup.draft.range = not Setup.draft.range
-        Setup.Paint()
-    end)
-    widget.range:SetPoint("TOPLEFT", player, "TOPLEFT", 0, -210)
-    widget.rangeYards = Setup.Stepper(player, "Within", function(sign)
-        Setup.NudgeRangeYards(sign)
-    end)
-    widget.rangeYards:SetPoint("TOPLEFT", player, "TOPLEFT", 0, -234)
-    widget.rangeYards.value:SetWidth(92)
-    widget.rangeKind = Setup.Stepper(player, "Who", function()
-        Setup.NudgeRangeKind()
-    end)
-    widget.rangeKind:SetPoint("TOPLEFT", player, "TOPLEFT", 0, -258)
-    widget.rangeKind.value:SetWidth(92)
-    widget.rangeSpell = Setup.SpellField(player)
-    widget.rangeSpell:SetPoint("TOPLEFT", player, "TOPLEFT", 0, -282)
 
     local chat = widget.pages[6]
     widget.chatHeader = Setup.Section(chat, "Chat")

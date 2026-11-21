@@ -103,10 +103,6 @@ local function RestoreAll()
     if ns.Faders and ns.Faders.RestoreCooldownIcons then ns.Faders.RestoreCooldownIcons() end
     if ns.Faders and ns.Faders.RestorePet then ns.Faders.RestorePet() end
     ns.HideQuestCatcher()
-    ns.HideRangeMark()
-    -- Target and action bar events stop while off.
-    if ns.ForgetRangeSlot then ns.ForgetRangeSlot() end
-    if ns.ForgetRangePlate then ns.ForgetRangePlate() end
     ns.HideBarCatchers()
     ns.ResetMenu()
     ns.RestoreChat()
@@ -289,18 +285,7 @@ end
 
 function handlers.PLAYER_TARGET_CHANGED()
     ns.RefreshWorld()
-    ns.ForgetRangePlate()
 end
-
-function handlers.NAME_PLATE_UNIT_REMOVED()
-    ns.ForgetRangePlate()
-end
-
-function handlers.ACTIONBAR_SLOT_CHANGED()
-    ns.ForgetRangeSlot()
-end
-
-handlers.SPELLS_CHANGED = handlers.ACTIONBAR_SLOT_CHANGED
 
 function handlers.UNIT_FLAGS(unit)
     if unit == "target" then ns.RefreshWorld() end
@@ -415,8 +400,6 @@ events:SetScript("OnUpdate", function(_, elapsed)
     if ns.ModernChat() then
         Run("bubbles", ns.UpdateChat, elapsed)
     end
-    -- Range changes while you walk, with no focus or cursor change, so it cannot wait for a rescan.
-    Run("range", ns.UpdateRange, elapsed)
     -- A HUD change (combat, a quest reward...) still runs it on its own frame.
     smoothAcc = smoothAcc + elapsed
     if hud or smoothAcc >= SMOOTH_STEP then

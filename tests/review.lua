@@ -476,29 +476,6 @@ test('Damage meter follows combat, instance, group, edit mode and grace only', f
     DamageMeter = nil
 end)
 
-test('Range mark detaches after fading and stops nameplate lookups', function()
-    local ns = namespace()
-    loadAddon('Faders.lua', ns)
-    ns.Range = function() return 'spell', 'hostile', 'Test' end
-    UnitExists = function() return true end
-    UnitIsDeadOrGhost = function() return false end
-    C_Spell = { IsSpellInRange = function() return true end }
-    local plate, health = frame(UIParent), frame()
-    plate.UnitFrame = { healthBar = health, IsShown = function() return true end }
-    local lookups = 0
-    C_NamePlate = { GetNamePlateForUnit = function() lookups = lookups + 1; return plate end }
-    local mark
-    CreateFrame = function() mark = frame(UIParent); return mark end
-    ns.UpdateRange(0.1)
-    assert(mark.shown and mark.parent == health and mark.alpha == 1)
-    ns.Range = function() end
-    ns.UpdateRange(0.3)
-    assert(not mark.shown and mark.parent == UIParent, 'Invisible gradient stayed on nameplate')
-    local before = lookups
-    for i = 1, 60 do ns.UpdateRange(1 / 60) end
-    assert(lookups == before, 'Hidden gradient still scanned nameplate')
-end)
-
 test('Core texture traversal reads the region list once', function()
     local ns = namespace()
     local root = frame()
@@ -557,7 +534,6 @@ test('Show-all transitions recalculate bars even with a stationary pointer', fun
     ns.ConsumeHud = function() return false end
     ns.UpdateFaders = function() end
     ns.UpdateMenuButton = function() end
-    ns.UpdateRange = function() end
     ns.UpdateSmooth = function() end
     ns.UpdateChat = function() end
     ns.ForgetCursor = function() end
@@ -600,7 +576,7 @@ test('Show-all transitions recalculate bars even with a stationary pointer', fun
     assert(not PuroCineDB.enabled, 'Glance command enabled the addon')
     PuroCineDB.enabled = true
     SlashCmdList.PUROCINE('glance')
-    for _, name in ipairs({ 'HideQuestCatcher', 'HideRangeMark', 'HideBarCatchers',
+    for _, name in ipairs({ 'HideQuestCatcher', 'HideBarCatchers',
         'ResetMenu', 'RestoreChat', 'RestoreAlpha' }) do
         ns[name] = function() end
     end

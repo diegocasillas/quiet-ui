@@ -89,31 +89,6 @@ local function Paint()
     if Setup.frame.fade then
         Setup.frame.fade.value:SetText(Setup.FadeText(Setup.draft.chatFade))
     end
-    if Setup.frame.range then
-        Setup.PaintBox(Setup.frame.range.box, Setup.draft.range)
-    end
-    if Setup.frame.rangeYards then
-        Setup.frame.rangeYards.value:SetText(Setup.RangeYardsText(Setup.draft.rangeYards))
-    end
-    if Setup.frame.rangeKind then
-        Setup.frame.rangeKind.value:SetText(Setup.RangeKindText(Setup.draft.rangeKind))
-    end
-    if Setup.frame.rangeSpell then
-        if Setup.draft.rangeYards == "spell" then
-            Setup.frame.rangeSpell:Show()
-        else
-            if Setup.frame.rangeSpell.edit and Setup.frame.rangeSpell.edit:HasFocus() then
-                Setup.frame.rangeSpell.edit:ClearFocus()
-            end
-            Setup.frame.rangeSpell:Hide()
-        end
-        if Setup.frame.rangeSpell.edit and not Setup.frame.rangeSpell.edit:HasFocus() then
-            local text = Setup.draft.rangeSpell or ""
-            if Setup.frame.rangeSpell.edit:GetText() ~= text then
-                Setup.frame.rangeSpell.edit:SetText(text)
-            end
-        end
-    end
     if Setup.frame.groupRows then
         for _, row in ipairs(Setup.frame.groupRows) do
             row.value:SetText(tostring(Setup.draft.groups[row.id]))

@@ -75,28 +75,6 @@ local function NudgeFade(delta)
 end
 Setup.NudgeFade = NudgeFade
 
-local function NudgeRangeYards(sign)
-    local index = 3
-    for i, yards in ipairs(Setup.RANGE_YARDS) do
-        if yards == Setup.draft.rangeYards then
-            index = i
-            break
-        end
-    end
-    index = index + sign
-    if index < 1 then index = #Setup.RANGE_YARDS end
-    if index > #Setup.RANGE_YARDS then index = 1 end
-    Setup.draft.rangeYards = Setup.RANGE_YARDS[index]
-    Setup.Paint()
-end
-Setup.NudgeRangeYards = NudgeRangeYards
-
-local function NudgeRangeKind()
-    Setup.draft.rangeKind = Setup.draft.rangeKind == "friendly" and "hostile" or "friendly"
-    Setup.Paint()
-end
-Setup.NudgeRangeKind = NudgeRangeKind
-
 local function NudgeGroup(id, delta)
     local n = (Setup.draft.groups[id] or 1) + delta
     local max = #ns.BAR_ROWS
@@ -159,61 +137,6 @@ local function Stepper(parent, label, onDelta)
     return row
 end
 Setup.Stepper = Stepper
-
--- Empty means bar 1. Escape only leaves the field, so the window stays open.
-local function SpellField(parent)
-    local row = CreateFrame("Frame", nil, parent)
-    row:SetSize(Setup.CONTENT_W, 22)
-    row.label = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    row.label:SetPoint("LEFT", 2, 0)
-    row.label:SetText("Spell")
-    local box = Setup.Backdropped("EditBox", nil, row)
-    box:SetSize(144, 22)
-    box:SetPoint("RIGHT", 0, 0)
-    box:SetFontObject("GameFontHighlightSmall")
-    box:SetAutoFocus(false)
-    box:SetMaxLetters(48)
-    box:SetTextInsets(6, 6, 0, 0)
-    box:SetJustifyH("LEFT")
-    if box.SetTextColor then box:SetTextColor(1, 0.95, 0.8, 1) end
-    local gold = Setup.GoldEdge(box)
-    if not gold then Setup.Flat(box, 0.9) end
-    box._puroCineGold = gold and true or false
-    local hint = box:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
-    hint:SetPoint("LEFT", 6, 0)
-    hint:SetText("Bar 1")
-    box.hint = hint
-    local function ShowHint(self)
-        local text = self:GetText() or ""
-        if text == "" and not self:HasFocus() then
-            hint:Show()
-        else
-            hint:Hide()
-        end
-    end
-    box:SetScript("OnTextChanged", function(self)
-        Setup.draft.rangeSpell = self:GetText() or ""
-        ShowHint(self)
-    end)
-    box:SetScript("OnEditFocusGained", function(self)
-        ShowHint(self)
-        if self._puroCineGold and self.SetBackdropBorderColor then
-            self:SetBackdropBorderColor(1, 0.86, 0.4, 1)
-        end
-    end)
-    box:SetScript("OnEditFocusLost", function(self)
-        ShowHint(self)
-        if self._puroCineGold and self.SetBackdropBorderColor then
-            self:SetBackdropBorderColor(0.75, 0.6, 0.28, 0.95)
-        end
-    end)
-    box:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
-    box:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
-    ShowHint(box)
-    row.edit = box
-    return row
-end
-Setup.SpellField = SpellField
 
 local function PercentField(parent, label, key)
     local row = CreateFrame("Frame", nil, parent)

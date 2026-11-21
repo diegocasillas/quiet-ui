@@ -40,22 +40,6 @@ local function FadeText(seconds)
 end
 Setup.FadeText = FadeText
 
-local RANGE_YARDS = { 10, 28, "spell" }
-Setup.RANGE_YARDS = RANGE_YARDS
-
-local function RangeYardsText(yards)
-    if yards == 10 then return "10" end
-    if yards == 28 then return "28" end
-    return "Spell"
-end
-Setup.RangeYardsText = RangeYardsText
-
-local function RangeKindText(kind)
-    if kind == "friendly" then return "Friendly" end
-    return "Unfriendly"
-end
-Setup.RangeKindText = RangeKindText
-
 local function Flat(widget, alpha)
     if not widget.SetBackdrop then return end
     widget:SetBackdrop({
