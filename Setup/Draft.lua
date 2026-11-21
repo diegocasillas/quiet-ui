@@ -3,7 +3,6 @@ local Setup = ns.Setup or {}
 ns.Setup = Setup
 
 local function ReadDraft(source)
-    if Setup.frame and Setup.frame.rangeSpell and Setup.frame.rangeSpell.edit:HasFocus() then Setup.frame.rangeSpell.edit:ClearFocus() end
     source = source or (ns.Settings and ns.Settings() or ns.CharDB())
     if ns.MigrateOnce then ns.MigrateOnce(source) end
     Setup.draft.hoverOnly = {}
@@ -47,11 +46,6 @@ local function ReadDraft(source)
     if Setup.frame and Setup.frame.defaultZoomPercent then Setup.frame.defaultZoomPercent.edit:ClearFocus() end
     local fade = source.chatFade
     Setup.draft.chatFade = type(fade) == "number" and fade == fade and math.floor(math.max(0, math.min(60, fade)) / 5) * 5 or 10
-    local range = type(source.range) == "table" and source.range or {}
-    Setup.draft.range = range.yards == 10 or range.yards == 28 or range.yards == "spell"
-    Setup.draft.rangeYards = Setup.draft.range and range.yards or "spell"
-    Setup.draft.rangeKind = range.kind == "friendly" and "friendly" or "hostile"
-    Setup.draft.rangeSpell = type(range.spell) == "string" and not ns.IsSecret(range.spell) and range.spell or ""
     Setup.draft.groupVisibility = {}
     for group = 1, #ns.BAR_ROWS do
         Setup.draft.groupVisibility[group] = ns.GroupMode(source, group)
@@ -170,16 +164,6 @@ local function DraftSettings()
         db.chatFade = nil
     else
         db.chatFade = Setup.draft.chatFade
-    end
-    if Setup.draft.range then
-        local spell = type(Setup.draft.rangeSpell) == "string" and Setup.draft.rangeSpell:match("^%s*(.-)%s*$") or ""
-        db.range = {
-            yards = Setup.draft.rangeYards or "spell",
-            kind = Setup.draft.rangeKind == "friendly" and "friendly" or "hostile",
-        }
-        if spell ~= "" then db.range.spell = spell end
-    else
-        db.range = nil
     end
     local groups
     for _, row in ipairs(ns.BAR_ROWS) do

@@ -3,8 +3,7 @@ local Faders = ns.Faders or {}
 ns.Faders = Faders
 
 -- Non-bar frames that fade: XP bar, cooldown manager, personal resource bar,
--- damage meter, the player frame, the pet frame, the quest tracker, buffs,
--- and the range gradient on the target nameplate.
+-- damage meter, the player frame, the pet frame, the quest tracker and buffs.
 
 local STATUS_NAMES = {
     "StatusTrackingBarManager",

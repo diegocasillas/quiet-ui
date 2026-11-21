@@ -1,7 +1,7 @@
 -- Run from the addon directory: lua tests/presets.lua
 local ns = {}
 PuroCineDB = {}
-PuroCineCharDB = { chat = false, range = { yards = 28 } }
+PuroCineCharDB = { chat = false }
 ns.DB = function() return PuroCineDB end
 ns.CharDB = function() return PuroCineCharDB end
 local file = io.open('Settings/Presets.lua', 'r')

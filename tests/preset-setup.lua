@@ -43,8 +43,7 @@ dofile('tests/addon.lua')('Presets.lua', ns)
 dofile('tests/addon.lua')('Setup.lua', ns)
 local id = ns.SavePreset(nil, 'Healer', { chat = false, chatFade = 0, groupAuras = false, player = 'resource',
     requireLivingTarget = true, visible = { bars = true, swing = true },
-    groups = { ['1'] = 2 }, hostile = { ['1'] = true }, friendly = { ['2'] = true },
-    range = { yards = 'spell', kind = 'friendly', spell = 'Heal' } })
+    groups = { ['1'] = 2 }, hostile = { ['1'] = true }, friendly = { ['2'] = true } })
 ns.ShowSetup()
 local ui = PuroCineSetup
 assert(ui.presetSelector, 'General has no preset selector')
@@ -62,7 +61,6 @@ assert(PuroCineCharDB.requireLivingTarget and (not PuroCineCharDB.visible
 assert(PuroCineCharDB.groupVisibility[1] == 'always' and PuroCineCharDB.groupVisibility[2] == 'always'
     and PuroCineCharDB.groupVisibility[10] == 'always', 'Legacy bar pins were not migrated')
 assert(PuroCineCharDB.groups['1'] == 2 and PuroCineCharDB.hostile['1'] and PuroCineCharDB.friendly['2'])
-assert(PuroCineCharDB.range.spell == 'Heal' and PuroCineCharDB.range.kind == 'friendly')
 ui.presetSelector.scripts.OnClick(); ui.presetMenu.items[1].scripts.OnClick(); ui.save.scripts.OnClick()
 assert(not PuroCineCharDB.presetId and PuroCineCharDB.chat == false, 'Detach preserves settings')
 ns.ActivatePreset(id); ns.ShowSetup(); ui.reset.scripts.OnClick()

@@ -9,7 +9,7 @@ local minimal = ns.SavePreset(nil, 'Minimal', { chat = false })
 ns.ModernChat = function() return false end
 for _, key in ipairs({ 'RefreshWorld', 'RefreshChrome', 'RestoreChat',
     'NextFadeTick', 'BeginTick', 'UpdateBars', 'UpdateFaders', 'UpdateMenuButton',
-    'UpdateBagSlots', 'HideQuestCatcher', 'HideRangeMark', 'HideBarCatchers',
+    'UpdateBagSlots', 'HideQuestCatcher', 'HideBarCatchers',
     'ResetMenu', 'RestoreAlpha', 'ForgetCursor', 'NoteCombat', 'MarkCombatEnd' }) do ns[key] = function() end end
 ns.Report = function(_, err) error(err) end
 ns.ShowAll = function() return false end

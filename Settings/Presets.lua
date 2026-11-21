@@ -3,7 +3,7 @@ local _, ns = ...
 local snapshotChar, snapshotPreset
 
 local KEYS = { "visible", "hoverOnly", "groupVisibility", "player", "playerThresholdKind", "playerThresholdPercent", "requireLivingTarget", "groupAuras", "alwaysShowDebuffs", "showPlayerFrameInParty", "readyCooldownsOnly",
-    "chat", "chatFade", "groups", "hostile", "friendly", "range", "forceFramesInInstance", "letterbox", "combatZoom",
+    "chat", "chatFade", "groups", "hostile", "friendly", "forceFramesInInstance", "letterbox", "combatZoom",
     "combatZoomPercent", "fishingZoom", "fishingZoomPercent", "defaultZoom", "defaultZoomPercent", "rememberZoom" }
 
 function ns.Copy(value)

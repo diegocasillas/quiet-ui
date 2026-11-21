@@ -168,18 +168,3 @@ function ns.ChatFade()
     if n > 60 then n = 60 end
     return math.floor(n / 5) * 5
 end
-
--- Missing means off. yards is 10, 28, or "spell". kind is "hostile" or "friendly".
--- spell is an optional name. Missing means the longest matching spell on bar 1.
-function ns.Range()
-    local range = (ns.Settings and ns.Settings() or ns.CharDB()).range
-    if type(range) ~= "table" then return nil end
-    local yards = range.yards
-    if yards ~= 10 and yards ~= 28 and yards ~= "spell" then return nil end
-    local kind = range.kind == "friendly" and "friendly" or "hostile"
-    local spell = range.spell
-    if type(spell) ~= "string" or ns.IsSecret(spell) then return yards, kind end
-    spell = spell:match("^%s*(.-)%s*$")
-    if not spell or spell == "" then return yards, kind end
-    return yards, kind, spell
-end
