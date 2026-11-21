@@ -274,8 +274,8 @@ function Faders.UpdateCooldownIcons(elapsed)
         if next(held) or next(targets) then Faders.RestoreCooldownIcons() end
         return
     end
-    -- Edit Mode and Glance show every icon, ready or not.
-    local all = ns.InEditMode() or ns.Glancing()
+    -- Edit Mode shows every icon, ready or not; Glance does not.
+    local all = ns.InEditMode()
     local now = GetTime()
     local since = now - lastScan
     if (dirty and since >= MIN_GAP) or since >= SAFETY or (wakeAt and now >= wakeAt) then
